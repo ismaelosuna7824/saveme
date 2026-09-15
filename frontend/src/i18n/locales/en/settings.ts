@@ -9,11 +9,13 @@ export const settings = {
     appearance: 'appearance',
     agents: 'ai clients',
     workspace: 'workspace',
+    app: 'the application',
   },
   navHint: {
     appearance: 'language, theme and editor',
     agents: 'ai clients',
     workspace: 'root and index',
+    app: 'version and updates',
   },
   appearance: {
     opacity: {
@@ -28,6 +30,12 @@ export const settings = {
       hint: 'stored in config.theme',
       activated: '{name} theme enabled',
       option: {
+      ember: { name: 'Ember', description: 'orange on slate blue, with colourful tags' },
+      kanagawa: { name: 'Kanagawa', description: 'the great wave blue over ink' },
+      dracula: { name: 'Dracula', description: 'the violet classic on charcoal' },
+      'tokyo-night': { name: 'Tokyo Night', description: 'cold blues and soft neon' },
+      catppuccin: { name: 'Catppuccin', description: 'warm pastels on mocha' },
+      onedark: { name: 'One Dark', description: 'the editor theme you already know' },
         phosphor: {
           name: 'phosphor',
           description: 'Amber on black with the subtle scanline effect.',
@@ -73,7 +81,7 @@ export const settings = {
           name: 'plain',
           description: 'The same scheme as phosphor, without the scanline effect.',
         },
-      },
+    },
       unknown:
         'The config has a theme this version does not know: {theme}. Pick one above to replace it.',
     },
@@ -102,6 +110,13 @@ export const settings = {
       description: 'Long lines wrap instead of running off the side.',
       on: 'Line wrapping enabled',
       off: 'Line wrapping disabled',
+    },
+    vim: {
+      label: 'vim mode',
+      description:
+        'Vim modal keys —normal, insert, visual— in the notes editor only. While it is on, letters are commands until you press i.',
+      on: 'Vim mode enabled',
+      off: 'Vim mode disabled',
     },
     previewMode: {
       label: 'default view mode',
@@ -143,6 +158,19 @@ export const settings = {
       other: 'will write {count} clients',
     },
   },
+  app: {
+    title: 'application',
+    unknownVersion: 'unknown version',
+    blurb:
+      'The app checks for a new version when it opens and, if there is one, tells you and installs it from inside. Updates are signed and the signature is verified before installing; here you can ask by hand whenever you want.',
+    available: 'there is a new version: v{version}',
+    upToDate: 'you are up to date',
+    checkFailed: "couldn't check for new versions",
+    installNow: 'update now',
+    check: 'check for updates',
+    checking: 'checking…',
+    signed: 'signed and verified before installing',
+  },
   binary: {
     title: 'mcp server',
     pending: 'not installed yet',
@@ -163,10 +191,10 @@ export const settings = {
     outOfSyncBadge: 'out of date',
     outOfSyncTitle: 'your MCP clients are launching an old copy',
     outOfSyncBody:
-      'The installed copy is {installed} and the app is {self}. The updater replaces the binary inside the app, not this copy, so your agents would keep using the old tools against a new app.',
+      'The installed copy is {installed} and the app is {self}. It is brought up to date on startup; if you still see this, it could not be replaced — usually because an MCP client had it open at the time.',
     outOfSyncUnreadable:
-      "I couldn't read the installed copy's version, so I don't know whether it's up to date. Reinstalling fixes it either way.",
-    outOfSyncAction: 'update the copy',
+      "I couldn't read the installed copy's version, so I don't know whether it's up to date. It gets replaced on startup; if you still see this, it couldn't be.",
+    outOfSyncAction: 'try again now',
   },
   workspace: {
     title: 'workspace',

@@ -8,6 +8,10 @@ export const inbox = {
     hint: 'Create the first one: SaveMe will generate the 9 category folders inside.',
   },
   pending: {
+    expiredTitle: 'expired confirmations',
+    noneExpired: 'none expired',
+    tabPending: 'pending',
+    tabExpired: 'expired',
     title: 'pending confirmations',
     waiting: '{count} waiting for a decision',
     none: 'nothing pending',
@@ -33,13 +37,39 @@ export const inbox = {
     expired: 'expired',
     minutesLeft: 'expires in {count} min',
     at: 'expires {when}',
-    expiredHint: 'The proposal expired: ask the agent to propose it again.',
+    expiredHint:
+      'The deadline passed, but the summary is still intact and you can approve it anyway.',
   },
   whyCategory: 'why this category',
   orSaveIn: 'or save it in',
   filesTouched: {
     one: '{count} file',
     other: '{count} files',
+  },
+  alert: {
+    title: 'pending confirmation',
+    body: 'An agent left a summary waiting for your approval. It expires in 15 minutes.',
+  },
+  tags: {
+    title: 'tags',
+    count: {
+      one: '{count} in use',
+      other: '{count} in use',
+    },
+    empty: 'None yet. They are set when a summary is proposed.',
+  },
+  digest: {
+    title: 'this week',
+    counts: {
+      one: '{count} summary across {projects} project',
+      other: '{count} summaries across {projects} projects',
+    },
+    days: {
+      one: '{count} day',
+      other: '{count} days',
+    },
+    empty: 'Nothing written in the last {count} days.',
+    failed: "couldn't read the last few days",
   },
   diff: {
     tabProposal: 'proposal',

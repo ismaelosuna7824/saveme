@@ -1,5 +1,5 @@
 import { Link, useRouterState } from '@tanstack/react-router'
-import { Inbox, FolderGit2 } from 'lucide-react'
+import { Inbox, FolderGit2, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 
 import { useProjects, useStats } from '@/api/queries'
 import type { Project } from '@/api/types'
@@ -8,6 +8,8 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { NotesTree } from '@/features/notes/NotesTree'
 import { formatRelative } from '@/lib/format'
+import { Button } from '@/components/ui/button'
+import { useUi } from '@/app/preferences'
 import { useT } from '@/i18n'
 import { cn } from '@/lib/utils'
 
@@ -32,6 +34,7 @@ function ProjectLink({ project, active }: { project: Project; active: boolean })
 
 /** Navegación lateral: inbox + proyectos. */
 export function ProjectSidebar() {
+  const { sidebarCollapsed, setSidebarCollapsed } = useUi()
   const t = useT()
   const projects = useProjects()
   const stats = useStats()
@@ -42,24 +45,54 @@ export function ProjectSidebar() {
     ? decodeURIComponent(pathname.slice('/notes/'.length))
     : null
 
+  // Plegado: queda una franja con el botón para volver. No se oculta el panel del
+  // todo porque entonces no habría forma de recuperarlo sin saber el atajo.
+  if (sidebarCollapsed) {
+    return (
+      <aside className="flex w-9 shrink-0 flex-col items-center border-r border-border bg-panel py-2">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => setSidebarCollapsed(false)}
+          title={t('shell.sidebar.expand')}
+          aria-label={t('shell.sidebar.expand')}
+        >
+          <PanelLeftOpen className="size-3" />
+        </Button>
+      </aside>
+    )
+  }
+
   return (
     <aside className="flex w-56 shrink-0 flex-col border-r border-border bg-panel">
       <nav className="flex flex-col py-1">
-        <Link
-          to="/"
-          className={cn(
-            'flex items-center gap-2 border-l-2 px-3 py-1.5 text-xs transition-colors',
-            inInbox
-              ? 'border-primary bg-accent text-primary'
-              : 'border-transparent text-muted-foreground hover:bg-accent/60 hover:text-foreground',
-          )}
-        >
-          <Inbox className="size-3.5" />
-          <span className="flex-1">{t('shell.nav.inbox')}</span>
-          {stats.data && stats.data.pending_proposals > 0 ? (
-            <Badge variant="default">{stats.data.pending_proposals}</Badge>
-          ) : null}
-        </Link>
+        <div className="flex items-center">
+          <Link
+            to="/"
+            className={cn(
+              'flex min-w-0 flex-1 items-center gap-2 border-l-2 px-3 py-1.5 text-xs transition-colors',
+              inInbox
+                ? 'border-primary bg-accent text-primary'
+                : 'border-transparent text-muted-foreground hover:bg-accent/60 hover:text-foreground',
+            )}
+          >
+            <Inbox className="size-3.5" />
+            <span className="flex-1">{t('shell.nav.inbox')}</span>
+            {stats.data && stats.data.pending_proposals > 0 ? (
+              <Badge variant="default">{stats.data.pending_proposals}</Badge>
+            ) : null}
+          </Link>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="mr-1 shrink-0"
+            onClick={() => setSidebarCollapsed(true)}
+            title={t('shell.sidebar.collapse')}
+            aria-label={t('shell.sidebar.collapse')}
+          >
+            <PanelLeftClose className="size-3" />
+          </Button>
+        </div>
       </nav>
 
       {/* Las notas van arriba del todo: son lo que más se usa y no dependen de

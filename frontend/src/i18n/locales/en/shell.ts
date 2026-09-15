@@ -17,9 +17,19 @@ export const shell = {
     paletteHint: 'Command palette',
   },
   sidebar: {
+    expand: 'Expand the panel',
+    collapse: 'Collapse the panel',
     empty: 'No projects yet. Create one from the palette (⌘K) or from the inbox.',
     lastActivity: 'last activity {when}',
     waiting: 'waiting for projects',
+  },
+  shortcuts: {
+    title: 'keyboard shortcuts',
+    palette: 'Open the command palette',
+    cycleMode: 'Change the editor mode',
+    save: 'Save (with the editor open)',
+    help: 'This list',
+    close: 'Close whatever is open',
   },
   theme: {
     changed: 'Theme: {name}',

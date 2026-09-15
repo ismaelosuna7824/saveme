@@ -22,9 +22,19 @@ export const shell = {
     paletteHint: 'Paleta de comandos',
   },
   sidebar: {
+    expand: 'Desplegar el panel',
+    collapse: 'Plegar el panel',
     empty: 'Sin proyectos todavía. Crea uno desde la paleta (⌘K) o desde el inbox.',
     lastActivity: 'último movimiento {when}',
     waiting: 'esperando proyectos',
+  },
+  shortcuts: {
+    title: 'atajos de teclado',
+    palette: 'Abrir la paleta de comandos',
+    cycleMode: 'Cambiar el modo del editor',
+    save: 'Guardar (con el editor abierto)',
+    help: 'Esta lista',
+    close: 'Cerrar lo que esté abierto',
   },
   theme: {
     changed: 'Tema: {name}',

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowLeft, Copy, Paperclip, Save, Trash2 } from 'lucide-react'
+import { ArrowLeft, Copy, Paperclip, Save, Trash2, Tag } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { errorMessage } from '@/api/client'
@@ -34,6 +34,8 @@ export interface EditorToolbarProps {
   onBack: () => void
   /** Se llama tras borrar, para que la página decida a dónde ir. */
   onDeleted?: () => void
+  /** Abre el diálogo para corregir categoría y título. */
+  onEditMeta?: () => void
 }
 
 /**
@@ -54,6 +56,7 @@ function elapsed(now: number, since: number): { key: TranslationKey; count: numb
 export function EditorToolbar({
   meta,
   titleDraft,
+  onEditMeta,
   onTitleChange,
   wordCount,
   dirty,
@@ -130,6 +133,17 @@ export function EditorToolbar({
 
         <CategoryBadge category={meta.category} withDescription />
         <StatusBadge status={meta.status} />
+        {onEditMeta !== undefined ? (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={onEditMeta}
+            title={t('editor.meta.title')}
+            aria-label={t('editor.meta.title')}
+          >
+            <Tag className="size-3" />
+          </Button>
+        ) : null}
         <ModeSwitch mode={mode} onChange={onModeChange} />
 
         <Button

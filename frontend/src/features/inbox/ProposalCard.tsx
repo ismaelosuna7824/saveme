@@ -225,7 +225,7 @@ export function ProposalCard({ proposal }: { proposal: Proposal }) {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 border-t border-border pt-2">
-          <Button size="sm" onClick={accept} disabled={busy || expired}>
+          <Button size="sm" onClick={accept} disabled={busy}>
             <Check className="size-3" />
             {confirm.isPending ? t('common.state.saving') : t('common.actions.accept')}
           </Button>

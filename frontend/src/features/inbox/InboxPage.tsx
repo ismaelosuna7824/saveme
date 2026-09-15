@@ -10,6 +10,8 @@ import { SectionHeader } from '@/components/common/SectionHeader'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ReindexButton } from '@/features/dashboard/ReindexButton'
+import { DigestPanel } from '@/features/dashboard/DigestPanel'
+import { TagsPanel } from '@/features/dashboard/TagsPanel'
 import { StatsPanel } from '@/features/dashboard/StatsPanel'
 import { ProposalCard } from '@/features/inbox/ProposalCard'
 import { NewProjectDialog } from '@/features/projects/NewProjectDialog'
@@ -24,7 +26,11 @@ import { ProjectCard } from '@/features/projects/ProjectCard'
  */
 export function InboxPage() {
   const t = useT()
-  const proposals = useProposals('pending')
+  // Las vencidas **no se borran al caducar**: su cuerpo sigue en la base hasta la
+  // purga, y una persona todavía puede aprobarlas. Sin esta salida, quince
+  // minutos de margen convertían una decisión tardía en trabajo perdido.
+  const [showExpired, setShowExpired] = useState(false)
+  const proposals = useProposals(showExpired ? 'expired' : 'pending')
   const projects = useProjects()
   const [newProjectOpen, setNewProjectOpen] = useState(false)
 
@@ -34,6 +40,8 @@ export function InboxPage() {
     <div className="grid h-full grid-cols-[21rem_minmax(0,1fr)]">
       <section className="min-h-0 space-y-4 overflow-y-auto border-r border-border p-3">
         <StatsPanel />
+        <DigestPanel />
+        <TagsPanel />
 
         <div className="space-y-2">
           <SectionHeader
@@ -86,13 +94,31 @@ export function InboxPage() {
 
       <section className="min-h-0 space-y-3 overflow-y-auto p-3">
         <SectionHeader
-          title={t('inbox.pending.title')}
+          title={showExpired ? t('inbox.pending.expiredTitle') : t('inbox.pending.title')}
           hint={
             pending.length > 0
               ? t('inbox.pending.waiting', { count: pending.length })
-              : t('inbox.pending.none')
+              : t(showExpired ? 'inbox.pending.noneExpired' : 'inbox.pending.none')
           }
-          actions={<ReindexButton />}
+          actions={
+            <div className="flex items-center gap-1">
+              <Button
+                size="sm"
+                variant={showExpired ? 'ghost' : 'outline'}
+                onClick={() => setShowExpired(false)}
+              >
+                {t('inbox.pending.tabPending')}
+              </Button>
+              <Button
+                size="sm"
+                variant={showExpired ? 'outline' : 'ghost'}
+                onClick={() => setShowExpired(true)}
+              >
+                {t('inbox.pending.tabExpired')}
+              </Button>
+              <ReindexButton />
+            </div>
+          }
         />
 
         {proposals.isLoading ? (

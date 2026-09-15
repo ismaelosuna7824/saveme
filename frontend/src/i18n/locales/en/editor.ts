@@ -1,5 +1,16 @@
 /** Textos de `editor`. Misma forma que `es/editor.ts`. */
 export const editor = {
+  meta: {
+    title: 'fix category and title',
+    description:
+      'Changing the category moves the summary to its folder. The body is not touched.',
+    titleLabel: 'title',
+    categoryLabel: 'category',
+    moves: 'It will move to another folder.',
+    save: 'save',
+    saved: 'Metadata fixed',
+    failed: "couldn't fix it",
+  },
   mode: {
     live: {
       label: 'live',
@@ -22,6 +33,9 @@ export const editor = {
     openFailed: "Couldn't open the summary",
     notFound: "Couldn't find summary {id}",
     notFoundHint: 'It may have been deleted, or the index may be out of date. Reindexing fixes it.',
+  },
+  vim: {
+    badgeTitle: 'Vim mode: letters are commands. Press i to type and Esc to go back to commands.',
   },
   toolbar: {
     backTitle: 'Back to project (Esc)',

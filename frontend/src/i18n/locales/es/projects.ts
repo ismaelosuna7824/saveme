@@ -5,6 +5,21 @@ export const projects = {
    * El `label` que viene del servidor es solo el respaldo para una categoría que
    * todavía no conozcamos. Si añades una aquí, añádela también en `en/`.
    */
+  newSummary: {
+    action: 'Escribir un resumen en este proyecto',
+    title: 'resumen nuevo',
+    description:
+      'Se guarda con la misma forma que el de un agente: mismo frontmatter, mismo índice, mismo historial.',
+    titleLabel: 'título',
+    categoryLabel: 'categoría',
+    bodyLabel: 'cuerpo (markdown)',
+    inferHint: 'Sin categoría: se deduce del texto.',
+    chosenHint: 'Pulsa otra vez para volver a deducirla.',
+    save: 'guardar',
+    saved: 'Resumen guardado',
+    already: 'Ese resumen ya estaba guardado',
+    failed: 'No pude guardarlo',
+  },
   category: {
     feature: 'Feature',
     fix: 'Fix',
@@ -77,6 +92,7 @@ export const projects = {
     doneCount: '{count} resúmenes en un solo documento',
     doneSkipped: '{count} resúmenes; {skipped} no se pudieron leer y no van en el documento',
     failed: 'No pude exportar el proyecto',
+    filterName: 'Documento markdown',
     /** Cabecera del documento: cuántos resúmenes lleva y de cuándo es. */
     docLine: {
       one: '{count} resumen · exportado el {date}',
@@ -139,5 +155,84 @@ export const projects = {
       title: 'Nada con la etiqueta #{tag}',
       hint: 'Puede que se la hayas quitado a todos, o que el índice esté viejo: prueba a reindexar desde Ajustes.',
     },
+  },
+  briefing: {
+    lastTitle: 'lo último',
+    lastHint: {
+      one: '{count} resumen en total · {active} con actividad en los últimos {days} días',
+      other: '{count} resúmenes en total · {active} con actividad en los últimos {days} días',
+    },
+    emptyTitle: 'Sin nada apuntado en {days} días',
+    emptyHint:
+      'El proyecto existe pero no tiene resúmenes recientes. Si esperabas ver algo, puede que el índice esté viejo: reindexar lo resuelve.',
+    filesTitle: 'por dónde se anduvo',
+    filesHint: 'Archivos que aparecen en los resúmenes de los últimos {days} días',
+    pendingTitle: 'esperando decisión',
+    pendingHint: 'Propuestas que nadie aprobó. Las vencidas son las que se quedaron a medias',
+    noPending: 'Nada pendiente: no hay propuestas esperando.',
+    expired: 'vencida',
+    loadFailed: 'no pude leer el briefing',
+  },
+  activity: {
+    action: 'pulso del proyecto',
+    title: 'pulso',
+    hint: {
+      one: '{count} resumen en {active} de los últimos {days} días',
+      other: '{count} resúmenes en {active} de los últimos {days} días',
+    },
+    empty: 'Todavía no hay actividad que dibujar.',
+    day: {
+      one: '{date}: {count} resumen',
+      other: '{date}: {count} resúmenes',
+    },
+    dayEmpty: '{date}: nada',
+    summary: {
+      one: '{count} resumen repartido en {active} de los últimos {days} días',
+      other: '{count} resúmenes repartidos en {active} de los últimos {days} días',
+    },
+    less: 'menos',
+    more: 'más',
+    loadFailed: 'no pude leer la actividad',
+    weekday: {
+      mon: 'lun',
+      tue: 'mar',
+      wed: 'mié',
+      thu: 'jue',
+      fri: 'vie',
+      sat: 'sáb',
+      sun: 'dom',
+    },
+    window: {
+      quarter: '90 días',
+      half: '6 meses',
+      year: 'un año',
+    },
+  },
+  changelog: {
+    action: 'sacar las notas de versión',
+    title: 'notas de versión',
+    description: 'Los resúmenes de {project} en un rango, agrupados por categoría.',
+    since: 'desde',
+    until: 'hasta (incluido)',
+    preview: {
+      one: '{count} entrada en {sections} categorías',
+      other: '{count} entradas en {sections} categorías',
+    },
+    previewEmpty: 'No hay nada apuntado en ese rango.',
+    previewFailed: 'No pude contar lo de ese rango.',
+    download: 'guardar como…',
+    filterName: 'Markdown',
+    done: 'Notas de versión guardadas',
+    doneCount: {
+      one: '{count} entrada',
+      other: '{count} entradas',
+    },
+    failed: 'No pude sacar las notas de versión',
+    docHeading: '{project} — cambios',
+    docLine: {
+      one: 'Del {from} al {to} · {count} entrada',
+      other: 'Del {from} al {to} · {count} entradas',
+    },
+    docEmpty: 'Sin cambios apuntados en este rango.',
   },
 } as const

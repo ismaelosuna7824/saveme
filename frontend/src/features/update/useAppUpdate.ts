@@ -42,11 +42,24 @@ export interface AppUpdate {
   notes: string | null
   /** 0..1 mientras descarga; `null` si el servidor no dijo cuánto pesa. */
   progress: number | null
+  /**
+   * Resultado de la última comprobación **pedida a mano**, para poder enseñarlo.
+   *
+   * La automática no tiene resultado visible a propósito —si falla, nadie tiene
+   * que enterarse—, pero cuando alguien pulsa «buscar actualizaciones» se merece
+   * una respuesta, aunque sea «ya estás al día».
+   */
+  checkState: CheckState
+  /** Vuelve a preguntar, saltándose la comprobación ya hecha. */
+  checkNow: () => void
   /** Descarga, instala y reinicia. */
   install: () => void
   /** Aparta el aviso hasta el próximo arranque. */
   dismiss: () => void
 }
+
+/** En qué quedó la última comprobación pedida a mano. */
+export type CheckState = 'idle' | 'checking' | 'up-to-date' | 'failed'
 
 /**
  * La comprobación en curso, compartida por toda la app.
@@ -57,7 +70,11 @@ export interface AppUpdate {
  */
 let pending: Promise<Update | null> | null = null
 
-function checkOnce(): Promise<Update | null> {
+function checkOnce(force = false): Promise<Update | null> {
+  // Una comprobación pedida a mano descarta la anterior: si alguien vuelve a
+  // preguntar es porque quiere la respuesta de ahora, no la de hace un rato.
+  if (force) pending = null
+
   pending ??= import('@tauri-apps/plugin-updater')
     .then((mod) => mod.check())
     .catch((err: unknown) => {
@@ -74,6 +91,7 @@ export function useAppUpdate(): AppUpdate {
   const [version, setVersion] = useState<string | null>(null)
   const [notes, setNotes] = useState<string | null>(null)
   const [progress, setProgress] = useState<number | null>(null)
+  const [checkState, setCheckState] = useState<CheckState>('idle')
 
   // El `Update` de Tauri no es serializable y no pinta nada en el estado de React:
   // vive en una ref para poder instalarlo cuando el usuario pulse el botón.
@@ -149,6 +167,35 @@ export function useAppUpdate(): AppUpdate {
     setStage('idle')
   }, [])
 
+  /**
+   * Pregunta otra vez y deja el resultado a la vista.
+   *
+   * Se descarta el «ya lo he apartado» porque quien pulsa el botón está pidiendo
+   * justo lo contrario: que le enseñen lo que haya. Y si encuentra algo, el aviso
+   * vuelve a salir.
+   */
+  const checkNow = useCallback(() => {
+    setCheckState('checking')
+    void (async () => {
+      try {
+        const found = await checkOnce(true)
+        if (found === null) {
+          updateRef.current = null
+          setCheckState('up-to-date')
+          return
+        }
+        updateRef.current = found
+        setVersion(found.version)
+        setNotes(found.body ?? null)
+        dismissedRef.current = false
+        setStage('available')
+        setCheckState('idle')
+      } catch {
+        setCheckState('failed')
+      }
+    })()
+  }, [])
+
   // `dismissedRef` no dispara renders a propósito: descartar es una decisión para
   // lo que queda de sesión, no un dato que la interfaz tenga que volver a leer.
   return {
@@ -156,6 +203,8 @@ export function useAppUpdate(): AppUpdate {
     version,
     notes,
     progress,
+    checkState,
+    checkNow,
     install,
     dismiss,
   }

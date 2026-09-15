@@ -9,11 +9,13 @@ export const settings = {
     appearance: 'apariencia',
     agents: 'clientes de IA',
     workspace: 'workspace',
+    app: 'la aplicación',
   },
   navHint: {
     appearance: 'idioma, tema y editor',
     agents: 'clientes de IA',
     workspace: 'raíz e índice',
+    app: 'versión y actualizaciones',
   },
   appearance: {
     opacity: {
@@ -28,6 +30,12 @@ export const settings = {
       hint: 'se guarda en config.theme',
       activated: 'Tema {name} activado',
       option: {
+      ember: { name: 'ember', description: 'naranja sobre azul pizarra, con las etiquetas de colores' },
+      kanagawa: { name: 'kanagawa', description: 'el azul de la gran ola sobre tinta' },
+      dracula: { name: 'drácula', description: 'el clásico violeta sobre carbón' },
+      'tokyo-night': { name: 'tokyo night', description: 'azules fríos y neón suave' },
+      catppuccin: { name: 'catppuccin', description: 'pasteles cálidos sobre mocha' },
+      onedark: { name: 'one dark', description: 'el tema del editor de siempre' },
         phosphor: {
           name: 'fósforo',
           description: 'Ámbar sobre negro con el efecto sutil de scanline.',
@@ -73,7 +81,7 @@ export const settings = {
           name: 'plano',
           description: 'El mismo esquema que fósforo, sin el efecto de scanline.',
         },
-      },
+    },
       unknown:
         'El archivo tiene un tema que esta versión no conoce: {theme}. Elige uno de arriba para reemplazarlo.',
     },
@@ -105,6 +113,13 @@ export const settings = {
       description: 'Las líneas largas se enrollan en vez de salirse a lo ancho.',
       on: 'Ajuste de líneas activado',
       off: 'Ajuste de líneas desactivado',
+    },
+    vim: {
+      label: 'modo vim',
+      description:
+        'Teclas modales de vim —normal, insertar, visual— solo en el editor de notas. Con él encendido las letras son órdenes hasta que pulses i.',
+      on: 'Modo vim activado',
+      off: 'Modo vim desactivado',
     },
     previewMode: {
       label: 'modo de vista predeterminado',
@@ -146,6 +161,19 @@ export const settings = {
       other: 'se escribirán {count} clientes',
     },
   },
+  app: {
+    title: 'aplicación',
+    unknownVersion: 'versión desconocida',
+    blurb:
+      'La app comprueba si hay una versión nueva al abrirse y, si la hay, avisa y la instala desde dentro. Las actualizaciones van firmadas y la firma se verifica antes de instalar; aquí puedes preguntar a mano cuando quieras.',
+    available: 'hay una versión nueva: v{version}',
+    upToDate: 'estás al día',
+    checkFailed: 'no pude comprobar si hay versiones nuevas',
+    installNow: 'actualizar ahora',
+    check: 'buscar actualizaciones',
+    checking: 'comprobando…',
+    signed: 'firmadas y verificadas antes de instalar',
+  },
   binary: {
     title: 'servidor MCP',
     pending: 'todavía no instalado',
@@ -166,10 +194,10 @@ export const settings = {
     outOfSyncBadge: 'desactualizado',
     outOfSyncTitle: 'los clientes MCP lanzan una copia vieja',
     outOfSyncBody:
-      'La copia instalada es la {installed} y la app es la {self}. El actualizador reemplaza el binario de dentro de la aplicación, no esta copia, así que tus agentes seguirían usando las herramientas viejas contra una app nueva.',
+      'La copia instalada es la {installed} y la app es la {self}. Se pone al día sola al arrancar; que sigas viendo esto significa que no se pudo reemplazar, casi siempre porque un cliente MCP la tiene abierta en ese momento.',
     outOfSyncUnreadable:
-      'No pude leer la versión de la copia instalada, así que no sé si está al día. Reinstalarla lo arregla en cualquier caso.',
-    outOfSyncAction: 'actualizar la copia',
+      'No pude leer la versión de la copia instalada, así que no sé si está al día. Se reemplaza sola al arrancar; si sigues viendo esto, es que no se pudo.',
+    outOfSyncAction: 'reintentar ahora',
   },
   workspace: {
     title: 'workspace',

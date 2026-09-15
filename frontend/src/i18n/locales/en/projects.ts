@@ -4,6 +4,21 @@ export const projects = {
    * Labels for the categories the core sends as keys (`feature`, `fix`…). The
    * `label` from the server is only a fallback for a category we don't know yet.
    */
+  newSummary: {
+    action: 'Write a summary in this project',
+    title: 'new summary',
+    description:
+      'It is saved exactly like an agent one: same frontmatter, same index, same history.',
+    titleLabel: 'title',
+    categoryLabel: 'category',
+    bodyLabel: 'body (markdown)',
+    inferHint: 'No category: it is inferred from the text.',
+    chosenHint: 'Press it again to go back to inferring.',
+    save: 'save',
+    saved: 'Summary saved',
+    already: 'That summary was already saved',
+    failed: "couldn't save it",
+  },
   category: {
     feature: 'Feature',
     fix: 'Fix',
@@ -72,6 +87,7 @@ export const projects = {
     doneCount: '{count} summaries in one document',
     doneSkipped: "{count} summaries; {skipped} couldn't be read and are not in the document",
     failed: "couldn't export the project",
+    filterName: 'Markdown document',
     docLine: {
       one: '{count} summary · exported on {date}',
       other: '{count} summaries · exported on {date}',
@@ -133,5 +149,84 @@ export const projects = {
       title: 'Nothing tagged #{tag}',
       hint: 'You may have removed it from everything, or the index may be stale: try reindexing from Settings.',
     },
+  },
+  briefing: {
+    lastTitle: 'latest',
+    lastHint: {
+      one: '{count} summary in total · {active} with activity in the last {days} days',
+      other: '{count} summaries in total · {active} with activity in the last {days} days',
+    },
+    emptyTitle: 'Nothing recorded in {days} days',
+    emptyHint:
+      'The project exists but has no recent summaries. If you expected to see something, the index may be stale: reindexing fixes it.',
+    filesTitle: 'where the work went',
+    filesHint: 'Files mentioned by summaries from the last {days} days',
+    pendingTitle: 'waiting on a decision',
+    pendingHint: 'Proposals nobody approved. The expired ones are the ones left half done',
+    noPending: 'Nothing pending: no proposals waiting.',
+    expired: 'expired',
+    loadFailed: "couldn't read the briefing",
+  },
+  activity: {
+    action: 'project pulse',
+    title: 'pulse',
+    hint: {
+      one: '{count} summary across {active} of the last {days} days',
+      other: '{count} summaries across {active} of the last {days} days',
+    },
+    empty: 'No activity to draw yet.',
+    day: {
+      one: '{date}: {count} summary',
+      other: '{date}: {count} summaries',
+    },
+    dayEmpty: '{date}: nothing',
+    summary: {
+      one: '{count} summary spread across {active} of the last {days} days',
+      other: '{count} summaries spread across {active} of the last {days} days',
+    },
+    less: 'less',
+    more: 'more',
+    loadFailed: "couldn't read the activity",
+    weekday: {
+      mon: 'Mon',
+      tue: 'Tue',
+      wed: 'Wed',
+      thu: 'Thu',
+      fri: 'Fri',
+      sat: 'Sat',
+      sun: 'Sun',
+    },
+    window: {
+      quarter: '90 days',
+      half: '6 months',
+      year: 'a year',
+    },
+  },
+  changelog: {
+    action: 'export release notes',
+    title: 'release notes',
+    description: 'Summaries from {project} over a range, grouped by category.',
+    since: 'from',
+    until: 'to (inclusive)',
+    preview: {
+      one: '{count} entry in {sections} categories',
+      other: '{count} entries in {sections} categories',
+    },
+    previewEmpty: 'Nothing recorded in that range.',
+    previewFailed: "Couldn't count what is in that range.",
+    download: 'save as…',
+    filterName: 'Markdown',
+    done: 'Release notes saved',
+    doneCount: {
+      one: '{count} entry',
+      other: '{count} entries',
+    },
+    failed: "Couldn't build the release notes",
+    docHeading: '{project} — changes',
+    docLine: {
+      one: 'From {from} to {to} · {count} entry',
+      other: 'From {from} to {to} · {count} entries',
+    },
+    docEmpty: 'No changes recorded in this range.',
   },
 } as const

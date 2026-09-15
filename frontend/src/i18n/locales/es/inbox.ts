@@ -8,6 +8,10 @@ export const inbox = {
     hint: 'Crea el primero: SaveMe generará las 9 carpetas de categoría dentro.',
   },
   pending: {
+    expiredTitle: 'confirmaciones vencidas',
+    noneExpired: 'ninguna vencida',
+    tabPending: 'pendientes',
+    tabExpired: 'vencidas',
     title: 'confirmaciones pendientes',
     waiting: '{count} esperando decisión',
     none: 'nada pendiente',
@@ -33,13 +37,39 @@ export const inbox = {
     expired: 'caducada',
     minutesLeft: 'caduca en {count} min',
     at: 'expira {when}',
-    expiredHint: 'La propuesta caducó: pide al agente que la vuelva a proponer.',
+    expiredHint:
+      'Se pasó el plazo, pero el resumen sigue intacto y puedes aprobarlo igual.',
   },
   whyCategory: 'por qué esta categoría',
   orSaveIn: 'o guárdalo en',
   filesTouched: {
     one: '{count} archivo',
     other: '{count} archivos',
+  },
+  alert: {
+    title: 'confirmación pendiente',
+    body: 'Un agente dejó un resumen esperando tu aprobación. Caduca en 15 minutos.',
+  },
+  tags: {
+    title: 'etiquetas',
+    count: {
+      one: '{count} en uso',
+      other: '{count} en uso',
+    },
+    empty: 'Todavía no hay ninguna. Se ponen al proponer un resumen.',
+  },
+  digest: {
+    title: 'esta semana',
+    counts: {
+      one: '{count} resumen en {projects} proyecto',
+      other: '{count} resúmenes en {projects} proyectos',
+    },
+    days: {
+      one: '{count} día',
+      other: '{count} días',
+    },
+    empty: 'No hay nada apuntado en los últimos {count} días.',
+    failed: 'no pude leer lo de estos días',
   },
   diff: {
     tabProposal: 'propuesta',

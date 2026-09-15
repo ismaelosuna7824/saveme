@@ -55,6 +55,24 @@ export function formatRelative(value: string | null | undefined, now = Date.now(
   return translate('common.time.years', { count: Math.floor(days / 365) })
 }
 
+/**
+ * Nombre corto del mes: `ene`, `Jan`.
+ *
+ * Lo elige `Intl` con el idioma activo, como el separador decimal de
+ * `formatBytes`. Doce nombres de mes por idioma en el diccionario serían
+ * veinticuatro claves para algo que el navegador ya sabe, y la primera vez que
+ * alguien añada un idioma se quedaría a medias.
+ *
+ * `value` es una fecha AAAA-MM-DD: se le añade el día 1 a mano porque
+ * `new Date('2026-02')` es una fecha inválida, y porque interpretar una fecha sin
+ * día acaba cayendo al mes anterior según el huso.
+ */
+export function formatMonthShort(value: string): string {
+  const date = new Date(`${value.slice(0, 7)}-01T00:00:00`)
+  if (Number.isNaN(date.getTime())) return value.slice(5, 7)
+  return new Intl.DateTimeFormat(activeLocaleTag(), { month: 'short' }).format(date)
+}
+
 /** Segundos transcurridos desde un timestamp local: `hace 4s`. */
 export function formatSecondsSince(timestamp: number | null, now = Date.now()): string {
   if (timestamp === null) return translate('common.time.unsaved')

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { FolderCog, Palette, Plug } from 'lucide-react'
+import { FolderCog, Info, Palette, Plug } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { SettingsAgents } from '@/features/settings/SettingsAgents'
+import { SettingsApp } from '@/features/settings/SettingsApp'
 import { SettingsAppearance } from '@/features/settings/SettingsAppearance'
 import { SettingsWorkspace } from '@/features/settings/SettingsWorkspace'
 import { useT, type TranslationKey } from '@/i18n'
@@ -27,6 +28,11 @@ const SECTIONS = [
     icon: Palette,
   },
   { key: 'agentes', label: 'settings.nav.agents', hint: 'settings.navHint.agents', icon: Plug },
+  // La sección de la app va la última: se entra a cambiar el aspecto o a
+  // configurar agentes, no a mirar la versión. Está para poder comprobar a mano
+  // que las actualizaciones funcionan, que es lo que el aviso automático no deja
+  // ver cuando no hay ninguna.
+  { key: 'app', label: 'settings.nav.app', hint: 'settings.navHint.app', icon: Info },
   {
     key: 'workspace',
     label: 'settings.nav.workspace',
@@ -111,6 +117,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             {section === 'apariencia' ? <SettingsAppearance /> : null}
             {section === 'agentes' ? <SettingsAgents /> : null}
             {section === 'workspace' ? <SettingsWorkspace /> : null}
+            {section === 'app' ? <SettingsApp /> : null}
           </div>
         </div>
 

@@ -29,6 +29,9 @@ interface UiContextValue {
    */
   settingsOpen: boolean
   setSettingsOpen: (open: boolean) => void
+  /** Panel lateral plegado. Se recuerda por sesión, como el resto de la interfaz. */
+  sidebarCollapsed: boolean
+  setSidebarCollapsed: (collapsed: boolean) => void
 }
 
 const UiContext = createContext<UiContextValue | null>(null)
@@ -38,6 +41,7 @@ export function UiProvider({ children }: { children: ReactNode }) {
   const [previewOverride, setPreviewOverride] = useState<PreviewMode | null>(null)
   const [onboardingOpen, setOnboardingOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   const openPalette = useCallback(() => setPaletteOpen(true), [])
   const togglePalette = useCallback(() => setPaletteOpen((open) => !open), [])
@@ -61,6 +65,8 @@ export function UiProvider({ children }: { children: ReactNode }) {
       setOnboardingOpen,
       settingsOpen,
       setSettingsOpen,
+      sidebarCollapsed,
+      setSidebarCollapsed,
     }),
     [
       paletteOpen,
@@ -70,6 +76,7 @@ export function UiProvider({ children }: { children: ReactNode }) {
       cyclePreviewMode,
       onboardingOpen,
       settingsOpen,
+      sidebarCollapsed,
     ],
   )
 

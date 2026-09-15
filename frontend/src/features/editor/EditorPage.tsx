@@ -11,6 +11,7 @@ import { SplitPane } from '@/components/common/SplitPane'
 import { useNow } from '@/components/common/useNow'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ConflictDialog } from '@/features/editor/ConflictDialog'
+import { EditMetaDialog } from '@/features/editor/EditMetaDialog'
 import { EditorToolbar } from '@/features/editor/EditorToolbar'
 import { PreviewPane } from '@/features/editor/PreviewPane'
 import { documentBody } from '@/features/editor/documentBody'
@@ -50,6 +51,9 @@ export function EditorPage({ id }: { id: string }) {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const previewRef = useRef<HTMLDivElement | null>(null)
   const [titleDraft, setTitleDraft] = useState('')
+  // El diálogo de metadatos vive aquí y no en la barra: la barra es presentación y
+  // no tiene por qué saber qué diálogos existen.
+  const [metaOpen, setMetaOpen] = useState(false)
 
   // El modo vive en la config del core, así que la elección sobrevive al
   // reinicio. `previewOverride` solo cubre el instante entre que el usuario
@@ -259,7 +263,10 @@ export function EditorPage({ id }: { id: string }) {
         }}
         onBack={goBack}
         onDeleted={() => goBackTo(doc.meta)}
+        onEditMeta={() => setMetaOpen(true)}
       />
+
+      <EditMetaDialog summary={doc.meta} open={metaOpen} onOpenChange={setMetaOpen} />
 
       <SplitPane
         visible={mode === 'preview' ? 'right' : mode === 'split' ? 'both' : 'left'}

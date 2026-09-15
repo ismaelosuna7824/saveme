@@ -1,5 +1,16 @@
 /** Textos de `editor`. Ver `es/common.ts` para el criterio. */
 export const editor = {
+  meta: {
+    title: 'corregir categoría y título',
+    description:
+      'Cambiar la categoría mueve el resumen a su carpeta. El contenido no se toca.',
+    titleLabel: 'título',
+    categoryLabel: 'categoría',
+    moves: 'Se moverá a otra carpeta.',
+    save: 'guardar',
+    saved: 'Metadatos corregidos',
+    failed: 'No pude corregirlos',
+  },
   /**
    * Nombre y ayuda de cada modo de vista. Las claves se consumen desde
    * `features/editor/mode.ts`, que las expone como mapas por `PreviewMode`.
@@ -28,6 +39,10 @@ export const editor = {
     notFound: 'No encontré el resumen {id}',
     notFoundHint:
       'Puede que se haya borrado o que el índice esté desactualizado. Reindexar lo resuelve.',
+  },
+  vim: {
+    badgeTitle:
+      'Modo de vim: las letras son órdenes. Pulsa i para escribir y Esc para volver a las órdenes.',
   },
   toolbar: {
     backTitle: 'Volver al proyecto (Esc)',

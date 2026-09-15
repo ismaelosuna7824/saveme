@@ -156,11 +156,136 @@ export interface ProjectExport {
   sections: ExportSection[]
 }
 
+export interface DigestEntry {
+  id: string
+  project_slug: string
+  category: string
+  title: string
+  summary_line: string
+  rel_path: string
+  created_at: string
+  author: string
+  commit_sha?: string
+}
+
+export interface DigestDay {
+  /** AAAA-MM-DD. */
+  date: string
+  entries: DigestEntry[]
+}
+
+/** Un archivo que aparece en los resúmenes recientes de un proyecto. */
+export interface BriefingFile {
+  path: string
+  count: number
+  last_at: string
+}
+
+/**
+ * «¿Dónde lo dejamos?» de un proyecto.
+ *
+ * `last_at` es opcional porque «nunca» y una fecha no son lo mismo: un proyecto
+ * recién creado no tiene última vez, y eso hay que poder decirlo.
+ */
+export interface Briefing {
+  project: string
+  generated_at: string
+  from: string
+  days: number
+  total: number
+  active_days: number
+  last_at?: string
+  last: DigestEntry[]
+  files: BriefingFile[]
+  pending: Proposal[]
+}
+
+/** Lo escrito un día concreto. */
+export interface ActivityDay {
+  /** AAAA-MM-DD. */
+  date: string
+  count: number
+  /** Reparto del día por categoría. Vacío, nunca nulo, cuando no hubo nada. */
+  by_category: Record<string, number>
+}
+
+/**
+ * Mapa de actividad de un proyecto.
+ *
+ * `entries` cubre **todos** los días de la ventana, del más viejo al más nuevo y
+ * con los vacíos incluidos, así que el mapa se pinta recorriendo el array sin
+ * calcular fechas en la interfaz.
+ */
+export interface ActivityMap {
+  project: string
+  generated_at: string
+  from: string
+  to: string
+  days: number
+  total: number
+  active: number
+  max: number
+  by_category: Record<string, number>
+  entries: ActivityDay[]
+}
+
+/** Un resumen dentro de unas notas de versión. */
+export interface ChangelogEntry {
+  id: string
+  category: string
+  title: string
+  summary_line: string
+  rel_path: string
+  created_at: string
+  author: string
+  commit_sha?: string
+  files_touched: string[]
+  tags: string[]
+}
+
+export interface ChangelogSection {
+  category: string
+  entries: ChangelogEntry[]
+}
+
+/** El diario de un rango, agrupado como unas notas de versión. */
+export interface Changelog {
+  project: string
+  from: string
+  to: string
+  count: number
+  sections: ChangelogSection[]
+}
+
+/** Lo hecho en un rango de fechas, cruzando todos los proyectos. */
+export interface Digest {
+  from: string
+  to: string
+  days: number
+  count: number
+  projects: number
+  groups: DigestDay[]
+}
+
+/**
+ * Lo que devuelve escribir un resumen. `created: false` significa que ese
+ * contenido exacto ya estaba guardado y se devolvió el que había.
+ */
+export interface WriteResult {
+  summary: SummaryMeta
+  created: boolean
+  rel_path: string
+  abs_path: string
+  project_created?: boolean
+}
+
 export interface EditorPrefs {
   font_size: number
   wrap: boolean
   preview_mode: PreviewMode
   autosave_ms: number
+  /** Teclas modales de vim en el editor de notas. Apagado por defecto. */
+  vim_mode: boolean
 }
 
 export interface Config {
