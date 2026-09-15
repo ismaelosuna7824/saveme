@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { categoryLabel } from '@/features/projects/CategoryCounts'
+import { ExportProjectButton } from '@/features/projects/ExportProjectButton'
 import { copyToClipboard } from '@/lib/hooks'
 import { formatRelative } from '@/lib/format'
 
@@ -138,6 +139,7 @@ export function ProjectLayout({ slug }: ProjectLayoutProps) {
             · {t('projects.lastActivity')} {formatRelative(project.last_activity)}
           </span>
           <div className="ml-auto flex items-center gap-1">
+            <ExportProjectButton slug={project.slug} />
             <Button
               variant="ghost"
               size="icon-sm"

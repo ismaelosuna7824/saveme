@@ -159,6 +159,14 @@ export const settings = {
     installing: 'installing…',
     verify: 'verify the installation',
     installNow: 'install the MCP server',
+    installedBadge: 'installed',
+    outOfSyncBadge: 'out of date',
+    outOfSyncTitle: 'your MCP clients are launching an old copy',
+    outOfSyncBody:
+      'The installed copy is {installed} and the app is {self}. The updater replaces the binary inside the app, not this copy, so your agents would keep using the old tools against a new app.',
+    outOfSyncUnreadable:
+      "I couldn't read the installed copy's version, so I don't know whether it's up to date. Reinstalling fixes it either way.",
+    outOfSyncAction: 'update the copy',
   },
   workspace: {
     title: 'workspace',

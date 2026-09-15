@@ -71,6 +71,25 @@ export const projects = {
     entry: '{count} en {category}',
     more: '+{count} más',
   },
+  export: {
+    action: 'Exportar el proyecto a un markdown',
+    done: 'Proyecto exportado',
+    doneCount: '{count} resúmenes en un solo documento',
+    doneSkipped: '{count} resúmenes; {skipped} no se pudieron leer y no van en el documento',
+    failed: 'No pude exportar el proyecto',
+    /** Cabecera del documento: cuántos resúmenes lleva y de cuándo es. */
+    docLine: {
+      one: '{count} resumen · exportado el {date}',
+      other: '{count} resúmenes · exportado el {date}',
+    },
+    categoryHeading: '{category}',
+    commit: 'commit',
+    files: 'archivos:',
+    skippedLine: {
+      one: '{count} resumen no se pudo leer y no aparece aquí.',
+      other: '{count} resúmenes no se pudieron leer y no aparecen aquí.',
+    },
+  },
   list: {
     empty: 'Sin resúmenes aquí',
     loadFailed: 'no pude leer los resúmenes',

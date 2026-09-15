@@ -27,6 +27,7 @@ import type {
   MCPSnippet,
   Project,
   Proposal,
+  ProposalDiff,
   ProposalStatus,
   ReindexResult,
   SaveSummaryInput,
@@ -61,6 +62,9 @@ export const queryKeys = {
     all: ['proposals'] as const,
     list: (status: ProposalStatus | 'all') => ['proposals', 'list', status] as const,
     detail: (token: string) => ['proposals', 'detail', token] as const,
+    // El diff se pide aparte porque no viaja en el listado: son varios kilobytes
+    // por propuesta y casi nunca se miran todas a la vez.
+    diff: (token: string) => ['proposals', 'diff', token] as const,
   },
   trash: ['trash'] as const,
   notes: {
@@ -175,6 +179,25 @@ export function useProposals(
     queryFn: ({ signal }) =>
       api.get<Proposal[]>(`/proposals${buildQuery({ status: status === 'all' ? '' : status })}`, signal),
     staleTime: 5_000,
+  })
+}
+
+/**
+ * El antes y el después de una propuesta.
+ *
+ * Se pide solo cuando hace falta (`enabled`): el cuerpo entero no viaja en el
+ * listado del inbox, así que sin esto cada tarjeta traería varios kilobytes que
+ * casi nadie mira.
+ */
+export function useProposalDiff(token: string, enabled: boolean): UseQueryResult<ProposalDiff> {
+  return useQuery({
+    queryKey: queryKeys.proposals.diff(token),
+    queryFn: ({ signal }) =>
+      api.get<ProposalDiff>(`/proposals/${encodeURIComponent(token)}/diff`, signal),
+    // Una propuesta no cambia mientras está pendiente: su cuerpo se fijó al
+    // crearla. Volver a pedirlo al desplegar y plegar sería gastar por nada.
+    staleTime: Infinity,
+    enabled,
   })
 }
 

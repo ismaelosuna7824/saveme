@@ -13,7 +13,9 @@
     "verify:css": "bun run scripts/verify-css-utilities.mjs",
     "verify:themes": "bun run scripts/verify-themes.mjs",
     "verify:mermaid": "bun run scripts/verify-mermaid.mjs",
-    "verify:notes": "bun run scripts/verify-notes.mjs"
+    "verify:notes": "bun run scripts/verify-notes.mjs",
+    "verify:diff": "bun run scripts/verify-diff.mjs",
+    "verify:export": "bun run scripts/verify-export.mjs"
   },
   "dependencies": {
     "@codemirror/commands": "^6",

@@ -14,6 +14,7 @@
 package mcpconfig
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -23,6 +24,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"time"
 )
 
 // Format es cómo se escribe la configuración de cada cliente.
@@ -632,6 +634,34 @@ func sameFile(a, b string) (bool, error) {
 		return false, err
 	}
 	return os.SameFile(infoA, infoB), nil
+}
+
+// VersionOf le pregunta a un binario de SaveMe qué versión dice ser.
+//
+// Se ejecuta en vez de dejar un fichero con la versión al instalar. La diferencia
+// importa: lo que hay que saber es qué hará el cliente MCP cuando lo lance, y la
+// copia instalada puede haber sido reemplazada por fuera —a mano, por un gestor de
+// paquetes, por una versión antigua restaurada—. Un fichero de versión diría lo
+// que se instaló, no lo que hay.
+//
+// El plazo es corto a propósito: esto se ejecuta mientras alguien mira Ajustes, y
+// un binario que no responde no puede dejar la pantalla colgada.
+func VersionOf(path string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	out, err := exec.CommandContext(ctx, path, "version").Output()
+	if err != nil {
+		return "", fmt.Errorf("no pude preguntarle la versión a %s: %w", path, err)
+	}
+
+	// El formato es «saveme 0.1.0»: se toma el último campo para no depender de
+	// cómo se llame el binario.
+	fields := strings.Fields(string(out))
+	if len(fields) == 0 {
+		return "", fmt.Errorf("%s no dijo ninguna versión", path)
+	}
+	return fields[len(fields)-1], nil
 }
 
 // --- detección y estado ------------------------------------------------------

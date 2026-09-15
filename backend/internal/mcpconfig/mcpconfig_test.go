@@ -946,3 +946,52 @@ func TestRemoveYVolverAPonerEsEstable(t *testing.T) {
 		t.Errorf("el contenido tras volver a poner no coincide:\n%s\n---\n%s", first, second)
 	}
 }
+
+// --- versión del binario instalado -------------------------------------------
+
+// La copia instalada es la que lanzan los clientes MCP, y el actualizador de la
+// app no la toca. Comparar versiones exige **preguntársela al binario**, no leer
+// un fichero que se escribió al instalar: la copia puede haber sido reemplazada
+// por fuera, y entonces el fichero diría lo que se instaló y no lo que hay.
+func TestVersionOfSeLaPreguntaAlBinario(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		// El ayudante es un script de shell. En Windows el proyecto no ejecuta las
+		// pruebas, así que se salta en vez de fingir que se ha comprobado.
+		t.Skip("el ayudante es un script POSIX")
+	}
+
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "saveme")
+
+	write := func(contenido string) {
+		t.Helper()
+		if err := os.WriteFile(bin, []byte(contenido), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// El formato real es «saveme 0.1.0»; se toma el último campo para no depender
+	// de cómo se llame el binario.
+	write("#!/bin/sh\necho 'saveme 9.9.9'\n")
+	if got, err := VersionOf(bin); err != nil || got != "9.9.9" {
+		t.Errorf("VersionOf = %q, %v; esperaba 9.9.9", got, err)
+	}
+
+	// Un binario que no dice nada no puede pasar por una versión vacía: eso haría
+	// que la comparación dijera «distinta» sin explicar por qué.
+	write("#!/bin/sh\nexit 0\n")
+	if got, err := VersionOf(bin); err == nil {
+		t.Errorf("un binario que no dice versión debería fallar; devolvió %q", got)
+	}
+
+	// Un binario que falla tampoco.
+	write("#!/bin/sh\necho 'algo' >&2\nexit 3\n")
+	if _, err := VersionOf(bin); err == nil {
+		t.Error("un binario que termina con error debería fallar")
+	}
+
+	// Y una ruta que no existe, menos.
+	if _, err := VersionOf(filepath.Join(dir, "no-existe")); err == nil {
+		t.Error("una ruta inexistente debería fallar")
+	}
+}

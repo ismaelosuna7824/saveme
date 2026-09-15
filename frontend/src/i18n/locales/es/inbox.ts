@@ -41,6 +41,18 @@ export const inbox = {
     one: '{count} archivo',
     other: '{count} archivos',
   },
+  diff: {
+    tabProposal: 'propuesta',
+    tabChanges: 'cambios',
+    loading: 'calculando los cambios…',
+    failed: 'no pude leer los cambios de esta propuesta',
+    againstDisk: 'sobre lo que hay en disco',
+    newSummary: 'resumen nuevo: no hay nada con lo que comparar',
+    newSummaryHint: {
+      one: 'Se creará con {count} línea.',
+      other: 'Se creará con {count} líneas.',
+    },
+  },
   retarget: {
     action: 'Guardar en otra carpeta',
     title: 'guardar en otra carpeta',

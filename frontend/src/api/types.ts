@@ -106,6 +106,56 @@ export interface Proposal {
   files_touched: string[]
 }
 
+/**
+ * El antes y el después de una propuesta, para poder enseñar qué cambia antes de
+ * aprobarla.
+ *
+ * Se pide a un endpoint aparte y no viene en el listado del inbox: son varios
+ * kilobytes por propuesta.
+ */
+export interface ProposalDiff {
+  rel_path: string
+  /** `false` cuando la propuesta crea un resumen que todavía no existe. */
+  exists: boolean
+  /** Lo que hay ahora en disco; vacío si no hay archivo. */
+  current: string
+  /** El cuerpo entero que se escribiría al confirmar. */
+  proposed: string
+}
+
+/** Un resumen dentro de una exportación, ya con el cuerpo sin frontmatter. */
+export interface ExportEntry {
+  id: string
+  title: string
+  rel_path: string
+  created_at: string
+  updated_at: string
+  tags: string[]
+  files_touched: string[]
+  commit_sha?: string
+  body: string
+}
+
+export interface ExportSection {
+  category: string
+  summaries: ExportEntry[]
+}
+
+/**
+ * Todo un proyecto, para componer un documento con él.
+ *
+ * El backend devuelve datos y no el markdown montado: los títulos de sección los
+ * lee una persona, y el idioma solo se conoce aquí.
+ */
+export interface ProjectExport {
+  project: string
+  generated_at: string
+  count: number
+  /** Resúmenes que el índice conocía y ya no se pudieron leer. */
+  skipped: number
+  sections: ExportSection[]
+}
+
 export interface EditorPrefs {
   font_size: number
   wrap: boolean
@@ -280,6 +330,20 @@ export interface MCPBinaryStatus {
   self_path: string
   /** También se puede invocar como `saveme` a secas. */
   on_path: boolean
+  /** Versión de la app, que es la que corre. */
+  self_version: string
+  /** Versión de la copia instalada; "" si no hay copia o no se pudo leer. */
+  installed_version: string
+  /**
+   * Solo es `true` si hay copia y las dos versiones coinciden.
+   *
+   * El actualizador reemplaza el binario de dentro de la app, **no** la copia que
+   * lanzan los clientes MCP: sin esto, tras cada actualización el agente seguiría
+   * usando las herramientas viejas contra una app nueva, y sin ningún síntoma.
+   */
+  in_sync: boolean
+  /** Por qué no se pudo leer la versión de la copia, si fue el caso. */
+  version_error: string
 }
 
 export interface MCPProviders {

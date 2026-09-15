@@ -76,6 +76,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/projects", s.handleListProjects)
 	mux.HandleFunc("POST /api/projects", s.handleCreateProject)
 	mux.HandleFunc("GET /api/projects/{slug}", s.handleGetProject)
+	// Todo el proyecto en una respuesta, para poder exportarlo a un documento.
+	mux.HandleFunc("GET /api/projects/{slug}/export", s.handleExportProject)
 	mux.HandleFunc("DELETE /api/projects/{slug}", s.handleDeleteProject)
 
 	mux.HandleFunc("GET /api/summaries", s.handleListSummaries)
@@ -97,6 +99,9 @@ func (s *Server) Handler() http.Handler {
 
 	mux.HandleFunc("GET /api/proposals", s.handleListProposals)
 	mux.HandleFunc("GET /api/proposals/{token}", s.handleGetProposal)
+	// El diff va aparte y no dentro del listado: son varios kilobytes por
+	// propuesta y casi nunca se miran todas.
+	mux.HandleFunc("GET /api/proposals/{token}/diff", s.handleProposalDiff)
 	mux.HandleFunc("POST /api/proposals/{token}/confirm", s.handleConfirmProposal)
 	mux.HandleFunc("POST /api/proposals/{token}/cancel", s.handleCancelProposal)
 
@@ -513,6 +518,30 @@ func (s *Server) handleGetProposal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, p)
+}
+
+// handleExportProject sirve todo un proyecto para exportarlo a un documento.
+//
+// Devuelve datos y no el markdown montado: los títulos de sección los lee una
+// persona y el idioma solo lo conoce la interfaz.
+func (s *Server) handleExportProject(w http.ResponseWriter, r *http.Request) {
+	out, err := s.svc.ExportProject(r.Context(), r.PathValue("slug"))
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+// handleProposalDiff sirve el antes y el después de una propuesta, para poder
+// enseñar qué cambia antes de aprobarla.
+func (s *Server) handleProposalDiff(w http.ResponseWriter, r *http.Request) {
+	diff, err := s.svc.ProposalDiff(r.Context(), r.PathValue("token"))
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, diff)
 }
 
 func (s *Server) handleConfirmProposal(w http.ResponseWriter, r *http.Request) {

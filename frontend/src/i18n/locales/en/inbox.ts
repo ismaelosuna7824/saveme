@@ -41,6 +41,18 @@ export const inbox = {
     one: '{count} file',
     other: '{count} files',
   },
+  diff: {
+    tabProposal: 'proposal',
+    tabChanges: 'changes',
+    loading: 'working out the changes…',
+    failed: "couldn't read this proposal's changes",
+    againstDisk: 'against what is on disk',
+    newSummary: 'new summary: there is nothing to compare against',
+    newSummaryHint: {
+      one: 'It will be created with {count} line.',
+      other: 'It will be created with {count} lines.',
+    },
+  },
   retarget: {
     action: 'Save to another folder',
     title: 'save to another folder',

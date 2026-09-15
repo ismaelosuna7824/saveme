@@ -55,6 +55,22 @@ func (s *Server) handleMCPProviders(w http.ResponseWriter, _ *http.Request) {
 		self = exe
 	}
 
+	// La versión de la copia instalada es la que ejecutarán los clientes MCP, y
+	// **no se actualiza sola**: el actualizador reemplaza el binario de dentro del
+	// `.app`, no esta copia. Si se quedan en versiones distintas, la app y el MCP
+	// dejan de ser el mismo programa —que es justo lo que promete el producto— y
+	// lo hacen sin ningún síntoma: un agente seguiría usando las herramientas
+	// viejas contra una app nueva.
+	installedVersion := ""
+	versionErr := ""
+	if installed != "" {
+		if v, err := mcpconfig.VersionOf(installed); err == nil {
+			installedVersion = v
+		} else {
+			versionErr = err.Error()
+		}
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"providers": mcpconfig.Report("saveme"),
 		"binary": map[string]any{
@@ -64,6 +80,15 @@ func (s *Server) handleMCPProviders(w http.ResponseWriter, _ *http.Request) {
 			"self_path": self,
 			// on_path indica si además se puede invocar como `saveme`.
 			"on_path": onPath,
+			// self_version es la de la app; installed_version, la de la copia.
+			// in_sync solo es cierto si hay copia y las dos coinciden.
+			"self_version":      s.version,
+			"installed_version": installedVersion,
+			"in_sync":           installedVersion != "" && installedVersion == s.version,
+			// Si la copia existe pero no se deja preguntar (truncada, sin permiso
+			// de ejecución), el motivo va aquí: es un problema distinto de «está
+			// desactualizada», y se arregla igual reinstalando.
+			"version_error": versionErr,
 		},
 	})
 }

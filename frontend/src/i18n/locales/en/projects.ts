@@ -66,6 +66,24 @@ export const projects = {
     entry: '{count} in {category}',
     more: '+{count} more',
   },
+  export: {
+    action: 'Export the project to a markdown file',
+    done: 'Project exported',
+    doneCount: '{count} summaries in one document',
+    doneSkipped: "{count} summaries; {skipped} couldn't be read and are not in the document",
+    failed: "couldn't export the project",
+    docLine: {
+      one: '{count} summary · exported on {date}',
+      other: '{count} summaries · exported on {date}',
+    },
+    categoryHeading: '{category}',
+    commit: 'commit',
+    files: 'files:',
+    skippedLine: {
+      one: "{count} summary couldn't be read and is not here.",
+      other: "{count} summaries couldn't be read and are not here.",
+    },
+  },
   list: {
     empty: 'No summaries here',
     loadFailed: "couldn't read the summaries",

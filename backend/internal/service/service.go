@@ -12,6 +12,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -757,6 +758,52 @@ func (s *Service) GetProposal(ctx context.Context, token string) (*domain.Propos
 		}
 	}
 	return s.toProposal(ctx, rec)
+}
+
+// ProposalDiff es lo que hace falta para enseñar qué cambia una propuesta antes
+// de aprobarla.
+type ProposalDiff struct {
+	RelPath string `json:"rel_path"`
+	// Exists distingue «crear» de «actualizar». Sin esto, un archivo que no está
+	// y un cuerpo propuesto vacío se leen igual, y son cosas muy distintas.
+	Exists bool `json:"exists"`
+	// Current es el contenido que hay ahora en disco; vacío si no hay archivo.
+	Current string `json:"current"`
+	// Proposed es el cuerpo entero que se escribiría al confirmar.
+	Proposed string `json:"proposed"`
+}
+
+// ProposalDiff devuelve el antes y el después de una propuesta.
+//
+// El cuerpo completo no viaja en el listado del inbox a propósito: son varios
+// kilobytes por propuesta y casi nunca se miran todas. Se pide solo cuando
+// alguien despliega una.
+//
+// Que el archivo no exista **no es un error**: es el caso de una propuesta que
+// crea un resumen nuevo, y es la mitad de las veces.
+func (s *Service) ProposalDiff(ctx context.Context, token string) (*ProposalDiff, error) {
+	rec, err := s.st.GetProposal(ctx, token)
+	if errors.Is(err, store.ErrNotFound) {
+		return nil, ErrProposalNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	diff := &ProposalDiff{RelPath: rec.RelPath, Proposed: rec.Body}
+
+	current, err := s.ws.ReadFile(rec.RelPath)
+	switch {
+	case err == nil:
+		diff.Exists = true
+		diff.Current = string(current)
+	case errors.Is(err, fs.ErrNotExist):
+		// Todavía no hay archivo: la propuesta lo crea.
+	default:
+		return nil, err
+	}
+
+	return diff, nil
 }
 
 // ListProposals devuelve las propuestas de un estado.

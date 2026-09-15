@@ -34,7 +34,21 @@ func runMCPConfig(args []string) int {
 	noEnv := fs.Bool("no-env", false, "no incluir variables de entorno en el bloque")
 	list := fs.Bool("list", false, "listar los clientes soportados y su estado")
 	remove := fs.Bool("remove", false, "quitar la configuración de SaveMe del cliente (hace copia de seguridad)")
+	install := fs.Bool("install", false, "copiar este binario a la ruta estable que usan los clientes MCP")
 	_ = fs.Parse(args)
+
+	// Reinstalar el binario no necesita proveedor ni configuración: es la misma
+	// operación que hace el botón de la app, y existe para poder arreglar una copia
+	// desactualizada desde una terminal, sin abrir la interfaz.
+	if *install {
+		target, err := mcpconfig.SelfInstall()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "error:", err)
+			return 1
+		}
+		fmt.Printf("binario instalado en %s\n", target)
+		return 0
+	}
 
 	if *list || *providerKey == "" {
 		return listProviders(*name)
@@ -249,6 +263,28 @@ func runDoctor(args []string) int {
 	} else {
 		warn("no está en el PATH como `saveme`; los clientes MCP necesitarán la ruta absoluta")
 		fmt.Println("     instálalo con:  make install        (o copia el binario a ~/.local/bin)")
+	}
+
+	// La copia instalada es la que lanzan los clientes MCP, y el actualizador de la
+	// app **no la toca**: reemplaza el binario de dentro del bundle. Si se quedan en
+	// versiones distintas, la app y el MCP dejan de ser el mismo programa sin dar
+	// ningún síntoma. Se compara la copia con **este** binario, así que ejecutado
+	// desde la copia misma la comprobación sale bien por definición: lo que detecta
+	// es el caso de correrlo desde el bundle de la app.
+	if path, err := mcpconfig.InstallPath(); err == nil {
+		if _, statErr := os.Stat(path); statErr == nil {
+			switch installed, err := mcpconfig.VersionOf(path); {
+			case err != nil:
+				warn("no pude leer la versión de la copia instalada (%s)", path)
+				fmt.Printf("     %v\n", err)
+			case installed != version:
+				warn("la copia instalada es la %s y este binario es la %s", installed, version)
+				fmt.Println("     los clientes MCP siguen lanzando la vieja; actualízala con:")
+				fmt.Println("       saveme mcp-config --install     (o desde la app: Ajustes → Agentes)")
+			default:
+				ok("la copia instalada es la misma versión (%s)", installed)
+			}
+		}
 	}
 
 	// --- configuración y raíz ---

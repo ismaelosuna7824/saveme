@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { Check, Clock, FolderInput, Paperclip, Trash2, User } from 'lucide-react'
+import { Check, Clock, FolderInput, GitCompare, Paperclip, Trash2, User } from 'lucide-react'
 
 import { useT } from '@/i18n'
 
@@ -15,6 +15,7 @@ import { Markdown } from '@/components/common/Markdown'
 import { formatBytes, formatConfidence, formatDateTime, shortenPath } from '@/lib/format'
 import { categoryLabel } from '@/features/projects/CategoryCounts'
 import { RetargetDialog } from '@/features/inbox/RetargetDialog'
+import { ProposalDiffView } from '@/features/inbox/ProposalDiffView'
 
 function minutesLeft(expiresAt: string): number | null {
   const expires = new Date(expiresAt).getTime()
@@ -46,6 +47,9 @@ export function ProposalCard({ proposal }: { proposal: Proposal }) {
   const confirm = useConfirmProposal()
   const cancel = useCancelProposal()
   const [retargetOpen, setRetargetOpen] = useState(false)
+  // Ver los cambios se pide a propósito y no se carga solo: el cuerpo entero de
+  // cada propuesta son varios kilobytes y el inbox puede tener muchas.
+  const [showDiff, setShowDiff] = useState(false)
 
   // Los slices nulos de Go llegan como `null`: se normalizan en el borde.
   const alternatives = asArray<ProposalAlternative>(proposal.alternatives)
@@ -170,9 +174,35 @@ export function ProposalCard({ proposal }: { proposal: Proposal }) {
           </div>
         ) : null}
 
-        <div className="max-h-64 overflow-y-auto border border-border bg-sunken px-2 py-2">
-          <Markdown content={proposal.preview} />
+        {/* Dos formas de mirar lo mismo: el resumen tal como quedaría, o qué
+            líneas cambian respecto a lo que ya hay en disco. Para una propuesta
+            que crea un resumen nuevo, el diff es todo el texto añadido; para una
+            que actualiza, es la única forma de ver qué se lleva por delante. */}
+        <div className="flex flex-wrap items-center gap-1">
+          <Button
+            size="sm"
+            variant={showDiff ? 'ghost' : 'outline'}
+            onClick={() => setShowDiff(false)}
+          >
+            {t('inbox.diff.tabProposal')}
+          </Button>
+          <Button
+            size="sm"
+            variant={showDiff ? 'outline' : 'ghost'}
+            onClick={() => setShowDiff(true)}
+          >
+            <GitCompare className="size-3" />
+            {t('inbox.diff.tabChanges')}
+          </Button>
         </div>
+
+        {showDiff ? (
+          <ProposalDiffView token={proposal.token} enabled={showDiff} />
+        ) : (
+          <div className="max-h-64 overflow-y-auto border border-border bg-sunken px-2 py-2">
+            <Markdown content={proposal.preview} />
+          </div>
+        )}
 
         <div className="flex flex-wrap items-center gap-2 text-2xs text-muted-foreground">
           <span>{formatBytes(proposal.body_bytes)}</span>

@@ -162,6 +162,14 @@ export const settings = {
     installing: 'instalando…',
     verify: 'verificar la instalación',
     installNow: 'instalar el servidor MCP',
+    installedBadge: 'instalado',
+    outOfSyncBadge: 'desactualizado',
+    outOfSyncTitle: 'los clientes MCP lanzan una copia vieja',
+    outOfSyncBody:
+      'La copia instalada es la {installed} y la app es la {self}. El actualizador reemplaza el binario de dentro de la aplicación, no esta copia, así que tus agentes seguirían usando las herramientas viejas contra una app nueva.',
+    outOfSyncUnreadable:
+      'No pude leer la versión de la copia instalada, así que no sé si está al día. Reinstalarla lo arregla en cualquier caso.',
+    outOfSyncAction: 'actualizar la copia',
   },
   workspace: {
     title: 'workspace',
