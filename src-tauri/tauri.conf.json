@@ -1,0 +1,48 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "SaveMe",
+  "version": "0.1.0",
+  "identifier": "dev.saveme.desktop",
+  "build": {
+    "frontendDist": "../frontend/dist",
+    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "bun run --cwd frontend dev",
+    "beforeBuildCommand": "bun run --cwd frontend build"
+  },
+  "app": {
+    "windows": [],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' http://127.0.0.1:* http://localhost:* ipc: http://ipc.localhost; object-src 'none'; base-uri 'self'"
+    },
+    "macOSPrivateApi": true
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "category": "DeveloperTool",
+    "shortDescription": "Diario técnico de proyecto, en markdown",
+    "longDescription": "SaveMe guarda resúmenes humanos de lo que se implementó, se arregló o se decidió en un proyecto. La app y el servidor MCP son el mismo binario, así que un agente puede registrar un resumen con la aplicación cerrada.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "externalBin": [
+      "binaries/saveme"
+    ],
+    "createUpdaterArtifacts": true,
+    "macOS": {
+      "minimumSystemVersion": "10.15"
+    }
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/ismaelosuna7824/saveme/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDhEQkFFMkI1N0Y2RjU5NkEKUldScVdXOS90ZUs2amRVZnlidi9rbmdIZjNnTXI4clFYR2RzVDZxWGxpb05xQlpQNUV4TUZzZlcK"
+    }
+  }
+}

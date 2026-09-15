@@ -1,0 +1,46 @@
+# Integración continua.
+#
+# Aquí solo se comprueba que el proyecto está sano y que empaqueta. **Publicar no
+# se hace desde este fichero**: de los tags y las Releases se encarga
+# `release.yml`, que llama a los mismos dos workflows reutilizables
+# (`tests.yml` y `instalables.yml`) para que no haya dos listas de suites ni dos
+# recetas de empaquetado que se puedan separar con el tiempo.
+#
+# El empaquetado va después de las pruebas a propósito: no se empaqueta nada que
+# no haya pasado las suites. Un instalable roto que llega a la página de descargas
+# es peor que no tener instalable.
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+# Un push nuevo sobre la misma rama cancela la ejecución anterior: en una matriz
+# de tres sistemas, no cancelar deja runners ocupados construyendo algo que ya
+# nadie va a mirar.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: Pruebas
+    uses: ./.github/workflows/tests.yml
+
+  # Sin `version`: el workflow de empaquetado resuelve por su cuenta la del
+  # repositorio cuando no se le pasa ninguna. Un release sí se la pasa, porque ahí
+  # manda el tag.
+  instalables:
+    name: Instalables
+    needs: tests
+    uses: ./.github/workflows/instalables.yml
+    with:
+      retencion: 7
+    # En un pull request desde un fork GitHub no entrega secretos, así que ahí
+    # llega vacío y el propio workflow firma con una clave de usar y tirar. Los
+    # artefactos de CI no se publican: solo comprueban que el empaquetado funciona.
+    secrets:
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}

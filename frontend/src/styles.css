@@ -1,0 +1,1085 @@
+@import 'tailwindcss';
+
+/* ---------------------------------------------------------------------------
+ * Tokens. Tailwind v4 es CSS-first: estos custom properties generan las
+ * utilidades (`bg-panel`, `text-muted-foreground`, `border-border`, ...) que
+ * consumen los componentes shadcn de `src/components/ui`.
+ *
+ * Este bloque es, además, **la definición del tema `phosphor`**: es el valor por
+ * defecto y el que se ve mientras la app carga la configuración. Los demás temas
+ * viven más abajo, en `html[data-theme='…']`, y sobreescriben los mismos tokens
+ * (ganan por especificidad: `html[data-theme]` es más específico que `:root`).
+ *
+ * Añadir un tema son tres sitios: su bloque de tokens aquí abajo, una entrada en
+ * `features/settings/themeOptions.ts` y sus dos textos en los diccionarios.
+ * `bun run --cwd frontend verify:themes` comprueba que no se olvide ninguno y que
+ * el contraste de texto sea legible.
+ * ------------------------------------------------------------------------- */
+@theme {
+  --color-background: #0b0e0f;
+  --color-foreground: #cdd9dc;
+  --color-panel: #11171a;
+  --color-panel-raised: #141c1f;
+  --color-sunken: #090c0d;
+  --color-border: #1e2a2e;
+  --color-border-strong: #2b3a3f;
+  --color-border-hover: #3a4c52;
+  /* Texto que tiene que destacar sobre `foreground`: negritas, títulos. */
+  --color-strong: #e8f1f3;
+
+  --color-card: #11171a;
+  --color-card-foreground: #cdd9dc;
+  --color-popover: #11171a;
+  --color-popover-foreground: #cdd9dc;
+
+  --color-primary: #ffb454;
+  --color-primary-foreground: #0b0e0f;
+  --color-secondary: #7fd88f;
+  --color-secondary-foreground: #0b0e0f;
+
+  --color-muted: #141c1f;
+  --color-muted-foreground: #6b7f85;
+  --color-accent: #182226;
+  --color-accent-foreground: #ffb454;
+
+  --color-destructive: #ff6b6b;
+  --color-destructive-foreground: #0b0e0f;
+  --color-warning: #ffb454;
+  --color-info: #6fc3df;
+
+  --color-input: #1e2a2e;
+  --color-ring: #ffb454;
+
+  --color-syntax-comment: #50686d;
+  --color-syntax-string: #7fd88f;
+  --color-syntax-number: #e5a3ff;
+  --color-syntax-keyword: #ffb454;
+  --color-syntax-operator: #93a7ab;
+  --color-syntax-function: #8fd3ff;
+  --color-syntax-type: #ffd479;
+  --color-syntax-property: #9fd2c4;
+
+  /* Las scanlines son un token más: cada tema decide si las quiere y de qué
+     color. `transparent` las apaga, que es lo que hacen `plain` y `paper`. */
+  --color-scanline: rgb(255 255 255 / 0.022);
+
+  /* Radios agudos: nada de rounded-2xl. */
+  --radius-xs: 2px;
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
+  --radius-xl: 4px;
+
+  /* Prosa del documento: sans del sistema (SF Pro en macOS), como GitHub,
+     Notion y Obsidian. El chrome de la app sigue en --font-mono. */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui,
+    'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --text-2xs: 10px;
+  --text-2xs--line-height: 14px;
+}
+
+/*
+ * Tokens derivados: no hace falta repetirlos en cada tema porque apuntan a otros
+ * que sí se sobreescriben. La sustitución ocurre en el mismo elemento (`html`),
+ * así que cada tema resuelve los suyos.
+ */
+:root {
+  --color-card: var(--color-panel);
+  --color-card-foreground: var(--color-foreground);
+  --color-popover: var(--color-panel);
+  --color-popover-foreground: var(--color-foreground);
+  --color-input: var(--color-border);
+}
+
+/* ---------------------------------------------------------------------------
+ * Temas.
+ *
+ * `phosphor` no tiene bloque: es el `@theme` de arriba, que es también el valor
+ * por defecto mientras la app carga la configuración. Los demás declaran la
+ * paleta **completa** —así ninguno hereda a medias los colores de otro— y
+ * `plain`, que es «phosphor sin scanlines», solo cambia eso a propósito.
+ *
+ * El color de acento (`primary`) es el que da carácter; `secondary` es el
+ * segundo tono (enlaces, estados correctos). Los dos llevan un
+ * `*-foreground` oscuro o claro según su luminancia, para que el texto que va
+ * encima se lea.
+ * ------------------------------------------------------------------------- */
+
+/* Ámbar monocromo, como un terminal CRT P3: todo el texto en ámbar. */
+html[data-theme='amber'] {
+  --color-background: #0d0a05;
+  --color-foreground: #e8c99b;
+  --color-panel: #15100a;
+  --color-panel-raised: #1c150c;
+  --color-sunken: #090602;
+  --color-border: #2b2114;
+  --color-border-strong: #3f3120;
+  --color-border-hover: #57452c;
+  --color-strong: #ffe3b0;
+  --color-primary: #ffb000;
+  --color-primary-foreground: #0d0a05;
+  --color-secondary: #ffcf70;
+  --color-secondary-foreground: #0d0a05;
+  --color-muted: #1c150c;
+  --color-muted-foreground: #9a8156;
+  --color-accent: #251c10;
+  --color-accent-foreground: #ffb000;
+  --color-destructive: #ff7a5c;
+  --color-destructive-foreground: #0d0a05;
+  --color-warning: #ffb000;
+  --color-info: #d9a441;
+  --color-ring: #ffb000;
+
+  --color-syntax-comment: #8a7043;
+  --color-syntax-string: #ffcf70;
+  --color-syntax-number: #ffe3b0;
+  --color-syntax-keyword: #ffb000;
+  --color-syntax-operator: #c99a4e;
+  --color-syntax-function: #ffd98a;
+  --color-syntax-type: #ffe8c0;
+  --color-syntax-property: #e0b978;
+  --color-scanline: rgb(255 176 0 / 0.03);
+}
+
+/* Verde fósforo P1, el del terminal clásico. */
+html[data-theme='green'] {
+  --color-background: #050b07;
+  --color-foreground: #b9e4c2;
+  --color-panel: #0a1410;
+  --color-panel-raised: #0d1a14;
+  --color-sunken: #030705;
+  --color-border: #14301f;
+  --color-border-strong: #1f4a30;
+  --color-border-hover: #2b6444;
+  --color-strong: #d8f6de;
+  --color-primary: #4ade80;
+  --color-primary-foreground: #050b07;
+  --color-secondary: #86efac;
+  --color-secondary-foreground: #050b07;
+  --color-muted: #0d1a14;
+  --color-muted-foreground: #6b9c7b;
+  --color-accent: #11281a;
+  --color-accent-foreground: #4ade80;
+  --color-destructive: #ff6b6b;
+  --color-destructive-foreground: #050b07;
+  --color-warning: #e5c07b;
+  --color-info: #6fc3df;
+  --color-ring: #4ade80;
+
+  --color-syntax-comment: #4e7d5c;
+  --color-syntax-string: #86efac;
+  --color-syntax-number: #c8f7d4;
+  --color-syntax-keyword: #4ade80;
+  --color-syntax-operator: #6fa87f;
+  --color-syntax-function: #a7f3c0;
+  --color-syntax-type: #d3f5da;
+  --color-syntax-property: #7fd39a;
+  --color-scanline: rgb(120 255 160 / 0.025);
+}
+
+/* Frío, azul cian. Para pantallas calibradas o luz de día. */
+html[data-theme='ice'] {
+  --color-background: #070b10;
+  --color-foreground: #cddff0;
+  --color-panel: #0d141c;
+  --color-panel-raised: #111a24;
+  --color-sunken: #05080c;
+  --color-border: #1a2735;
+  --color-border-strong: #263a4d;
+  --color-border-hover: #365068;
+  --color-strong: #e6f1fb;
+  --color-primary: #6fc3df;
+  --color-primary-foreground: #070b10;
+  --color-secondary: #8ab4f8;
+  --color-secondary-foreground: #070b10;
+  --color-muted: #111a24;
+  --color-muted-foreground: #7d93a8;
+  --color-accent: #16222e;
+  --color-accent-foreground: #6fc3df;
+  --color-destructive: #ff6b6b;
+  --color-destructive-foreground: #070b10;
+  --color-warning: #ffc46b;
+  --color-info: #6fc3df;
+  --color-ring: #6fc3df;
+
+  --color-syntax-comment: #4f6b80;
+  --color-syntax-string: #8fd3ff;
+  --color-syntax-number: #b8a6ff;
+  --color-syntax-keyword: #6fc3df;
+  --color-syntax-operator: #7e9bb3;
+  --color-syntax-function: #a5d8ff;
+  --color-syntax-type: #cfe6ff;
+  --color-syntax-property: #8fd8d0;
+  --color-scanline: rgb(180 225 255 / 0.022);
+}
+
+/* Violeta y rosa. El más alejado del verde fósforo. */
+html[data-theme='plasma'] {
+  --color-background: #0b0710;
+  --color-foreground: #e2d3f0;
+  --color-panel: #140d1c;
+  --color-panel-raised: #1a1124;
+  --color-sunken: #080510;
+  --color-border: #2a1c3d;
+  --color-border-strong: #3d2a55;
+  --color-border-hover: #563d78;
+  --color-strong: #f2e7ff;
+  --color-primary: #d98cff;
+  --color-primary-foreground: #0b0710;
+  --color-secondary: #ff8ac4;
+  --color-secondary-foreground: #0b0710;
+  --color-muted: #1a1124;
+  --color-muted-foreground: #9d89b8;
+  --color-accent: #221631;
+  --color-accent-foreground: #d98cff;
+  --color-destructive: #ff6b6b;
+  --color-destructive-foreground: #0b0710;
+  --color-warning: #ffc46b;
+  --color-info: #8ab4f8;
+  --color-ring: #d98cff;
+
+  --color-syntax-comment: #6b5580;
+  --color-syntax-string: #ff8ac4;
+  --color-syntax-number: #b8a6ff;
+  --color-syntax-keyword: #d98cff;
+  --color-syntax-operator: #9c86b5;
+  --color-syntax-function: #f0a6ff;
+  --color-syntax-type: #ffd0e8;
+  --color-syntax-property: #e0a8ff;
+  --color-scanline: rgb(230 190 255 / 0.022);
+}
+
+/* Claro, para leer de día. Sin scanlines: sobre fondo claro se ven como suciedad.
+   El acento es ámbar oscurecido, porque el de `phosphor` no contrasta aquí. */
+html[data-theme='paper'] {
+  --color-background: #f7f5f0;
+  --color-foreground: #23282c;
+  --color-panel: #ffffff;
+  --color-panel-raised: #fdfcf9;
+  --color-sunken: #ebe7dd;
+  --color-border: #d9d3c6;
+  --color-border-strong: #b5ad9c;
+  --color-border-hover: #8d8474;
+  --color-strong: #0d1114;
+  --color-primary: #a8560a;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #1c6b3c;
+  --color-secondary-foreground: #ffffff;
+  --color-muted: #eeeae1;
+  --color-muted-foreground: #5f5a52;
+  --color-accent: #e9e4d8;
+  --color-accent-foreground: #8a4708;
+  --color-destructive: #b3261e;
+  --color-destructive-foreground: #ffffff;
+  --color-warning: #8a5a00;
+  --color-info: #0f5f7d;
+  --color-ring: #a8560a;
+
+  --color-syntax-comment: #7a736a;
+  --color-syntax-string: #14683a;
+  --color-syntax-number: #7b3fa0;
+  --color-syntax-keyword: #9c4f08;
+  --color-syntax-operator: #6b6660;
+  --color-syntax-function: #1d5f92;
+  --color-syntax-type: #8a5a00;
+  --color-syntax-property: #146b63;
+  --color-scanline: transparent;
+}
+
+/* Solarized Dark, de Ethan Schoonover. Amarillo y cian sobre azul petróleo. */
+html[data-theme='solarized'] {
+  --color-background: #002b36;
+  --color-foreground: #93a1a1;
+  --color-panel: #073642;
+  --color-panel-raised: #0a4551;
+  --color-sunken: #001f27;
+  --color-border: #0f4a56;
+  --color-border-strong: #1a6472;
+  --color-border-hover: #2a7f90;
+  --color-strong: #eee8d5;
+  --color-primary: #b58900;
+  --color-primary-foreground: #002b36;
+  --color-secondary: #2aa198;
+  --color-secondary-foreground: #002b36;
+  --color-muted: #073642;
+  --color-muted-foreground: #7d939a;
+  --color-accent: #0d3f4b;
+  --color-accent-foreground: #b58900;
+  --color-destructive: #e86b68;
+  --color-destructive-foreground: #002b36;
+  --color-warning: #cb4b16;
+  --color-info: #268bd2;
+  --color-ring: #b58900;
+
+  --color-syntax-comment: #586e75;
+  --color-syntax-string: #859900;
+  --color-syntax-number: #e06fa8;
+  --color-syntax-keyword: #b58900;
+  --color-syntax-operator: #839496;
+  --color-syntax-function: #268bd2;
+  --color-syntax-type: #e0713c;
+  --color-syntax-property: #2aa198;
+  --color-scanline: rgb(147 161 161 / 0.022);
+}
+
+/* Gruvbox: el retro cálido de siempre, con sus amarillos y verdes apagados. */
+html[data-theme='gruvbox'] {
+  --color-background: #282828;
+  --color-foreground: #ebdbb2;
+  --color-panel: #32302f;
+  --color-panel-raised: #3c3836;
+  --color-sunken: #1d2021;
+  --color-border: #504945;
+  --color-border-strong: #665c54;
+  --color-border-hover: #7c6f64;
+  --color-strong: #fbf1c7;
+  --color-primary: #fabd2f;
+  --color-primary-foreground: #282828;
+  --color-secondary: #b8bb26;
+  --color-secondary-foreground: #282828;
+  --color-muted: #3c3836;
+  --color-muted-foreground: #a89984;
+  --color-accent: #423d38;
+  --color-accent-foreground: #fabd2f;
+  --color-destructive: #fc6350;
+  --color-destructive-foreground: #282828;
+  --color-warning: #fe8019;
+  --color-info: #83a598;
+  --color-ring: #fabd2f;
+
+  --color-syntax-comment: #928374;
+  --color-syntax-string: #b8bb26;
+  --color-syntax-number: #d3869b;
+  --color-syntax-keyword: #fb4934;
+  --color-syntax-operator: #a89984;
+  --color-syntax-function: #8ec07c;
+  --color-syntax-type: #fabd2f;
+  --color-syntax-property: #83a598;
+  --color-scanline: rgb(235 219 178 / 0.022);
+}
+
+/* Nord: azules fríos del norte, con acentos helados. */
+html[data-theme='nord'] {
+  --color-background: #2e3440;
+  --color-foreground: #d8dee9;
+  --color-panel: #3b4252;
+  --color-panel-raised: #434c5e;
+  --color-sunken: #272c36;
+  --color-border: #434c5e;
+  --color-border-strong: #4c566a;
+  --color-border-hover: #5e6b85;
+  --color-strong: #eceff4;
+  --color-primary: #88c0d0;
+  --color-primary-foreground: #2e3440;
+  --color-secondary: #a3be8c;
+  --color-secondary-foreground: #2e3440;
+  --color-muted: #3b4252;
+  --color-muted-foreground: #93a1b5;
+  --color-accent: #434c5e;
+  --color-accent-foreground: #88c0d0;
+  --color-destructive: #d98a92;
+  --color-destructive-foreground: #2e3440;
+  --color-warning: #ebcb8b;
+  --color-info: #81a1c1;
+  --color-ring: #88c0d0;
+
+  --color-syntax-comment: #7a88a3;
+  --color-syntax-string: #a3be8c;
+  --color-syntax-number: #b48ead;
+  --color-syntax-keyword: #81a1c1;
+  --color-syntax-operator: #93a1b5;
+  --color-syntax-function: #88c0d0;
+  --color-syntax-type: #8fbcbb;
+  --color-syntax-property: #d08770;
+  --color-scanline: rgb(216 222 233 / 0.022);
+}
+
+/* Sin color, solo grises. Los errores se quedan en rojo a propósito: es lo único que necesita distinguirse por tono y no por brillo. */
+html[data-theme='mono'] {
+  --color-background: #0d0d0d;
+  --color-foreground: #d4d4d4;
+  --color-panel: #151515;
+  --color-panel-raised: #1c1c1c;
+  --color-sunken: #080808;
+  --color-border: #262626;
+  --color-border-strong: #3a3a3a;
+  --color-border-hover: #525252;
+  --color-strong: #f5f5f5;
+  --color-primary: #e5e5e5;
+  --color-primary-foreground: #0d0d0d;
+  --color-secondary: #a3a3a3;
+  --color-secondary-foreground: #0d0d0d;
+  --color-muted: #1c1c1c;
+  --color-muted-foreground: #8f8f8f;
+  --color-accent: #242424;
+  --color-accent-foreground: #e5e5e5;
+  --color-destructive: #f87171;
+  --color-destructive-foreground: #0d0d0d;
+  --color-warning: #d4d4d4;
+  --color-info: #a3a3a3;
+  --color-ring: #e5e5e5;
+
+  --color-syntax-comment: #6b6b6b;
+  --color-syntax-string: #c8c8c8;
+  --color-syntax-number: #e5e5e5;
+  --color-syntax-keyword: #ffffff;
+  --color-syntax-operator: #9a9a9a;
+  --color-syntax-function: #d4d4d4;
+  --color-syntax-type: #bdbdbd;
+  --color-syntax-property: #a8a8a8;
+  --color-scanline: rgb(255 255 255 / 0.02);
+}
+
+/* El mismo esquema de `phosphor`, sin el efecto de scanline. Hereda el resto a
+   propósito: solo cambia lo que su nombre dice. */
+html[data-theme='plain'] {
+  --color-scanline: transparent;
+}
+
+/*
+ * Ventana translúcida.
+ *
+ * Cuando la opacidad baja del 100 %, `--color-background` pasa a ser un
+ * `rgb(... / alpha)` y el fondo se deja en manos del marco de la app. Aquí solo
+ * hay que quitar el fondo propio del `<html>` y del `<body>`: si no, taparían
+ * justo lo que se quiere ver a través.
+ *
+ * Con la opacidad al 100 % esto no se aplica y todo queda como siempre.
+ */
+html[data-translucent='true'],
+html[data-translucent='true'] body {
+  background-color: transparent;
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    border-color: var(--color-border);
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow: hidden;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--color-primary) 25%, transparent);
+  }
+
+  :focus-visible {
+    outline: 1px solid var(--color-ring);
+    outline-offset: 1px;
+  }
+
+  /* Scrollbars finas, del color del panel. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border-strong) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 9px;
+    height: 9px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: var(--color-border-strong);
+    border-radius: 0;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: var(--color-border-hover);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Scanline. Muy sutil, apagada con `prefers-reduced-motion` y con el tema
+ * "plain" de la configuración (`<html data-theme="plain">`).
+ *
+ * Va por debajo de los diálogos y los menús (que usan `z-50`): el efecto es del
+ * marco de la app, no de una superficie que el usuario acaba de abrir para
+ * leerla. Con `z-80` se dibujaba encima de Ajustes y del onboarding.
+ * ------------------------------------------------------------------------- */
+.scanlines {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    var(--color-scanline) 0px,
+    var(--color-scanline) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+html[data-theme='plain'] .scanlines {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scanlines {
+    display: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Nav tipo prompt de shell y paneles con bordes de caja.
+ * ------------------------------------------------------------------------- */
+.prompt-caret {
+  color: var(--color-primary);
+  user-select: none;
+}
+
+/*
+ * Piel de panel: borde, fondo y radio. **Sin `position` a propósito.**
+ *
+ * Este archivo va después de las utilidades de Tailwind (el `@import` está
+ * arriba), así que una clase propia le gana a una utilidad con la misma
+ * especificidad. Cuando aquí había `position: relative`, el `fixed` de
+ * `DialogContent` quedaba anulado: el diálogo pasaba a ser `relative` y, con
+ * `left: 50%` / `top: 50%`, eso no centra —desplaza media pantalla abajo y a la
+ * derecha—. Así se salían de la ventana la paleta de comandos y Ajustes.
+ *
+ * Quien necesite ser el bloque contenedor de hijos absolutos que pida
+ * `relative` (o use `.term-frame`, que sí lo necesita para sus esquinas).
+ * `scripts/verify-css-utilities.mjs` vigila que no vuelva.
+ */
+.term-panel {
+  border: 1px solid var(--color-border);
+  background-color: var(--color-panel);
+  border-radius: var(--radius-md);
+}
+
+.term-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.6rem;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-muted-foreground);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.term-panel-header::before {
+  content: '┤';
+  color: var(--color-primary);
+}
+
+.term-panel-header::after {
+  content: '├';
+  margin-left: auto;
+  color: var(--color-border-strong);
+}
+
+.term-rule {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-muted-foreground);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.term-rule::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid var(--color-border);
+}
+
+/* Cruceta de esquinas para el panel de inbox. */
+.term-frame {
+  position: relative;
+}
+.term-frame::before,
+.term-frame::after {
+  position: absolute;
+  color: var(--color-border-strong);
+  font-size: 11px;
+  line-height: 1;
+  pointer-events: none;
+}
+.term-frame::before {
+  content: '┌';
+  top: -1px;
+  left: -1px;
+}
+.term-frame::after {
+  content: '┘';
+  right: -1px;
+  bottom: -1px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Markdown renderizado (react-markdown). Prosa de lectura: escala tipo
+ * GitHub, ritmo generoso tipo Obsidian, paleta oscura de la app.
+ * ------------------------------------------------------------------------- */
+.md-preview {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--color-foreground);
+  overflow-wrap: break-word;
+}
+
+/* Ritmo vertical: ni el primero ni el último bloque arrastran margen. */
+.md-preview > *:first-child {
+  margin-top: 0;
+}
+
+.md-preview > *:last-child {
+  margin-bottom: 0;
+}
+
+.md-preview h1,
+.md-preview h2,
+.md-preview h3,
+.md-preview h4,
+.md-preview h5,
+.md-preview h6 {
+  /* Margen superior amplio para que un título nunca pise el párrafo previo. */
+  margin: 1.6em 0 0.5em;
+  font-weight: 600;
+  color: var(--color-foreground);
+  line-height: 1.3;
+}
+
+.md-preview h1 {
+  font-size: 1.75em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.md-preview h2 {
+  font-size: 1.4em;
+  padding-bottom: 0.25em;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.md-preview h3 {
+  font-size: 1.18em;
+}
+
+.md-preview h4 {
+  font-size: 1.02em;
+}
+
+.md-preview h5 {
+  font-size: 0.94em;
+}
+
+.md-preview h6 {
+  font-size: 0.94em;
+  color: var(--color-muted-foreground);
+}
+
+.md-preview p {
+  margin: 0 0 1em;
+}
+
+.md-preview a {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+}
+
+.md-preview a:hover {
+  color: var(--color-secondary);
+  text-decoration-thickness: 2px;
+}
+
+.md-preview strong {
+  color: var(--color-strong);
+  font-weight: 700;
+}
+
+.md-preview em {
+  color: var(--color-secondary);
+  font-style: italic;
+}
+
+.md-preview del {
+  color: var(--color-muted-foreground);
+  text-decoration: line-through;
+}
+
+.md-preview ul,
+.md-preview ol {
+  margin: 0 0 1em;
+  padding-left: 1.6em;
+}
+
+.md-preview ul {
+  list-style: disc;
+}
+
+.md-preview ul ul {
+  list-style: circle;
+}
+
+.md-preview ul ul ul {
+  list-style: square;
+}
+
+.md-preview ol {
+  list-style: decimal;
+}
+
+.md-preview ol > li::marker {
+  color: var(--color-primary);
+}
+
+.md-preview li {
+  margin: 0.3em 0;
+}
+
+.md-preview li > ul,
+.md-preview li > ol {
+  margin: 0.3em 0;
+}
+
+/* Listas de tareas: sin viñeta, la marca la pone el checkbox real. */
+.md-preview li.task-list-item {
+  list-style: none;
+}
+
+.md-preview input.md-task,
+.md-preview li input[type='checkbox'] {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin: 0 0.5em 0 0;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-xs);
+  background: var(--color-sunken);
+  vertical-align: middle;
+  top: -1px;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+
+.md-preview input.md-task:hover,
+.md-preview li input[type='checkbox']:hover {
+  border-color: var(--color-primary);
+  background: var(--color-panel-raised);
+}
+
+.md-preview input.md-task:checked,
+.md-preview li input[type='checkbox']:checked {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+}
+
+.md-preview input.md-task:checked::after,
+.md-preview li input[type='checkbox']:checked::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  box-sizing: content-box;
+  width: 3px;
+  height: 6px;
+  border: solid var(--color-primary-foreground);
+  border-width: 0 2px 2px 0;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.md-preview input.md-task:focus-visible,
+.md-preview li input[type='checkbox']:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .md-preview input.md-task,
+  .md-preview li input[type='checkbox'] {
+    transition: none;
+  }
+}
+
+.md-preview blockquote {
+  margin: 0 0 1em;
+  padding: 0.3em 0 0.3em 1em;
+  border-left: 3px solid var(--color-border-strong);
+  color: var(--color-muted-foreground);
+}
+
+.md-preview blockquote > *:last-child {
+  margin-bottom: 0;
+}
+
+.md-preview hr {
+  margin: 2em 0;
+  border: 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.md-preview code.md-inline-code {
+  font-family: var(--font-mono);
+  padding: 0.15em 0.4em;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  background: var(--color-sunken);
+  color: var(--color-secondary);
+  font-size: 0.9em;
+}
+
+.md-preview table {
+  width: 100%;
+  margin: 0 0 1em;
+  border-collapse: collapse;
+  font-size: 0.95em;
+}
+
+.md-preview thead {
+  background: var(--color-sunken);
+  border-bottom: 1px solid var(--color-border-strong);
+}
+
+.md-preview th {
+  padding: 0.4em 0.7em;
+  text-align: left;
+  color: var(--color-foreground);
+  font-weight: 600;
+}
+
+.md-preview td {
+  padding: 0.4em 0.7em;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.md-preview tr:last-child td {
+  border-bottom: 0;
+}
+
+.md-preview img {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+/* Bloque activo durante la sincronización de scroll. */
+.md-preview [data-line].is-sync-active {
+  background: color-mix(in srgb, var(--color-primary) 5%, transparent);
+  box-shadow: inset 2px 0 0 0 var(--color-primary);
+}
+
+/* ---------------------------------------------------------------------------
+ * Bloques de código resaltados con shiki.
+ * ------------------------------------------------------------------------- */
+.code-block {
+  margin: 0 0 1em;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-sunken);
+  overflow: hidden;
+}
+
+.code-block__bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.2rem 0.55rem;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-muted-foreground);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.code-block__bar::before {
+  content: '▚';
+  color: var(--color-primary);
+}
+
+.code-block pre {
+  margin: 0;
+  padding: 0.75rem 0.9rem;
+  overflow-x: auto;
+  background: transparent !important;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.code-block code {
+  font-family: var(--font-mono);
+  background: transparent !important;
+}
+
+/* ---------------------------------------------------------------------------
+ * Diagramas Mermaid.
+ *
+ * El SVG lo genera Mermaid con los colores del tema **incrustados** (ver
+ * `lib/mermaid.ts`), así que aquí solo se ajusta la caja: que quepa, que se
+ * centre y que no desborde en horizontal. Nada de colores, que vienen de dentro.
+ *
+ * Un diagrama ancho puede pedir más de lo que hay: `overflow-x` deja desplazarse
+ * en vez de recortarlo, y `max-width: 100%` evita que se salga de la columna.
+ * ------------------------------------------------------------------------- */
+.mermaid-block__canvas {
+  overflow-x: auto;
+  padding: 0.75rem 0.9rem;
+}
+
+.mermaid-block__canvas svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+  background: transparent;
+}
+
+.mermaid-block__note {
+  margin: 0;
+  padding: 0.75rem 0.9rem;
+  color: var(--color-muted-foreground);
+  font-size: 12px;
+}
+
+.mermaid-block__error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-destructive);
+  font-size: 12px;
+  /* Los mensajes de Mermaid traen varias líneas: se conservan para poder
+     leerlos, y se parten si no caben. */
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.mermaid-block__source {
+  margin: 0;
+  padding: 0.75rem 0.9rem;
+  border-top: 1px solid var(--color-border);
+  overflow-x: auto;
+  color: var(--color-muted-foreground);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* ---------------------------------------------------------------------------
+ * CodeMirror. El tema real se construye en JS (features/editor/cmTheme.ts);
+ * aquí solo se ajustan detalles que el tema no alcanza.
+ * ------------------------------------------------------------------------- */
+.cm-editor {
+  height: 100%;
+  background-color: var(--color-panel);
+}
+
+.cm-editor.cm-focused {
+  outline: none;
+}
+
+.cm-scroller {
+  font-family: var(--font-mono) !important;
+  line-height: 1.6;
+}
+
+.cm-editor ::selection {
+  background: color-mix(in srgb, var(--color-primary) 22%, transparent);
+}
+
+/* ---------------------------------------------------------------------------
+ * Boot screen.
+ * ------------------------------------------------------------------------- */
+@keyframes boot-cursor {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.boot-cursor {
+  display: inline-block;
+  width: 7px;
+  height: 13px;
+  background: var(--color-primary);
+  vertical-align: -2px;
+  animation: boot-cursor 1.05s step-end infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boot-cursor {
+    animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Sonner: variables propias del toaster.
+ * ------------------------------------------------------------------------- */
+[data-sonner-toaster] {
+  --normal-bg: var(--color-panel);
+  --normal-text: var(--color-foreground);
+  --normal-border: var(--color-border);
+  --success-bg: var(--color-panel);
+  --success-text: var(--color-secondary);
+  --error-bg: var(--color-panel);
+  --error-text: var(--color-destructive);
+  --warning-bg: var(--color-panel);
+  --warning-text: var(--color-warning);
+  font-family: var(--font-mono);
+}
+
+/* Fade mínimo para popovers: sin efectos llamativos. */
+@keyframes ui-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.ui-overlay {
+  animation: ui-fade-in 90ms ease-out;
+}
+
+.ui-pop {
+  animation: ui-fade-in 90ms ease-out;
+}

@@ -1,0 +1,32 @@
+/** Textos de `notes`. Misma forma que `es/notes.ts`. */
+export const notes = {
+    title: 'notes',
+    empty: 'No notes yet. Create one with the button below.',
+    newNote: 'new note',
+    newFolder: 'new folder',
+    newFolderName: 'folder',
+    untitled: 'untitled',
+    rename: 'rename',
+    renamed: 'Renamed to {name}',
+    renameFailed: "Couldn't rename it",
+    delete: 'delete',
+    deleteTitle: 'Delete "{name}"?',
+    deleteDescription: 'The note goes to the trash, it is not destroyed. You can get it back from Settings.',
+    deleteFolderDescription:
+      'The folder goes to the trash with everything inside. Nothing is destroyed: you can get it back from Settings.',
+    deleted: '"{name}" to the trash',
+    deleteFailed: "Couldn't delete it",
+    createFailed: "Couldn't create it",
+    saveFailed: "Couldn't save the note",
+    loadFailed: "Couldn't read the note",
+    loadTreeFailed: "couldn't read the notes",
+    moved: 'Moved',
+    moveFailed: "Couldn't move it",
+    dropIntoItself: "You can't put a folder inside itself",
+    dropOccupied: 'There is already something with that name there',
+    expand: 'Expand',
+    collapse: 'Collapse',
+    pickOne: 'Pick a note from the tree, or create a new one.',
+    pickOneHint:
+      'They are stored as markdown files in the "notes" folder of your workspace, so you can open them with any editor.',
+  } as const

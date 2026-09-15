@@ -1,0 +1,32 @@
+/** Textos de `notes`. Ver `es/common.ts` para el criterio. */
+export const notes = {
+    title: 'notas',
+    empty: 'No hay notas todavía. Crea una con el botón de abajo.',
+    newNote: 'nueva nota',
+    newFolder: 'nueva carpeta',
+    newFolderName: 'carpeta',
+    untitled: 'sin-titulo',
+    rename: 'renombrar',
+    renamed: 'Renombrada a {name}',
+    renameFailed: 'No pude renombrarla',
+    delete: 'borrar',
+    deleteTitle: '¿borrar «{name}»?',
+    deleteDescription: 'La nota se mueve a la papelera, no se destruye. Puedes recuperarla desde Ajustes.',
+    deleteFolderDescription:
+      'La carpeta va a la papelera con todo lo que tiene dentro. No se destruye nada: puedes recuperarla desde Ajustes.',
+    deleted: '«{name}» a la papelera',
+    deleteFailed: 'No pude borrarla',
+    createFailed: 'No pude crearla',
+    saveFailed: 'No pude guardar la nota',
+    loadFailed: 'No pude leer la nota',
+    loadTreeFailed: 'no pude leer las notas',
+    moved: 'Movido',
+    moveFailed: 'No pude moverlo',
+    dropIntoItself: 'No puedes meter una carpeta dentro de sí misma',
+    dropOccupied: 'Ya hay algo con ese nombre ahí',
+    expand: 'Desplegar',
+    collapse: 'Plegar',
+    pickOne: 'Elige una nota del árbol, o crea una nueva.',
+    pickOneHint:
+      'Se guardan como archivos markdown en la carpeta «notes» de tu workspace, así que las puedes abrir con cualquier editor.',
+  } as const

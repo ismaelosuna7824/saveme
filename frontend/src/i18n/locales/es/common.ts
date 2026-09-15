@@ -1,0 +1,75 @@
+/**
+ * Textos compartidos por toda la aplicación.
+ *
+ * `es/` es la fuente de verdad de las claves: lo que exista aquí tiene que
+ * existir en `en/` con la misma forma, y el compilador lo comprueba.
+ */
+export const common = {
+  actions: {
+    save: 'guardar',
+    saveNow: 'guardar ahora',
+    cancel: 'cancelar',
+    confirm: 'confirmar',
+    close: 'cerrar',
+    back: 'atrás',
+    next: 'siguiente',
+    finish: 'terminar',
+    skip: 'saltar',
+    retry: 'reintentar',
+    copy: 'copiar',
+    copied: 'copiado',
+    copyFailed: 'No pude copiarlo; selecciónalo y usa Cmd/Ctrl+C',
+    open: 'abrir',
+    reload: 'recargar',
+    delete: 'borrar',
+    discard: 'descartar',
+    accept: 'aceptar',
+    apply: 'aplicar',
+    install: 'instalar',
+    reindex: 'reindexar',
+    configure: 'configurar',
+    configureManually: 'configurar a mano',
+    search: 'buscar',
+    none: 'ninguno',
+    all: 'todos',
+  },
+  splitPane: {
+    resize: 'Redimensionar los paneles',
+    hint: 'Arrastra para redimensionar · doble clic para igualar',
+  },
+  state: {
+    loading: 'cargando…',
+    saving: 'guardando…',
+    saved: 'guardado',
+    savingAt: 'guardado {when}',
+    pending: 'pendiente',
+    done: 'hecho',
+    error: 'error',
+    noResponse: 'sin respuesta',
+    empty: 'nada por aquí todavía',
+    unknown: 'desconocido',
+    yes: 'sí',
+    no: 'no',
+  },
+  time: {
+    noActivity: 'sin actividad',
+    justNow: 'recién',
+    moments: 'hace segundos',
+    yesterday: 'ayer',
+    months: { one: 'hace {count} mes', other: 'hace {count} meses' },
+    years: 'hace {count} a',
+    unsaved: 'sin guardar',
+    now: 'ahora mismo',
+    seconds: 'hace {count} s',
+    minutes: 'hace {count} min',
+    hours: 'hace {count} h',
+    days: 'hace {count} d',
+  },
+  words: {
+    one: '{count} palabra',
+    other: '{count} palabras',
+  },
+  tags: {
+    filterBy: 'Ver todo lo que lleva #{tag}',
+  },
+} as const

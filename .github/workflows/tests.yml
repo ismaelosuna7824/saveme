@@ -1,0 +1,81 @@
+# Las suites de verificación, en un solo sitio.
+#
+# Es un workflow *reutilizable* (`workflow_call`): no se dispara solo, lo llaman
+# `ci.yml` y `release.yml`. Existe para que la lista de suites no viva en dos
+# ficheros: si mañana se añade una verificación, se añade aquí y la ven los dos.
+# Un release que se salta una suite que la CI sí corre es exactamente el agujero
+# que este fichero evita.
+name: Pruebas
+
+on:
+  workflow_call:
+
+env:
+  # `scripts/env.sh` redirige las cachés de Go, bun y Cargo a esta ruta. Fuera del
+  # sandbox de desarrollo no hace falta, pero apuntarla al workspace permite
+  # cachearla entre ejecuciones en vez de dejar que caiga en el /tmp del runner,
+  # que se pierde en cada job.
+  SAVEME_CACHE_ROOT: ${{ github.workspace }}/.saveme-cache
+
+jobs:
+  tests:
+    name: Pruebas
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      # Dependencias de sistema que necesita el shell en Linux (webkit2gtk para el
+      # webview, y el resto para el empaquetado). Sin esto `cargo test` ni
+      # siquiera compila.
+      - name: Dependencias del sistema
+        run: |
+          sudo apt-get update
+          # Lista oficial de Tauri v2 para Debian/Ubuntu, más `patchelf`, que
+          # hace falta para el AppImage. `libayatana-appindicator3-dev` es el
+          # paquete correcto en Ubuntu 22.04 y posteriores; el antiguo
+          # `libappindicator3-dev` ya no está.
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - uses: actions/cache@v6
+        with:
+          path: ${{ env.SAVEME_CACHE_ROOT }}
+          key: saveme-cache-${{ runner.os }}-${{ hashFiles('backend/go.sum', 'bun.lock') }}
+          restore-keys: saveme-cache-${{ runner.os }}-
+
+      - name: Dependencias del proyecto
+        run: make setup
+
+      # Las nueve suites: Go con -race, Rust, tipos, Live Preview, traducciones,
+      # orden CSS, temas, Mermaid y el árbol de notas; más el icono y la versión.
+      - name: Suites de verificación
+        run: make test
+
+      # El camino que promete el producto: el agente escribe con la app apagada y
+      # la app lo encuentra al volver. Compila el binario por su cuenta.
+      - name: Verificación end-to-end
+        run: make test-e2e

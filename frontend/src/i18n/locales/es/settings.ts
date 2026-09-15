@@ -1,0 +1,222 @@
+/** Textos de `settings`. Ver `es/common.ts` para el criterio. */
+export const settings = {
+  title: 'ajustes',
+  subtitle: 'Apariencia, clientes de IA conectados por MCP y workspace.',
+  sectionsLabel: 'Secciones de ajustes',
+  footer: 'los cambios se guardan solos',
+  footerNote: 'se guardan en el archivo de configuración del core',
+  nav: {
+    appearance: 'apariencia',
+    agents: 'clientes de IA',
+    workspace: 'workspace',
+  },
+  navHint: {
+    appearance: 'idioma, tema y editor',
+    agents: 'clientes de IA',
+    workspace: 'raíz e índice',
+  },
+  appearance: {
+    opacity: {
+      title: 'opacidad de la ventana',
+      hint: 'se guarda en config.opacity',
+      changed: 'Opacidad al {value}%',
+      explain:
+        'Por debajo del 100% se ve lo que hay detrás de la ventana. El texto y los paneles siguen opacos: translucirlos también los volvería ilegibles.',
+    },
+    theme: {
+      title: 'tema',
+      hint: 'se guarda en config.theme',
+      activated: 'Tema {name} activado',
+      option: {
+        phosphor: {
+          name: 'fósforo',
+          description: 'Ámbar sobre negro con el efecto sutil de scanline.',
+        },
+        amber: {
+          name: 'ámbar',
+          description: 'Monocromo ámbar, como un terminal CRT: todo el texto del mismo tono.',
+        },
+        green: {
+          name: 'verde',
+          description: 'Verde fósforo P1, el del terminal clásico.',
+        },
+        ice: {
+          name: 'hielo',
+          description: 'Frío, en cian y azul. Descansa la vista con luz de día.',
+        },
+        plasma: {
+          name: 'plasma',
+          description: 'Violeta y rosa. El más alejado del verde fósforo.',
+        },
+        paper: {
+          name: 'papel',
+          description: 'Claro, para leer de día. Sin scanlines, que sobre fondo claro ensucian.',
+        },
+        solarized: {
+          name: 'solarized',
+          description: 'El clásico de Ethan Schoonover: amarillo y cian sobre azul petróleo.',
+        },
+        gruvbox: {
+          name: 'gruvbox',
+          description: 'Retro cálido, con amarillos y verdes apagados.',
+        },
+        nord: {
+          name: 'nord',
+          description: 'Azules fríos del norte, con acentos helados.',
+        },
+        mono: {
+          name: 'mono',
+          description:
+            'Sin color: solo grises. Los errores se quedan en rojo a propósito, que es lo único que conviene distinguir por tono y no por brillo.',
+        },
+        plain: {
+          name: 'plano',
+          description: 'El mismo esquema que fósforo, sin el efecto de scanline.',
+        },
+      },
+      unknown:
+        'El archivo tiene un tema que esta versión no conoce: {theme}. Elige uno de arriba para reemplazarlo.',
+    },
+    language: {
+      title: 'idioma',
+      hint: 'se guarda en config.language',
+      auto: 'Automático',
+      autoDescription: 'Usa el idioma de tu sistema y va cambiando con él.',
+      changed: 'Idioma cambiado a {name}',
+      // Cada idioma se describe en su propio idioma: quien busca el suyo lo
+      // reconoce antes así. Por eso estos dos textos son iguales en los dos
+      // diccionarios, y no es un descuido.
+      esDescription: 'La interfaz en español.',
+      enDescription: 'The interface in English.',
+    },
+    editor: {
+      title: 'editor',
+      hint: 'se aplica al instante',
+    },
+    fontSize: {
+      label: 'tamaño de fuente',
+      decrease: 'Reducir el tamaño de fuente',
+      increase: 'Aumentar el tamaño de fuente',
+      updated: 'Tamaño de fuente actualizado',
+      range: 'de {min} a {max} px',
+    },
+    wrap: {
+      label: 'ajustar líneas',
+      description: 'Las líneas largas se enrollan en vez de salirse a lo ancho.',
+      on: 'Ajuste de líneas activado',
+      off: 'Ajuste de líneas desactivado',
+    },
+    previewMode: {
+      label: 'modo de vista predeterminado',
+      saved: 'Modo {mode} guardado',
+    },
+    loadFailed: 'no pude leer la configuración',
+    saveFailed: 'No pude guardar el ajuste',
+    lastSaveFailed: 'el último guardado falló',
+  },
+  agents: {
+    title: 'clientes de IA',
+    hint: 'se configura el servidor MCP en cada uno',
+    loadFailed: 'no pude leer los clientes',
+    offline: 'el core no responde, sin él no puedo configurar nada',
+    noneSelected: 'Marca al menos un cliente para poder configurarlo.',
+    explainBefore: 'Se añade la entrada ',
+    explainCode: 'saveme',
+    explainAfter:
+      ' sin borrar lo que ya tengan: si hay que tocar un archivo, se deja copia de seguridad. Si tu cliente no está en la lista o su formato no está confirmado, usa ',
+    explainManual: 'configurar a mano',
+    explainEnd: ' y pega el bloque.',
+    selectedHint: 'nada marcado todavía: elige tú',
+    added: 'Se añade la entrada {name} a {path}',
+    restart: 'Reinicia el cliente después para que cargue el servidor.',
+    binary: 'binario',
+    apply: 'aplicar',
+    marked: { one: '{count} marcado', other: '{count} marcados' },
+    reconfigure: 'volver a configurar',
+    configureSelected: 'configurar los marcados',
+    rewriteNote: 'se reescribe la entrada `saveme` sin borrar nada más',
+    remove: 'quitar del cliente',
+    removeHint: 'Borra la entrada de SaveMe del archivo de este cliente. Deja copia de seguridad.',
+    removed: 'Quitado de {name}',
+    notConfigured: '{name} no estaba configurado',
+    removeManual: 'Este hay que quitarlo a mano',
+    removeFailed: 'No pude quitarlo',
+    willWrite: {
+      one: 'se escribirá {count} cliente',
+      other: 'se escribirán {count} clientes',
+    },
+  },
+  binary: {
+    title: 'servidor MCP',
+    pending: 'todavía no instalado',
+    onPath: 'también responde al comando {command}',
+    absoluteOnly: 'Los clientes usarán la ruta absoluta. No necesitas nada en el PATH.',
+    noDownload: 'No descarga nada: copia el binario que ya viene en la app.',
+    idempotent: 'Volver a hacerlo no rompe nada.',
+    installFailed: 'no pude instalar el binario',
+    installFailedToast: 'No pude instalar el servidor MCP',
+    onPathBadge: 'en el PATH',
+    absoluteBadge: 'solo por ruta absoluta',
+    onPathNote:
+      'También responde al comando `saveme`, así que las configuraciones pueden usar el nombre pelado.',
+    installing: 'instalando…',
+    verify: 'verificar la instalación',
+    installNow: 'instalar el servidor MCP',
+  },
+  workspace: {
+    title: 'workspace',
+    hint: 'mira sin tocar',
+    configFailed: 'no pude leer la configuración',
+    reindexFailed: 'no pude reindexar',
+    reindexFailedToast: 'No pude reindexar',
+    location: 'ubicación',
+    configFile: 'configuración',
+    added: 'añadidos',
+    updated: 'actualizados',
+    removed: 'quitados',
+    unchanged: 'sin cambios',
+    reindexing: 'reindexando…',
+    reindexFromDisk: 'reindexar desde el disco',
+    doctorLabel: 'diagnóstico',
+    doctorHint: 'Comprueba raíz, base de datos e índice sin tocar nada.',
+    rootCreated:
+      'No encontraba tu carpeta de SaveMe y he creado una vacía. Si has movido o renombrado la carpeta, tus resúmenes y notas siguen donde estaban: elige abajo dónde.',
+    rootSuggestions: 'Carpetas que sí son un workspace de SaveMe:',
+    rootPlaceholder: 'ruta de tu carpeta de SaveMe',
+    rootUse: 'usar esta',
+    rootSwitched: 'Carpeta elegida. Reinicia SaveMe para abrirla.',
+    rootFromEnv:
+      'La raíz la fija la variable SAVEME_ROOT, así que ninguna interfaz la cambia. Para cambiarla, edítala y reinicia la app.',
+    rootPending: 'Cambiaste la carpeta: cierra y vuelve a abrir SaveMe para que el cambio valga.',
+    reindex: {
+      label: 'reindexar',
+      description: 'Reconciliar el índice con los archivos que hay ahora.',
+      done: 'Índice reconstruido: {indexed} archivos, {unchanged} sin cambios',
+      failed: 'La reindexación terminó con {count} avisos',
+    },
+    doctor: {
+      title: 'cómo funciona',
+      description: 'Si algo no cuadra, este comando diagnostica sin tocar nada:',
+    },
+  },
+    trash: {
+      title: 'papelera',
+      hint: 'lo que has borrado, todavía recuperable',
+      empty: 'No hay nada borrado.',
+      loading: 'leyendo la papelera…',
+      loadFailed: 'no pude leer la papelera',
+      count: { one: '{count} archivo', other: '{count} archivos' },
+      deletedAt: 'borrado {when}',
+      restore: 'restaurar',
+      restoreHint: 'Devuelve el archivo a donde estaba',
+      restored: 'Restaurado en {path}',
+      restoreBlocked: 'Ya hay un archivo en {path}. Muévelo o bórralo antes de restaurar.',
+      restoreFailed: 'No pude restaurarlo',
+      emptyAction: 'vaciar la papelera',
+      emptyTitle: '¿vaciar la papelera?',
+      emptyDescription:
+        'Se borrarán {count} archivos de forma definitiva. Esto sí es irreversible: no queda copia en ningún sitio.',
+      emptied: 'Papelera vaciada: {count} archivos',
+      emptyFailed: 'No pude vaciarla',
+    },
+} as const

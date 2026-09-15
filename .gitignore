@@ -1,0 +1,32 @@
+# Dependencias y salida de build del frontend
+node_modules/
+frontend/dist/
+# Nota: frontend/src/routeTree.gen.ts SÍ se versiona, aunque sea generado. El
+# plugin de TanStack lo regenera en cada build, pero si falta, `tsc --noEmit`
+# falla en un clon recién bajado hasta que alguien compile. Versionarlo hace que
+# `make test` funcione desde el primer momento.
+
+# Salida de build de Go
+backend/bin/
+
+# Salida de build de Rust (Cargo.lock sí se versiona)
+src-tauri/target/
+# El sidecar se copia aquí en cada build; es un artefacto, no fuente.
+src-tauri/binaries/
+# Esquemas y permisos generados por Tauri.
+src-tauri/gen/
+
+# Prefijo de instalación local usado en pruebas
+.install/
+
+# Datos locales de desarrollo y pruebas end-to-end
+.saveme-dev/
+.e2e/
+.cache/
+# En CI, `env.sh` redirige las cachés de Go/bun/Cargo aquí, dentro del workspace.
+# En local apuntan al /tmp, pero si alguien exporta SAVEME_CACHE_ROOT a mano esto
+# evita que un `git add -A` se lleve medio giga de caché de compilación.
+.saveme-cache/
+
+# Basura del sistema
+.DS_Store

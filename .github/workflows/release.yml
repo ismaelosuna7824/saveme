@@ -1,0 +1,207 @@
+# Publicar una versión.
+#
+# Hay dos formas de dispararlo, y las dos acaban en lo mismo:
+#
+#   1. **Desde la web de GitHub** — Releases → «Draft a new release» → eliges un
+#      tag nuevo `v0.2.0` y publicas. GitHub crea el tag, y el tag dispara esto.
+#      La Release ya existe, así que aquí solo se le adjuntan los instalables.
+#
+#   2. **Desde la pestaña Actions** — «Release» → «Run workflow» → escribes la
+#      versión (0.2.0). Aquí no hay tag todavía: se crea y se empuja en el primer
+#      trabajo, y la Release la crea el último.
+#
+# El tag tiene que ser `v` + versión (`v0.2.0`). La `v` es del tag, no de la
+# versión: la versión limpia es la que se escribe en tauri.conf.json y la que
+# lleva el binario de Go.
+#
+# Nada se publica hasta que los tres sistemas han empaquetado. Por eso el
+# empaquetado sube *artefactos* y la Release la crea un trabajo aparte que los
+# baja todos: si Windows falla, no aparece un release a medias con solo el .dmg.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Versión a publicar, sin la v (p. ej. 0.2.0). Se crea el tag v<versión>.'
+        required: true
+        type: string
+
+# Publicar la Release y empujar el tag necesitan escribir en el repositorio.
+permissions:
+  contents: write
+
+# Dos releases a la vez sobre el mismo tag se pisarían los instalables. No se
+# cancela el que está en marcha: una publicación a medias es peor que esperar.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  preparar:
+    name: Resolver la versión
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Hace falta la historia para poder crear el tag en el modo manual.
+          fetch-depth: 0
+
+      - name: Resolver la versión
+        id: version
+        env:
+          ENTRADA: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
+            RAW="${GITHUB_REF_NAME}"
+          else
+            RAW="${ENTRADA}"
+          fi
+
+          VERSION="${RAW#v}"
+          if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "«${RAW}» no es una versión válida: se espera algo como 0.2.0 o v0.2.0" >&2
+            exit 1
+          fi
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "versión ${VERSION} (tag v${VERSION})"
+
+      # En el modo manual el tag no existe: se crea aquí. Se empuja con el token
+      # del workflow, que **no** vuelve a disparar workflows, y eso es justo lo
+      # que se quiere: esta misma ejecución sigue y publica. Si el tag ya
+      # existía, se reutiliza en vez de fallar, para poder reintentar.
+      - name: Crear el tag si no existe
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            echo "el tag ${TAG} ya existe; se reutiliza"
+          else
+            git tag "${TAG}"
+            git push origin "${TAG}"
+          fi
+
+  tests:
+    name: Pruebas
+    needs: preparar
+    uses: ./.github/workflows/tests.yml
+
+  instalables:
+    name: Instalables
+    needs: [preparar, tests]
+    uses: ./.github/workflows/instalables.yml
+    with:
+      version: ${{ needs.preparar.outputs.version }}
+      # Los artefactos viven solo hasta que se adjuntan a la Release, que los
+      # guarda para siempre. No hace falta retenerlos un mes.
+      retencion: 7
+    # La clave con la que se firman los paquetes de actualización. Los usuarios que
+    # ya tienen la app instalada solo aceptarán una actualización firmada con la
+    # misma clave cuya pública llevan dentro, así que perderla deja a todo el mundo
+    # sin poder actualizar.
+    secrets:
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+  publicar:
+    name: Publicar
+    needs: [preparar, instalables]
+    runs-on: ubuntu-latest
+    steps:
+      # Hace falta el repositorio para poder ejecutar el generador del
+      # `latest.json`, que vive en `scripts/`. No se construye nada aquí.
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - name: Bajar los instalables de las tres plataformas
+        uses: actions/download-artifact@v7
+        with:
+          path: instalables
+          # Sin esto cada artefacto cae en su propia subcarpeta y luego hay que
+          # ir a buscarlo. Aplanado, todo queda en `instalables/`.
+          merge-multiple: true
+
+      - name: Comprobar que están los de las tres plataformas
+        run: |
+          set -euo pipefail
+          find instalables -type f | sort
+          for ext in dmg msi exe deb AppImage; do
+            if ! find instalables -type f -name "*.${ext}" | grep -q .; then
+              echo "falta el instalable .${ext}" >&2
+              exit 1
+            fi
+          done
+
+      # Los paquetes de actualización van aparte de los instalables: son los que
+      # descarga la app ya instalada. Si faltan, la release se publica igual y
+      # nadie se entera hasta que la gente deja de recibir versiones nuevas.
+      - name: Comprobar que están los paquetes de actualización
+        run: |
+          set -euo pipefail
+          for fichero in "SaveMe.app.tar.gz" "SaveMe.app.tar.gz.sig"; do
+            if [ ! -f "instalables/${fichero}" ]; then
+              echo "falta ${fichero}: sin él la app instalada no puede actualizarse" >&2
+              exit 1
+            fi
+          done
+
+      # El `latest.json` es lo que consulta la app al abrirse. Se genera a partir
+      # de los `.sig` que dejó el empaquetado, y falla si el resultado quedaría
+      # incompleto: Tauri valida el fichero entero antes de mirar la versión, así
+      # que un hueco dejaría sin actualizaciones a todas las plataformas.
+      - name: Escribir el latest.json
+        run: |
+          set -euo pipefail
+          bun scripts/make-latest-json.mjs \
+            --version "${{ needs.preparar.outputs.version }}" \
+            --base-url "https://github.com/${GITHUB_REPOSITORY}/releases/download/${{ needs.preparar.outputs.tag }}" \
+            --dir instalables
+
+          echo "--- latest.json ---"
+          cat instalables/latest.json
+
+      # Publicar desde la web escribiendo tus propias notas y que el workflow las
+      # pisara sería una faena: `generate_release_notes` **sustituye** el cuerpo.
+      # Así que solo se pide cuando la Release no existe todavía y la creamos
+      # nosotros. Si ya existe, se le añaden los instalables y no se toca nada más.
+      - name: ¿Existe ya la Release?
+        id: existe
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.preparar.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "La Release ${TAG} ya existe: se le añaden los instalables sin tocar sus notas."
+            echo "existe=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "La Release ${TAG} no existe: se crea con las notas que genere GitHub."
+            echo "existe=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # `tag_name` apunta al tag ya existente: si la Release se creó desde la web,
+      # esto le añade los ficheros; si no existía, la crea.
+      #
+      # No se fija `name` a propósito: sin él GitHub usa el tag como título, y así
+      # tampoco se pisa el título que hayas escrito tú.
+      - name: Publicar la Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.preparar.outputs.tag }}
+          files: instalables/*
+          fail_on_unmatched_files: true
+          generate_release_notes: ${{ steps.existe.outputs.existe == 'false' }}
+          draft: false

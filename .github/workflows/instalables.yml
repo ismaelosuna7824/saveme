@@ -1,0 +1,250 @@
+# Los instalables de las tres plataformas, en un solo sitio.
+#
+# Es un workflow *reutilizable* (`workflow_call`): lo llaman `ci.yml` (para
+# comprobar que empaqueta) y `release.yml` (para adjuntarlos a la Release).
+#
+# **Tauri solo construye los de la plataforma en la que corre**. Un .dmg se hace
+# en macOS, un .msi en Windows y un .deb en Linux; no hay forma de generar los
+# tres desde un solo runner sin máquinas virtuales. De ahí la matriz. Cada runner
+# compila además su propio binario de Go, que es lo que va dentro como sidecar: no
+# se cruza compilación.
+#
+# Sube los instalables como *artefactos* y no toca ninguna Release. Quien publica
+# es `release.yml`, y solo cuando los tres han terminado: así un fallo en Windows
+# no deja una Release a medias con lo de macOS.
+name: Instalables
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        # Versión limpia, sin la `v` del tag (0.2.0, no v0.2.0). Es la que se
+        # escribe en tauri.conf.json y la que se inyecta en el binario de Go.
+        #
+        # Opcional a propósito: en la CI se empaqueta la versión que ya está en el
+        # repositorio, y exigirla desde fuera costaba un runner entero solo para
+        # leerla con `jq`. El release sí la pasa, porque ahí manda el tag.
+        description: 'Versión a empaquetar, sin la v (0.2.0). Vacío = la del repositorio'
+        required: false
+        type: string
+      retencion:
+        description: 'Días que se guardan los artefactos'
+        required: false
+        type: number
+        default: 30
+    secrets:
+      # La clave con la que se firman los paquetes de actualización. Se declara
+      # explícitamente en vez de con `secrets: inherit` para que este workflow no
+      # reciba nada más que esto.
+      #
+      # Opcional para que un pull request de un fork —donde GitHub no entrega
+      # secretos— no reviente al empaquetar.
+      TAURI_SIGNING_PRIVATE_KEY:
+        required: false
+        description: 'Clave privada de firma de actualizaciones'
+      # Tiene que estar declarada aunque la clave no lleve contraseña: un secreto
+      # que el workflow reutilizable no declara **no llega**, y el llamador se
+      # queda creyendo que lo ha pasado. Vacía significa «sin contraseña».
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD:
+        required: false
+        description: 'Contraseña de la clave de firma (vacía si no tiene)'
+
+jobs:
+  instalables:
+    name: Instalable (${{ matrix.nombre }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # Sin esto, un fallo en Windows cancela macOS y Linux y no se ve si el
+      # problema es de una plataforma o de todas.
+      fail-fast: false
+      matrix:
+        include:
+          # macOS va **universal**: un solo .dmg con las dos arquitecturas, que es
+          # lo que hace falta para que funcione en Intel y en Apple Silicon sin
+          # que nadie tenga que elegir. El resto de plataformas compilan para la
+          # suya, que es la única que existe.
+          - nombre: macOS
+            os: macos-latest
+            modo: universal
+            target: universal-apple-darwin
+            bundles: dmg
+            # El `.app.tar.gz` y su `.sig` son el paquete que descarga el
+            # actualizador: sin ellos el .dmg se instala a mano pero la app nunca
+            # se actualiza sola. Viven en `bundle/macos`, no en `bundle/dmg`.
+            artefactos: |
+              src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+              src-tauri/target/universal-apple-darwin/release/bundle/macos/*.tar.gz
+              src-tauri/target/universal-apple-darwin/release/bundle/macos/*.sig
+          - nombre: Windows
+            os: windows-latest
+            modo: nativo
+            target: ''
+            bundles: msi,nsis
+            artefactos: |
+              src-tauri/target/release/bundle/msi/*.msi
+              src-tauri/target/release/bundle/nsis/*.exe
+              src-tauri/target/release/bundle/nsis/*.sig
+              src-tauri/target/release/bundle/msi/*.sig
+          - nombre: Linux
+            os: ubuntu-latest
+            modo: nativo
+            target: ''
+            bundles: deb,appimage
+            artefactos: |
+              src-tauri/target/release/bundle/deb/*.deb
+              src-tauri/target/release/bundle/appimage/*.AppImage
+              src-tauri/target/release/bundle/appimage/*.sig
+
+    # En Windows el shell por defecto es PowerShell y el Makefile es de bash. Se
+    # usa bash en los tres para que los pasos sean los mismos: Git Bash viene en
+    # los runners de Windows.
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Dependencias del sistema
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          # Lista oficial de Tauri v2 para Debian/Ubuntu, más `patchelf`, que
+          # hace falta para el AppImage. `libayatana-appindicator3-dev` es el
+          # paquete correcto en Ubuntu 22.04 y posteriores; el antiguo
+          # `libappindicator3-dev` ya no está.
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: Dependencias del proyecto
+        run: |
+          cd backend && go mod download
+          bun install
+
+      # La versión del .dmg/.msi/.deb sale de `tauri.conf.json`, que en el
+      # repositorio es la de desarrollo. En un release se fija aquí, desde el tag,
+      # para que el instalable diga lo mismo que el binario de Go que lleva dentro.
+      # Sin versión de entrada se empaqueta la que ya está en el repositorio, que
+      # es lo que quiere la CI.
+      - name: Resolver la versión
+        env:
+          VERSION_ENTRADA: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          VERSION="${VERSION_ENTRADA}"
+          if [[ -z "${VERSION}" ]]; then
+            VERSION="$(bun scripts/set-version.mjs --print)"
+            echo "sin versión de entrada: se empaqueta la del repositorio (${VERSION})"
+          else
+            bun scripts/set-version.mjs "${VERSION}"
+          fi
+          bun scripts/set-version.mjs --check "${VERSION}"
+          # A partir de aquí los demás pasos la leen de aquí, para que el sidecar
+          # de Go y el paquete no puedan discrepar.
+          echo "SAVEME_VERSION=${VERSION}" >> "$GITHUB_ENV"
+
+      - name: Añadir los targets de Rust (solo macOS universal)
+        if: matrix.modo == 'universal'
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+
+      # El sidecar tiene que existir **y llamarse con el triplete del target** antes
+      # de que Tauri empaquete: `externalBin` lo busca por ese nombre exacto. En un
+      # universal hacen falta **los dos**, uno por arquitectura: Tauri los junta
+      # después con `lipo`. Con uno solo, el .dmg se construye y la app no arranca
+      # en la otra mitad de los Mac.
+      #
+      # La versión va **sin la `v`**: la interfaz ya la pinta (`core listo · v…`),
+      # así que pasar el tag entero enseñaba «v v0.2.0».
+      - name: Compilar el core y colocarlo como sidecar
+        run: |
+          set -euo pipefail
+          LDFLAGS="-s -w -X main.version=${SAVEME_VERSION}"
+          mkdir -p src-tauri/binaries
+
+          if [[ "${{ matrix.modo }}" == "universal" ]]; then
+            for arch in arm64 amd64; do
+              case "$arch" in
+                arm64) triple="aarch64-apple-darwin" ;;
+                amd64) triple="x86_64-apple-darwin" ;;
+              esac
+              echo "compilando para ${triple}"
+              ( cd backend && GOOS=darwin GOARCH="$arch" CGO_ENABLED=0 \
+                  go build -ldflags "$LDFLAGS" -o "bin/saveme-${triple}" ./cmd/saveme )
+              cp "backend/bin/saveme-${triple}" "src-tauri/binaries/saveme-${triple}"
+            done
+          else
+            EXT=""
+            if [[ "$RUNNER_OS" == "Windows" ]]; then EXT=".exe"; fi
+            TRIPLE="$(rustc -vV | sed -n 's/^host: //p')"
+            echo "triple: ${TRIPLE}${EXT}"
+            ( cd backend && go build -ldflags "$LDFLAGS" -o "bin/saveme${EXT}" ./cmd/saveme )
+            cp "backend/bin/saveme${EXT}" "src-tauri/binaries/saveme-${TRIPLE}${EXT}"
+          fi
+          ls -l src-tauri/binaries/
+
+      # La clave de firma va en el entorno de este paso y no en un `.env`: Tauri
+      # solo la lee de variables de entorno. Con ella el bundler genera además el
+      # paquete de actualización y su `.sig`; sin ella, `createUpdaterArtifacts`
+      # no tiene con qué firmar y el empaquetado falla.
+      #
+      # La contraseña se pasa aunque suela estar vacía: en un `workflow_call` un
+      # secreto que no existe llega como cadena vacía, y una clave sin contraseña
+      # se firma igual con la variable puesta y vacía.
+      - name: Empaquetar
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          # Con `createUpdaterArtifacts` activo, Tauri **no deja empaquetar sin
+          # firmar**: la clave no es opcional. En un pull request desde un fork,
+          # GitHub no entrega secretos, así que ahí se firma con una clave de usar
+          # y tirar. La firma no sirve para actualizar de verdad —la app lleva
+          # dentro otra pública—, pero estos artefactos no se publican nunca: solo
+          # comprueban que el empaquetado funciona en los tres sistemas.
+          if [[ -z "${TAURI_SIGNING_PRIVATE_KEY}" ]]; then
+            echo "sin clave de firma (¿un PR desde un fork?): se firma con una de usar y tirar" >&2
+            bunx tauri signer generate -w "${RUNNER_TEMP}/ci.key" -p "" --ci -f >/dev/null
+            TAURI_SIGNING_PRIVATE_KEY="$(cat "${RUNNER_TEMP}/ci.key")"
+            export TAURI_SIGNING_PRIVATE_KEY
+            export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""
+          fi
+
+          if [[ -n "${{ matrix.target }}" ]]; then
+            bunx tauri build --bundles ${{ matrix.bundles }} --target ${{ matrix.target }}
+          else
+            bunx tauri build --bundles ${{ matrix.bundles }}
+          fi
+
+      - name: Guardar el instalable
+        uses: actions/upload-artifact@v7
+        with:
+          name: saveme-${{ matrix.nombre }}
+          path: ${{ matrix.artefactos }}
+          if-no-files-found: error
+          retention-days: ${{ inputs.retencion }}

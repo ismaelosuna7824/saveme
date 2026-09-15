@@ -1,0 +1,176 @@
+/* ---------------------------------------------------------------------------
+ * Live Preview (Obsidian) — adornos del editor.
+ *
+ * Estas clases las aplica el plugin sobre el contenido del editor. No sustituyen
+ * al texto salvo en los widgets: solo le dan estilo, de modo que el markdown que
+ * hay debajo sigue intacto y `source` muestra exactamente lo mismo.
+ *
+ * Los tamaños de los encabezados son deliberadamente un poco menores que en el
+ * preview de lectura: en el editor hay que seguir viendo suficiente texto a la
+ * vez como para poder escribir.
+ * --------------------------------------------------------------------------- */
+
+.cm-lp-strong {
+  font-weight: 700;
+  color: #e8f1f3;
+}
+
+.cm-lp-em {
+  font-style: italic;
+}
+
+.cm-lp-strike {
+  color: var(--color-muted-foreground);
+  text-decoration: line-through;
+}
+
+.cm-lp-code {
+  padding: 0.1em 0.35em;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  background: var(--color-sunken);
+  color: var(--color-secondary);
+}
+
+.cm-lp-link {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+}
+
+/* El marcador `[ ]` cuando el cursor está encima: se muestra, pero atenuado. */
+.cm-lp-task-mark {
+  color: var(--color-secondary);
+}
+
+.cm-lp-bullet {
+  color: var(--color-primary);
+}
+
+/* --- Encabezados: la línea entera crece, como en Obsidian ------------------ */
+
+.cm-line.cm-lp-h1,
+.cm-line.cm-lp-h2,
+.cm-line.cm-lp-h3,
+.cm-line.cm-lp-h4,
+.cm-line.cm-lp-h5,
+.cm-line.cm-lp-h6 {
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.cm-line.cm-lp-h1 {
+  font-size: 1.65em;
+}
+
+.cm-line.cm-lp-h2 {
+  font-size: 1.4em;
+}
+
+.cm-line.cm-lp-h3 {
+  font-size: 1.2em;
+}
+
+.cm-line.cm-lp-h4 {
+  font-size: 1.08em;
+}
+
+.cm-line.cm-lp-h5,
+.cm-line.cm-lp-h6 {
+  font-size: 1em;
+  color: var(--color-secondary);
+}
+
+/* --- Cita ----------------------------------------------------------------- */
+
+.cm-line.cm-lp-quote {
+  padding-left: 0.8em;
+  border-left: 3px solid var(--color-border-strong);
+  color: var(--color-muted-foreground);
+}
+
+/* --- Casilla de tarea clicable -------------------------------------------- */
+
+input.cm-lp-task {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin: 0 0.4em 0 0;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-xs);
+  background: var(--color-sunken);
+  vertical-align: middle;
+  position: relative;
+  top: -1px;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+input.cm-lp-task:hover {
+  border-color: var(--color-primary);
+  background: var(--color-panel-raised);
+}
+
+input.cm-lp-task:checked {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+/* El tick: un cuadrado con dos bordes girados 45 grados. */
+input.cm-lp-task:checked::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  width: 3px;
+  height: 6px;
+  border: solid var(--color-primary-foreground);
+  border-width: 0 2px 2px 0;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+input.cm-lp-task:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  input.cm-lp-task {
+    transition: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Diagrama Mermaid dibujado en el editor.
+ *
+ * Es un widget de bloque: sustituye al cercado entero, así que tiene que
+ * parecerse a la caja que ocuparía el código y no comerse los márgenes de
+ * alrededor. Los colores del SVG vienen de dentro (los pone `lib/mermaid.ts` con
+ * los tokens del tema), aquí solo se ajusta la caja.
+ * ------------------------------------------------------------------------- */
+.cm-lp-mermaid {
+  margin: 0.5rem 0;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-sunken);
+  overflow-x: auto;
+}
+
+.cm-lp-mermaid svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+  background: transparent;
+}
+
+/* Cuando la sintaxis falla se enseña el código tal cual: es lo que hay que
+   corregir, y sustituirlo por el error dejaría al usuario sin él. */
+.cm-lp-mermaid--error {
+  color: var(--color-destructive);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+}
