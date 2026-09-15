@@ -130,14 +130,39 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           path: instalables
-          # Sin esto cada artefacto cae en su propia subcarpeta y luego hay que
-          # ir a buscarlo. Aplanado, todo queda en `instalables/`.
+          # Sin esto cada artefacto cae en su propia subcarpeta.
           merge-multiple: true
+
+      # `merge-multiple` junta los artefactos, pero **no aplana lo que hay dentro
+      # de cada uno**: `upload-artifact` guarda los ficheros con la ruta relativa
+      # a su ancestro común, que en este caso es `bundle/`. Así que tras bajarlos
+      # hay `instalables/dmg/…`, `instalables/macos/…`, `instalables/nsis/…`.
+      #
+      # Se aplana aquí para que el resto del trabajo pueda hablar de rutas
+      # directas (`instalables/latest.json`), que es lo que espera la Release y lo
+      # que lee el generador del `latest.json`.
+      #
+      # Es una **lista blanca**: solo se copian las extensiones que se publican.
+      # Así, si algún día un artefacto arrastra algo de más —el `.app` de macOS
+      # entero, por ejemplo, con sus binarios dentro—, no acaba en la página de
+      # descargas. No hay colisiones de nombres: cada plataforma produce ficheros
+      # distintos.
+      - name: Aplanar los artefactos
+        run: |
+          set -euo pipefail
+          mkdir -p planos
+          find instalables -type f \
+            \( -name '*.dmg' -o -name '*.msi' -o -name '*.exe' \
+               -o -name '*.deb' -o -name '*.AppImage' \
+               -o -name '*.tar.gz' -o -name '*.sig' \) \
+            -exec cp {} planos/ \;
+          rm -rf instalables
+          mv planos instalables
+          find instalables -type f | sort
 
       - name: Comprobar que están los de las tres plataformas
         run: |
           set -euo pipefail
-          find instalables -type f | sort
           for ext in dmg msi exe deb AppImage; do
             if ! find instalables -type f -name "*.${ext}" | grep -q .; then
               echo "falta el instalable .${ext}" >&2
