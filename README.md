@@ -77,7 +77,7 @@ fases— y cómo replicar el mismo patrón en otro proyecto:
 
 ```bash
 make test        # Go con -race, Rust, tipos, Live Preview y traducciones
-make test-e2e    # 37 comprobaciones contra el binario real, en proceso aparte
+make test-e2e    # 54 comprobaciones contra el binario real, en proceso aparte
 ```
 
 `make test-e2e` incluye el camino que importa para el MCP: **detiene la app,
@@ -106,6 +106,42 @@ como markdown, así que el archivo sigue siendo legible y diffeable. Con el curs
 cercado se ve el código —para editarlo—, los colores salen del tema activo, y un diagrama
 con errores no rompe el resto del documento: se enseña el error y la fuente.
 
+El **modo vim** es opcional y vive en Ajustes. Apagado por defecto, porque enciende un modo
+en el que las letras son órdenes y eso no se le impone a nadie. Cuando está encendido, el
+editor de notas responde a `i`, `Esc`, `dd`, `ciw`, `v`, `/` y compañía, y la barra de estado
+dice en qué modo estás —si no, escribir sin que aparezca nada solo puede parecer una avería—.
+Solo afecta al editor de notas; el de resúmenes se sigue rellenando de un tirón.
+
+## El pulso del proyecto
+
+El diario guarda mucho más de lo que una lista enseña. Cada proyecto tiene su **pulso**,
+en `/p/<proyecto>/actividad`:
+
+- **Dónde lo dejamos** — lo último que pasó, los archivos por los que se anduvo y las
+  propuestas que quedaron esperando decisión, incluidas las vencidas. Es la pantalla que
+  contesta la pregunta de quien vuelve a un proyecto después de dos semanas.
+- **El mapa de actividad** — un año de trabajo por día, con la intensidad medida contra el
+  día más cargado del propio proyecto y no contra un número inventado: en un diario de tres
+  entradas al mes, escalar contra un 10 fijo dejaría el mapa entero del color más flojo. Se
+  puede mirar a 90 días, 6 meses o un año.
+
+Y las **notas de versión**:
+
+```bash
+saveme changelog --project mi-app --since 2026-02-01 --until 2026-02-28
+saveme changelog --project mi-app --json          # los datos, para un script
+```
+
+Saca el markdown agrupado por categoría en el orden de la taxonomía. En la app es el botón
+de la cabecera del proyecto: se elige el rango, se ve **cuántas entradas van a salir antes
+de guardar**, y el fichero va a donde digas. Es lo que un `git log` no da: frases humanas
+por feature, fix y chore.
+
+Las dos puertas —la CLI y la interfaz— comparten qué entra y en qué orden lo decide el
+núcleo; lo único que cambia es el idioma de los títulos, porque un programa de línea de
+órdenes no tiene idioma de interfaz al que preguntar. Y `--until` incluye el día entero:
+pedir «hasta el 14» y que se quede fuera lo del 14 es el error de fechas clásico.
+
 ## Decisiones
 
 | Tema | Decisión | Por qué |
@@ -117,6 +153,7 @@ con errores no rompe el resto del documento: se enseña el error y la fuente.
 | Translucidez | Ajuste de 20% a 100% que deja ver lo que hay detrás de la ventana | Se aplica reescribiendo un solo token de color, así que sigue al tema. **Cuesta la Mac App Store**: en macOS exige una API privada de Apple. Se distribuye por DMG, y está anotado en el código |
 | Ventana | macOS en modo `Overlay` con el título oculto: la barra superior de la app **es** la barra de título | Fuera la franja gris del sistema. Los semáforos siguen siendo los nativos —nada de botones propios—, solo que flotan sobre la interfaz; por eso reserva 78px y se arrastra con `data-tauri-drag-region` (con su permiso explícito, que el de por defecto no lo trae) |
 | Shell | Tauri v2 sin lógica de dominio | Solo lanza el sidecar, le dice a la interfaz en qué puerto quedó y lo mata al salir |
+| Barra de estado | Franja inferior con los atajos **de la pantalla actual** y la raíz del workspace | `?` enumera todos los atajos, pero sin distinguir cuáles valen aquí, y una barra que anuncie `⌘S` en el inbox está mintiendo: ese atajo solo existe con el editor de resúmenes delante. La raíz no se veía en ningún otro sitio de la interfaz, y es justo el dato que hace falta cuando alguien mueve la carpeta |
 | Índice | SQLite derivado (`modernc.org/sqlite`, sin CGO) con FTS5 | Se puede borrar: `POST /api/reindex` lo reconstruye desde el disco |
 | Verdad | El `.md` en disco; el índice es caché | Editas con vim, un agente escribe con la app cerrada, y al abrir aparece todo |
 | Escritura | Atómica (temporal + `rename`) y nunca sobrescribe | Un lector concurrente ve el archivo viejo completo o el nuevo completo |
@@ -126,7 +163,8 @@ con errores no rompe el resto del documento: se enseña el error y la fuente.
 | Prosa | Sans del sistema en el documento, monoespaciada en el chrome | El documento se lee como en GitHub/Notion; la app mantiene su identidad de terminal |
 | Paquetes | bun | Un solo binario, `bun install` en ~2 s, sin postinstall que se atasque |
 | Búsqueda | FTS5 con ranking bm25 ponderado por columna, con respaldo a LIKE | El título pesa más que una etiqueta; si la build no trae FTS5, sigue funcionando |
-| Temas | Once paletas completas (`phosphor`, `amber`, `green`, `ice`, `plasma`, `paper`, `solarized`, `gruvbox`, `nord`, `mono`, `plain`), no un interruptor de un efecto | Cada tema declara sus 31 tokens en `html[data-theme]`; el contraste WCAG se comprueba con `verify:themes`, porque siete paletas no se revisan a ojo |
+| Temas | Diecisiete paletas completas (`phosphor`, `amber`, `green`, `ice`, `plasma`, `paper`, `solarized`, `gruvbox`, `nord`, `mono`, `plain`, `dracula`, `tokyo-night`, `catppuccin`, `onedark`, `kanagawa`, `ember`), no un interruptor de un efecto | Cada tema declara sus 31 tokens en `html[data-theme]`; el contraste WCAG se comprueba con `verify:themes`, porque diecisiete paletas no se revisan a ojo |
+| Pulso | Cada proyecto tiene su pantalla de actividad: briefing, mapa de un año y notas de versión | El diario guarda mucho más de lo que una lista enseña. El briefing contesta «¿dónde lo dejamos?»; el mapa mide la intensidad contra el día más cargado **del propio proyecto** y no contra un número inventado, que en un diario de tres entradas al mes dejaría todo del color más flojo |
 | Idioma | Español e inglés con diccionario tipado propio, sin dependencias | El inglés se declara contra la forma del español: una traducción que falta o que pierde un `{placeholder}` rompe `tsc`, no la pantalla. Los errores del core se traducen por **código**, no por texto |
 
 ## La garantía de "siempre preguntar"
@@ -184,7 +222,7 @@ Las suites y la receta de empaquetado viven en dos workflows **reutilizables**
 request; `release.yml` los llama para publicar. Así la lista de suites y la receta de
 empaquetado existen una sola vez y no pueden separarse con el tiempo.
 
-- **Pruebas** (Ubuntu): las diez suites —Go con `-race`, Rust, tipos, Live Preview,
+- **Pruebas** (Ubuntu): las suites —Go con `-race`, Rust, tipos, Live Preview,
   traducciones, orden CSS, temas, Mermaid, el árbol de notas y el icono—, la coherencia de la
   versión, y la verificación end-to-end contra el binario real.
 - **Instalables**: una matriz con macOS, Windows y Linux que empaqueta los instaladores
@@ -232,9 +270,9 @@ Verificado:
 - `go test -race ./...` — dominio, store, servicio y MCP (15 pruebas de MCP
   ejercitan un cliente real contra un servidor real, incluido el ida y vuelta de
   pregunta al usuario).
-- `bash scripts/e2e.sh` — 37 comprobaciones sobre el binario: dos fases, visión
-  entre procesos, confirmación por HTTP, conflicto de edición, SSE, y el camino
-  "el agente escribe con la app apagada".
+- `bash scripts/e2e.sh` — 54 comprobaciones sobre el binario: dos fases, visión
+  entre procesos, confirmación por HTTP, conflicto de edición, SSE, el pulso del
+  proyecto, y el camino "el agente escribe con la app apagada".
 - `bun run --cwd frontend typecheck` y `bun run --cwd frontend build`.
 - `bun run --cwd frontend verify:live-preview` — 32 comprobaciones sobre la lógica del
   Live Preview sin navegador: qué se oculta, qué se estiliza, dónde van los widgets y
@@ -244,7 +282,7 @@ Verificado:
 - `bun run --cwd frontend verify:mermaid` — que Mermaid siga cargándose **en diferido** (un `import`
   estático lo metería en el bundle inicial sin fallar nada), que los tokens del tema que pide
   existan, que las clases del componente estén en el CSS y que el markdown enrute los diagramas.
-- `bun run --cwd frontend verify:themes` — **11 temas × 31 tokens**, más la conversión de
+- `bun run --cwd frontend verify:themes` — **17 temas × 31 tokens**, más la conversión de
   opacidad de la ventana. Comprueba que cada tema ofrecido tenga sus
   colores, que no haya temas huérfanos, que ninguno herede a medias la paleta de otro y **mide el contraste
   WCAG 2.1** de cada uno, incluido el del código resaltado sobre su fondo.
@@ -253,9 +291,13 @@ Verificado:
   la paleta de comandos anclada al fondo y Ajustes fuera de pantalla: `styles.css` va después
   de Tailwind y, a igual especificidad, gana la clase propia.
 - `bun run --cwd frontend verify:i18n` — 26 comprobaciones sobre las traducciones:
-  paridad de los dos diccionarios (516 claves cada uno), textos vacíos, `{placeholders}`
+  paridad de los dos diccionarios (**754 claves cada uno**), textos vacíos, `{placeholders}`
   perdidos, plurales incompletos, y el runtime de verdad (que el proveedor devuelva el
   idioma pedido, que interpole y que los errores del core se traduzcan por código).
+- `bun run --cwd frontend verify:changelog` — 24 comprobaciones sobre las notas de versión,
+  que son un fichero que sale de la app y se lee fuera de ella: que no se pierda ninguna
+  entrada, que la línea de resumen quede indentada como continuación de su punto —sin eso el
+  markdown la lee como un párrafo suelto— y que el nombre del fichero se pueda guardar.
 - **La app corriendo de verdad**: el shell de Tauri lanza el sidecar, le inyecta
   el puerto, y el log del core muestra la interfaz montando y pidiendo sus datos
   (`/api/config`, `/api/categories`, `/api/projects`, `/api/proposals`,

@@ -234,6 +234,10 @@ que los clientes (MCP, UI, CLI) lo encuentren.
 | GET | `/projects` | — | `[Project]` |
 | POST | `/projects` | `{name, slug?}` | `Project` (201, 409 si existe) |
 | GET | `/projects/{slug}` | — | `Project` (misma forma que en el listado, con `counts` y `total`) |
+| GET | `/projects/{slug}/export` | — | `ProjectExport` — el proyecto entero con los cuerpos, para montar un solo documento |
+| GET | `/projects/{slug}/briefing` | query: `days` (30 por defecto) | `Briefing` — «¿dónde lo dejamos?» |
+| GET | `/projects/{slug}/activity` | query: `days` (365 por defecto) | `ActivityMap` — un día por entrada, vacíos incluidos |
+| GET | `/projects/{slug}/changelog` | query: `since, until` (AAAA-MM-DD; vacíos = últimos 30 días) | `Changelog` — datos, no markdown. 400 `invalid_date` |
 | GET | `/summaries` | query: `project,category,q,tag,status,limit,offset,sort` (`sort` ∈ `recent`\|`created`\|`oldest`\|`title`; vacío = relevancia al buscar, fecha al listar) | `{items:[SummaryMeta], total, limit, offset}` |
 | GET | `/summaries/{id}` | — | `{meta: SummaryMeta, content: string}` |
 | PUT | `/summaries/{id}` | `{content, base_hash?}` | `{meta}` — 409 `hash_mismatch` si `base_hash` no coincide |
@@ -442,6 +446,16 @@ Orden del asistente:
    `%USERPROFILE%\.saveme\bin\`). Es una carpeta propia de SaveMe a propósito:
    apuntar las configuraciones dentro del `.app` se rompe en cuanto el usuario
    mueve o borra la aplicación, y falla en silencio.
+
+   Esa copia **se pone al día sola**. Al arrancar, el core (`serve`) compara su
+   versión con la de la copia y la reemplaza si no coinciden. Hace falta porque el
+   actualizador reemplaza el binario de dentro de la app y **no** esta copia: sin
+   esto, tras cada actualización los agentes seguirían lanzando las herramientas
+   viejas contra una app nueva, y sin ningún síntoma. Solo se toca **si ya había
+   copia**: instalarla o no sigue siendo una decisión del usuario y tiene su sitio
+   en el asistente. Si el reemplazo falla —en Windows no se puede sustituir un
+   ejecutable en marcha, y eso pasa cuando un cliente MCP está abierto— se registra
+   un aviso y la app arranca igual; Ajustes lo enseña y ofrece reintentarlo.
 3. **Elegir clientes.** `GET /api/mcp/providers` detecta qué agentes hay en la
    máquina (por sus carpetas de configuración y por sus ejecutables en el PATH) y
    cuáles ya tienen a SaveMe. Se preseleccionan los que están instalados y sin
@@ -512,7 +526,7 @@ el MCP**: son de la interfaz, y el agente no las ve ni las escribe.
 | Índice | `<root_dir>/.saveme/saveme.db` |
 | Daemon | `<root_dir>/.saveme/daemon.json` |
 
-`config.json`: `{version, root_dir, port, theme, editor: {font_size, wrap, preview_mode, autosave_ms}, language, onboarded}`.
+`config.json`: `{version, root_dir, port, theme, editor: {font_size, wrap, preview_mode, autosave_ms, vim_mode}, language, onboarded}`.
 
 ### Mover el workspace no pierde nada
 
@@ -542,7 +556,7 @@ un workspace anterior.
 ## 9. Estética terminal
 
 - El tema por defecto (`phosphor`) es fondo casi negro (`#0b0e0f`) con texto ámbar/verde
-  fósforo apagado y un solo acento. Hay **siete temas** más abajo.
+  fósforo apagado y un solo acento. Hay **dieciséis temas** más abajo.
 - Monospace en el *chrome* de la app (JetBrains Mono, con fallback a `ui-monospace`).
 - Nav tipo prompt de shell (`❯ proyecto/features`), breadcrumbs con `/`.
 - Bordes por caracteres y `box-shadow` de scanline muy sutil; **sin** animaciones de gradiente.
@@ -577,7 +591,7 @@ un workspace anterior.
 
 ## 9.1 Temas
 
-Un tema es una **paleta completa**, no un interruptor de un efecto. Son **once**:
+Un tema es una **paleta completa**, no un interruptor de un efecto. Son **diecisiete**:
 
 | Tema | De qué va |
 | --- | --- |
@@ -592,6 +606,12 @@ Un tema es una **paleta completa**, no un interruptor de un efecto. Son **once**
 | `nord` | Azules fríos del norte. |
 | `mono` | Sin color, solo grises. Los errores se quedan en rojo a propósito. |
 | `plain` | El esquema de `phosphor` sin las scanlines. |
+| `dracula` | Violetas y rosas sobre gris azulado. |
+| `tokyo-night` | Azules de neón sobre azul noche, con acento violeta. |
+| `catppuccin` | Pasteles suaves sobre malva oscuro. |
+| `onedark` | El de Atom: azul y verde apagados. |
+| `kanagawa` | Azul tinta y beis, sobrio, inspirado en la ola de Hokusai. |
+| `ember` | Azul pizarra con un único acento naranja: el naranja manda y el resto acompaña. |
 
 - Los tokens se declaran una vez en `@theme` (que **es** la definición de `phosphor`, y
   también el valor por defecto mientras la app carga la configuración) y cada tema los
@@ -621,7 +641,7 @@ Un tema es una **paleta completa**, no un interruptor de un efecto. Son **once**
 - `bun run --cwd frontend verify:themes` comprueba las tres piezas que se pueden
   desincronizar —entrada en `THEME_OPTIONS`, bloque de tokens, textos— y **mide el contraste
   WCAG 2.1** de cada paleta, incluido el del código resaltado sobre su propio fondo. Como no
-  hay forma de mirar siete temas a ojo, se comprueba lo que sí es objetivo: que el texto se
+  hay forma de mirar diecisiete temas a ojo, se comprueba lo que sí es objetivo: que el texto se
   lea. Ya ha servido: destapó que el color de los comentarios de `phosphor` se quedaba en
   2.99:1, por debajo del mínimo, y que la palabra clave de `paper` no llegaba a 4.5:1.
 
@@ -776,6 +796,103 @@ En Windows y Linux no cambia nada: `title_bar_style` y `hidden_title` son
 anterior para que en el resto de plataformas esas llamadas simplemente no existan, sin dejar
 una variable `mut` sin usar.
 
+## 9.5 Modo vim
+
+Teclas modales de vim en el **editor de notas**, y solo ahí: el editor de resúmenes se rellena
+de un tirón con un formulario delante, y un modo modal es un estorbo en vez de una ayuda.
+
+- **Apagado por defecto y a propósito.** Con vim encendido las letras dejan de escribir texto.
+  Eso no se le impone a nadie que abra la app sin saberlo, así que `editor.vim_mode` empieza
+  en `false` y se enciende desde Ajustes.
+- El paquete es `@replit/codemirror-vim`, que envuelve el vim de CodeMirror 5 en una
+  extensión de CodeMirror 6. **Va la primera** en la lista de extensiones: sus atajos tienen
+  que resolverse antes que los de `defaultKeymap`, o el modo normal se quedaría sin teclas.
+- Entra y sale por un `Compartment`: encenderlo en Ajustes no recrea el editor, así que no se
+  pierde ni el cursor ni el scroll.
+- El **indicador de modo** (`VimModeBadge`) no es decoración: sin él, que las letras no
+  escriban solo se puede interpretar como que el editor se ha roto. Los nombres
+  (`NORMAL`, `INSERT`, `V-VISUAL`) no se traducen —son el vocabulario de vim, y quien lo usa
+  los busca así—; lo que sí se traduce es la ayuda que sale al pasar por encima.
+- El modo se lee del **estado**, no del evento `vim-mode-change`: el evento solo trae `mode`,
+  y lo que distingue una selección de línea de una de bloque son las banderas del estado. Ese
+  estado no lo publica ninguna extensión de CodeMirror 6; se llega a él por `getCM(view)`, el
+  adaptador de CodeMirror 5 que el paquete lleva dentro.
+- El indicador queda **fuera del `aria-live`** del estado de guardado: el modo cambia a cada
+  rato, y anunciarlo cada vez convertiría el lector de pantalla en una metralleta.
+
+## 9.6 Barra de estado
+
+Franja inferior con los atajos que valen en la pantalla actual y la raíz del workspace.
+
+- **Los atajos se filtran por ruta, y solo se anuncia lo que está registrado.**
+  `ShortcutsDialog` (`?`) enumera todo sin distinguir, y para descubrir sirve, pero una barra
+  que diga «⌘S guardar» en el inbox miente: `⌘S` y `Esc` los registra `EditorPage`, y en el
+  resto de la app no existen. Peor: `?` **no funciona dentro de un editor**, porque el diálogo
+  se ignora a sí mismo mientras el foco esté en un campo de texto y el contenido de CodeMirror
+  lo es. Por eso la barra no lo ofrece ahí.
+- La raíz del workspace va a la derecha: no se veía en ningún otro sitio de la interfaz, y es
+  justo el dato que hace falta cuando alguien ha movido la carpeta. Se recorta por la derecha y
+  el `title` lleva la ruta entera; el truco de `dir="rtl"` para cortar por la izquierda deja la
+  puntuación a merced del navegador.
+- Va **dentro** de la columna de `AppShell` y no flotando encima: así el alto se reparte solo y
+  el `h-full` de los editores sigue significando lo mismo.
+- No repite nada de la barra superior —migas, estado del core, reindexar, tema, ajustes y la
+  paleta—, que es lo que le deja sitio a los atajos.
+
+## 9.7 El pulso del proyecto
+
+Tres cosas que salen del mismo diario y que una lista de resúmenes no enseña. Viven en
+`/p/<proyecto>/actividad`, **fuera** de las pestañas de categoría: esas navegan por el
+**tema** de cada resumen y esto mira por **fecha**, que es otro eje. Mezclarlas en la misma
+tira de pestañas habría sido cómodo y confuso.
+
+- **`Briefing`** (`service/pulse.go`) — «¿dónde lo dejamos?»: lo último que pasó, los
+  archivos por los que se anduvo y lo que espera decisión. Las propuestas **vencidas**
+  cuentan: son las que se quedaron a medias, que es justo lo que hay que ver al volver.
+- **`ActivityMap`** — qué días se trabajó y cuánto. Devuelve **todos** los días de la
+  ventana, del más viejo al más nuevo y con los vacíos incluidos, para que el mapa se pinte
+  recorriendo el array y no calculando fechas en la interfaz, que es donde se cuelan los
+  errores de mes y de huso. Trae también el `max`, que es lo que permite escalar la
+  intensidad contra el día más cargado del propio proyecto y no contra un número inventado.
+- **`ChangelogProject`** (`service/changelog.go`) — notas de versión entre dos fechas, por
+  categoría. Cada entrada lleva título y línea de resumen, **no el cuerpo**: lo que hace útil
+  un changelog es que se lee de un tirón, y volcarlo entero lo convertiría en el diario otra
+  vez. Para eso está la exportación.
+
+### Lo que comparten, y por qué
+
+Tres piezas se extrajeron al añadir esto, porque la alternativa era tener tres copias de la
+misma decisión:
+
+- **`dateWindow`** — «los últimos N días» significa lo mismo en el digest, en el briefing y
+  en el mapa. Estaba escrito dentro de `Digest`; ahora lo usan los tres.
+- **`eachInWindow`** — recorre los resúmenes de un proyecto dentro de una ventana. El índice
+  no acepta la fecha en el filtro, pero sí sabe ordenar por ella, así que se pide por fecha
+  de creación descendente y **se corta en cuanto aparece el primer resumen anterior a la
+  ventana**: en vez de recorrer el proyecto entero se recorre solo lo que se va a mirar.
+  Ojo con el criterio: `recent` ordena por `updated_at` y `created` por `created_at`. Con el
+  primero el corte sería incorrecto —una fila antigua recién editada aparecería la primera y
+  cortaría el recorrido antes de tiempo—, y por eso el helper fija `created`.
+- **`canonicalOrder`** — el orden de las categorías en un documento. Estaba dentro de
+  `ExportProject`, con un comentario advirtiendo de que el conjunto de categorías conocidas
+  se arma desde la lista canónica y **no** con `CategoryByKey` (esa resuelve también nombres
+  de carpeta y devuelve cierto para `uncategorized`, que es el cajón de las desconocidas).
+  Esa trampa merecía seguir existiendo en un solo sitio.
+
+### Dos puertas para el mismo documento
+
+`ChangelogProject` devuelve **datos, no markdown**, por lo mismo que la exportación: los
+títulos de sección son texto que lee una persona y el idioma solo lo conoce la interfaz. Pero
+la CLI necesita imprimir algo, y no tiene idioma de interfaz al que preguntar.
+
+Así que el documento se monta dos veces —`saveme changelog` en Go, el botón de la app en
+TypeScript— y **cada uno en su idioma**. Lo que no se duplica es qué entra y en qué orden:
+eso lo decidió el núcleo, y las dos salidas son la misma lista con distinto vocabulario.
+
+`EndOfDay` nace de ahí: `--until 2026-02-14` tiene que incluir el día 14 entero, y cortar a
+medianoche deja fuera justo lo escrito ese día. Es el error de fechas clásico, y con una sola
+copia solo se puede arreglar en un sitio.
+
 ## 10. Desarrollo
 
 ```bash
@@ -783,7 +900,7 @@ make setup      # instala deps de go, bun y cargo
 make dev-core   # daemon Go con recarga manual en :7411
 make dev-web    # Vite en :1420
 make dev        # tauri dev (lanza el core como sidecar)
-make test       # las diez suites: go -race, cargo, tsc, preview, i18n, css, temas, mermaid, notas, icono
+make test       # todas las suites: go -race, cargo, tsc, preview, i18n, css, temas, mermaid, notas, diff, exportación, notas de versión, icono
 make build      # binario Go + bundle Tauri
 make icon       # regenera el icono en todos sus formatos
 make version    # muestra la version; NEXT=0.4.0 la fija en los tres ficheros
