@@ -19,10 +19,11 @@
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 import { isDiagramLanguage, mermaidThemeVariables } from '../src/lib/mermaid.ts'
 
-const ROOT = new URL('..', import.meta.url).pathname
+const ROOT = fileURLToPath(new URL('..', import.meta.url))
 const SRC = join(ROOT, 'src')
 const CSS = readFileSync(join(ROOT, 'src/styles.css'), 'utf8')
 

@@ -16,11 +16,12 @@
  */
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 import { DEFAULT_THEME, THEME_OPTIONS } from '../src/features/settings/themeOptions.ts'
 import { parseHexColor, translucentBackground } from '../src/lib/translucency.ts'
 
-const ROOT = new URL('..', import.meta.url).pathname
+const ROOT = fileURLToPath(new URL('..', import.meta.url))
 // Los comentarios se quitan antes de parsear: algunos llevan `:` dentro y, sin
 // esto, el `indexOf(':')` de `tokens()` los toma por declaraciones y se come el
 // token que va justo debajo.

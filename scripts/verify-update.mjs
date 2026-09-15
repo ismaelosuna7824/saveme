@@ -12,10 +12,11 @@
  */
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 import { REQUIRED_PLATFORMS, buildLatestJson, targetsFor } from './lib/latest-json.mjs'
 
-const ROOT = new URL('..', import.meta.url).pathname
+const ROOT = fileURLToPath(new URL('..', import.meta.url))
 
 let failures = 0
 
