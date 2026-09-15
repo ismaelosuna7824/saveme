@@ -208,6 +208,82 @@ assert_contains "el subcomando guide también la imprime" "saveme_summary_propos
 
 # ---------------------------------------------------------------------------
 
+step "12. Apuntar un resumen desde la terminal"
+# El CLI pasa por las mismas dos fases que el MCP, así que hereda la
+# deduplicación, la inferencia de categoría y el conflicto de edición sin tener
+# reglas propias. Esto comprueba que ese camino sigue en pie.
+ADD="$("$BIN" add --root "$WORK" --project cli --title "Apuntado a mano" --body "Un cuerpo desde la terminal." 2>/dev/null)"
+assert_contains "escribe el resumen y dice dónde quedó" "cli/" "$ADD"
+
+REPEAT="$("$BIN" add --root "$WORK" --project cli --title "Apuntado a mano" --body "Un cuerpo desde la terminal." 2>/dev/null)"
+assert_contains "repetirlo no duplica: lo dice y no escribe" "ya estaba guardado" "$REPEAT"
+
+# Sin cuerpo y sin tubería tiene que avisar. Si se quedara leyendo la entrada
+# estándar parecería colgado, que es peor que un error.
+if "$BIN" add --root "$WORK" --project cli --title "Sin cuerpo" </dev/null >/dev/null 2>&1; then
+  bad "sin cuerpo debería fallar"
+else
+  ok "sin cuerpo falla en vez de quedarse esperando"
+fi
+
+# El autor distingue lo que apunta una persona de lo que propone un agente.
+CLIFILE="$(find "$WORK/cli" -name '*.md' | head -1)"
+assert_contains "queda marcado como escrito por una persona" "author: human" "$(cat "$CLIFILE")"
+assert_contains "y se sabe que entró por la CLI" "agent: cli" "$(cat "$CLIFILE")"
+
+# ---------------------------------------------------------------------------
+
+step "13. El pulso: briefing, actividad y notas de versión"
+# Los tres miran el diario por fecha, y aquí se comprueba contra el daemon de
+# verdad, que es donde se ve si el filtro por fecha corta donde debe.
+#
+# Se escribe con `--root "$SAVEME_ROOT"` y no con `$WORK` como el paso anterior, a
+# propósito: así el daemon **ve** lo que apunta la CLI, que es la garantía de fondo
+# del proyecto —las dos puertas comparten workspace e índice, no hay dos
+# configuraciones que puedan divergir—.
+curl -s -X POST "$BASE/api/projects" -H 'Content-Type: application/json' \
+  -d '{"name":"Pulso","slug":"pulso"}' >/dev/null
+
+"$BIN" add --root "$SAVEME_ROOT" --project pulso --category feature \
+  --title "Una feature del pulso" --body "Cuerpo." \
+  --files "backend/a.go,backend/b.go" >/dev/null 2>&1
+"$BIN" add --root "$SAVEME_ROOT" --project pulso --category fix \
+  --title "Un arreglo del pulso" --body "Cuerpo." \
+  --files "backend/a.go" >/dev/null 2>&1
+
+# El watcher es asíncrono; se fuerza la reindexación para no depender de un sleep,
+# que es como estas pruebas se vuelven intermitentes.
+curl -s -X POST "$BASE/api/reindex" >/dev/null
+
+BRIEF="$(curl -s "$BASE/api/projects/pulso/briefing")"
+assert_contains "el briefing trae lo último que pasó" '"title":"Una feature del pulso"' "$BRIEF"
+assert_contains "y los archivos tocados, con su recuento" '"path":"backend/a.go","count":2' "$BRIEF"
+assert_contains "y el total del proyecto, no solo el de la ventana" '"total":2' "$BRIEF"
+
+ACT="$(curl -s "$BASE/api/projects/pulso/activity?days=7")"
+assert_contains "el mapa trae la ventana pedida" '"days":7' "$ACT"
+assert_contains "y cuenta los días con algo" '"active":1' "$ACT"
+
+HOY="$(date +%Y-%m-%d)"
+CHG="$(curl -s "$BASE/api/projects/pulso/changelog?since=$HOY&until=$HOY")"
+assert_contains "el changelog incluye el día de hoy entero" '"count":2' "$CHG"
+assert_contains "y agrupa por categoría" '"category":"feature"' "$CHG"
+
+# Una fecha que no se entiende se rechaza. Cayendo a la ventana por defecto
+# devolvería un documento que parece bueno y no es el que se pidió.
+MAL="$(curl -s -o /dev/null -w '%{http_code}' "$BASE/api/projects/pulso/changelog?since=14/02/2026")"
+assert_eq "una fecha ilegible es un 400, no un documento vacío" "400" "$MAL"
+
+MD="$("$BIN" changelog --root "$SAVEME_ROOT" --project pulso --since "$HOY" --until "$HOY" 2>/dev/null)"
+assert_contains "la CLI monta el markdown con el nombre de la categoría" "## Feature" "$MD"
+assert_contains "y con el título de cada entrada" "Una feature del pulso" "$MD"
+assert_contains "cada entrada lleva su ruta" '`pulso/features/' "$MD"
+
+VACIO="$("$BIN" changelog --root "$SAVEME_ROOT" --project pulso --since 2020-01-01 --until 2020-01-02 2>/dev/null)"
+assert_contains "un rango sin nada lo dice en vez de salir vacío" "Sin cambios apuntados" "$VACIO"
+
+# ---------------------------------------------------------------------------
+
 printf '\n\033[1mResultado: %d pasaron, %d fallaron\033[0m\n' "$PASS" "$FAIL"
 if [[ "$FAIL" -gt 0 ]]; then exit 1; fi
 echo "Todo verificado."

@@ -12,6 +12,10 @@ import {
 
 import { api, buildQuery } from './client'
 import type {
+  ActivityMap,
+  Briefing,
+  Changelog,
+  Digest,
   Category,
   Config,
   ConfigPatch,
@@ -36,6 +40,7 @@ import type {
   SummaryFilter,
   SummaryList,
   SummaryMeta,
+  WriteResult,
   EmptyTrashResult,
   RestoreResult,
   TrashResponse,
@@ -50,6 +55,12 @@ import type {
 export const queryKeys = {
   health: ['health'] as const,
   stats: ['stats'] as const,
+  digest: (days: number) => ['digest', days] as const,
+  digestAll: ['digest'] as const,
+  briefing: (slug: string, days: number) => ['briefing', slug, days] as const,
+  activity: (slug: string, days: number) => ['activity', slug, days] as const,
+  changelog: (slug: string, since: string, until: string) =>
+    ['changelog', slug, since, until] as const,
   config: ['config'] as const,
   categories: ['categories'] as const,
   projects: ['projects'] as const,
@@ -198,6 +209,125 @@ export function useProposalDiff(token: string, enabled: boolean): UseQueryResult
     // crearla. Volver a pedirlo al desplegar y plegar sería gastar por nada.
     staleTime: Infinity,
     enabled,
+  })
+}
+
+/**
+ * Lo hecho en los últimos `days` días, de todos los proyectos.
+ *
+ * Se cachea por ventana: cambiar de 7 a 30 días y volver a 7 no vuelve a pedirlo.
+ */
+/**
+ * Cambia la categoría y el título de un resumen guardado.
+ *
+ * Al terminar se invalida lo que depende de dónde vive el resumen —listados,
+ * estadísticas y el propio detalle—, porque la categoría lo mueve de carpeta y
+ * dejarlo cacheado enseñaría una ruta que ya no existe.
+ */
+/**
+ * Escribe un resumen nuevo desde la interfaz.
+ *
+ * Pasa por el mismo camino de dos fases que un agente, así que hereda la
+ * deduplicación y la inferencia de categoría sin reglas propias.
+ */
+export function useCreateSummary(): UseMutationResult<
+  WriteResult,
+  Error,
+  {
+    project: string
+    title: string
+    body: string
+    category: string
+    tags: string[]
+  }
+> {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input) => api.post<WriteResult>('/summaries', input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: queryKeys.summaries.all })
+      void qc.invalidateQueries({ queryKey: queryKeys.stats })
+      void qc.invalidateQueries({ queryKey: queryKeys.projects })
+      void qc.invalidateQueries({ queryKey: queryKeys.digestAll })
+    },
+  })
+}
+
+export function useUpdateSummaryMeta(): UseMutationResult<
+  SummaryMeta,
+  Error,
+  { id: string; category: string; title: string }
+> {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, category, title }) =>
+      api.patch<SummaryMeta>(`/summaries/${encodeURIComponent(id)}`, { category, title }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: queryKeys.summaries.all })
+      void qc.invalidateQueries({ queryKey: queryKeys.stats })
+      void qc.invalidateQueries({ queryKey: queryKeys.digestAll })
+    },
+  })
+}
+
+export function useDigest(days: number): UseQueryResult<Digest> {
+  return useQuery({
+    queryKey: queryKeys.digest(days),
+    queryFn: ({ signal }) => api.get<Digest>(`/digest${buildQuery({ days: String(days) })}`, signal),
+    staleTime: 30_000,
+  })
+}
+
+/**
+ * «¿Dónde lo dejamos?» de un proyecto.
+ *
+ * Se refresca sola cada minuto y no se cachea más: un briefing es lo primero que
+ * se mira al abrir un proyecto, y enseñar el de hace un rato justo cuando acaba de
+ * llegar una propuesta nueva es la peor forma de fallar.
+ */
+export function useBriefing(slug: string, days: number): UseQueryResult<Briefing> {
+  return useQuery({
+    queryKey: queryKeys.briefing(slug, days),
+    queryFn: ({ signal }) =>
+      api.get<Briefing>(
+        `/projects/${encodeURIComponent(slug)}/briefing${buildQuery({ days: String(days) })}`,
+        signal,
+      ),
+    staleTime: 30_000,
+    enabled: slug.length > 0,
+  })
+}
+
+export function useActivity(slug: string, days: number): UseQueryResult<ActivityMap> {
+  return useQuery({
+    queryKey: queryKeys.activity(slug, days),
+    queryFn: ({ signal }) =>
+      api.get<ActivityMap>(
+        `/projects/${encodeURIComponent(slug)}/activity${buildQuery({ days: String(days) })}`,
+        signal,
+      ),
+    staleTime: 60_000,
+    enabled: slug.length > 0,
+  })
+}
+
+/**
+ * Notas de versión de un proyecto entre dos fechas.
+ *
+ * Se pide con `since` y `until` vacíos cuando no se elige rango: el núcleo pone
+ * entonces su ventana por defecto, y así la interfaz no tiene que duplicar cuál es
+ * ni mantenerla en dos sitios.
+ */
+export function useChangelog(slug: string, since = '', until = ''): UseQueryResult<Changelog> {
+  return useQuery({
+    queryKey: queryKeys.changelog(slug, since, until),
+    queryFn: ({ signal }) =>
+      api.get<Changelog>(
+        `/projects/${encodeURIComponent(slug)}/changelog${buildQuery({ since, until })}`,
+        signal,
+      ),
+    staleTime: 30_000,
+    enabled: slug.length > 0,
   })
 }
 

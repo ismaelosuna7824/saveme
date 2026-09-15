@@ -179,10 +179,27 @@ section('6. La app sabe dónde preguntar y con qué clave')
     conf.bundle?.createUpdaterArtifacts === true)
 
   const caps = JSON.parse(readFileSync(join(ROOT, 'src-tauri/capabilities/default.json'), 'utf8'))
-  check('la ventana tiene permiso para el actualizador',
-    (caps.permissions ?? []).includes('updater:default'))
-  check('y para reiniciar tras instalar',
-    (caps.permissions ?? []).includes('process:allow-restart'))
+  const permisos = caps.permissions ?? []
+
+  check('la ventana tiene permiso para el actualizador', permisos.includes('updater:default'))
+  check('y para reiniciar tras instalar', permisos.includes('process:allow-restart'))
+
+  // Guardar el documento exportado abre la ventana de «guardar como» del sistema.
+  check('y para abrir el diálogo de guardar', permisos.includes('dialog:allow-save'))
+
+  // Y **no** permiso de escritura en el disco. Es la razón de que exista el comando
+  // `save_text_file` en Rust: con el plugin de ficheros, el webview podría escribir
+  // en cualquier ruta del sistema. Es fácil «simplificar» esto añadiendo el plugin
+  // y ensanchando la superficie sin que nada lo note, así que se comprueba.
+  const deFicheros = permisos.filter((p) => typeof p === 'string' && p.startsWith('fs:'))
+  check('el webview no tiene permiso de escritura en el disco', deFicheros.length === 0)
+  check('ni el paquete entero de diálogos (abrir y mensajes de más)',
+    !permisos.includes('dialog:default'))
+
+  const mainRs = readFileSync(join(ROOT, 'src-tauri/src/main.rs'), 'utf8')
+  check('existe el comando que escribe el documento', mainRs.includes('fn save_text_file'))
+  check('y está registrado en el shell',
+    mainRs.includes('tauri::generate_handler![save_text_file]'))
 }
 
 console.log('')

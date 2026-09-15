@@ -18,6 +18,7 @@ import { Route as SIdRouteImport } from './routes/s.$id'
 import { Route as TTagRouteImport } from './routes/t.$tag'
 import { Route as PProjectIndexRouteImport } from './routes/p.$project.index'
 import { Route as PProjectCategoryRouteImport } from './routes/p.$project.$category'
+import { Route as PProjectActividadRouteImport } from './routes/p.$project.actividad'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -64,6 +65,11 @@ const PProjectCategoryRoute = PProjectCategoryRouteImport.update({
   path: '/$category',
   getParentRoute: () => PProjectRoute,
 } as any)
+const PProjectActividadRoute = PProjectActividadRouteImport.update({
+  id: '/actividad',
+  path: '/actividad',
+  getParentRoute: () => PProjectRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -74,6 +80,7 @@ export interface FileRoutesByFullPath {
   '/t/$tag': typeof TTagRoute
   '/notes/': typeof NotesIndexRoute
   '/p/$project/$category': typeof PProjectCategoryRoute
+  '/p/$project/actividad': typeof PProjectActividadRoute
   '/p/$project/': typeof PProjectIndexRoute
 }
 export interface FileRoutesByTo {
@@ -83,6 +90,7 @@ export interface FileRoutesByTo {
   '/t/$tag': typeof TTagRoute
   '/notes': typeof NotesIndexRoute
   '/p/$project/$category': typeof PProjectCategoryRoute
+  '/p/$project/actividad': typeof PProjectActividadRoute
   '/p/$project': typeof PProjectIndexRoute
 }
 export interface FileRoutesById {
@@ -95,6 +103,7 @@ export interface FileRoutesById {
   '/t/$tag': typeof TTagRoute
   '/notes/': typeof NotesIndexRoute
   '/p/$project/$category': typeof PProjectCategoryRoute
+  '/p/$project/actividad': typeof PProjectActividadRoute
   '/p/$project/': typeof PProjectIndexRoute
 }
 export interface FileRouteTypes {
@@ -108,6 +117,7 @@ export interface FileRouteTypes {
     | '/t/$tag'
     | '/notes/'
     | '/p/$project/$category'
+    | '/p/$project/actividad'
     | '/p/$project/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -117,6 +127,7 @@ export interface FileRouteTypes {
     | '/t/$tag'
     | '/notes'
     | '/p/$project/$category'
+    | '/p/$project/actividad'
     | '/p/$project'
   id:
     | '__root__'
@@ -128,6 +139,7 @@ export interface FileRouteTypes {
     | '/t/$tag'
     | '/notes/'
     | '/p/$project/$category'
+    | '/p/$project/actividad'
     | '/p/$project/'
   fileRoutesById: FileRoutesById
 }
@@ -204,6 +216,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PProjectCategoryRouteImport
       parentRoute: typeof PProjectRoute
     }
+    '/p/$project/actividad': {
+      id: '/p/$project/actividad'
+      path: '/actividad'
+      fullPath: '/p/$project/actividad'
+      preLoaderRoute: typeof PProjectActividadRouteImport
+      parentRoute: typeof PProjectRoute
+    }
   }
 }
 
@@ -221,11 +240,13 @@ const NotesRouteWithChildren = NotesRoute._addFileChildren(NotesRouteChildren)
 
 interface PProjectRouteChildren {
   PProjectCategoryRoute: typeof PProjectCategoryRoute
+  PProjectActividadRoute: typeof PProjectActividadRoute
   PProjectIndexRoute: typeof PProjectIndexRoute
 }
 
 const PProjectRouteChildren: PProjectRouteChildren = {
   PProjectCategoryRoute: PProjectCategoryRoute,
+  PProjectActividadRoute: PProjectActividadRoute,
   PProjectIndexRoute: PProjectIndexRoute,
 }
 

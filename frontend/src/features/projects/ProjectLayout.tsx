@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
-import { Copy, FolderGit2, TriangleAlert, Trash2 } from 'lucide-react'
+import { Activity, Copy, FolderGit2, TriangleAlert, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
@@ -19,6 +19,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { categoryLabel } from '@/features/projects/CategoryCounts'
 import { ExportProjectButton } from '@/features/projects/ExportProjectButton'
+import { ChangelogButton } from '@/features/projects/ChangelogButton'
+import { NewSummaryDialog } from '@/features/projects/NewSummaryDialog'
 import { copyToClipboard } from '@/lib/hooks'
 import { formatRelative } from '@/lib/format'
 
@@ -45,6 +47,14 @@ export function ProjectLayout({ slug }: ProjectLayoutProps) {
   const activeCategory = useMemo(() => {
     const parts = pathname.split('/').filter((part) => part.length > 0)
     return parts[0] === 'p' && parts[2] ? decodeURIComponent(parts[2]) : 'todas'
+  }, [pathname])
+
+  // El pulso no es una categoría: mira el diario por **fecha**, no por tema. Las
+  // pestañas se esconden mientras se está ahí porque ninguna representa esa
+  // pantalla, y una tira de pestañas sin ninguna activa parece rota.
+  const enPulso = useMemo(() => {
+    const parts = pathname.split('/').filter((part) => part.length > 0)
+    return parts[0] === 'p' && parts[2] === 'actividad'
   }, [pathname])
 
   const tabs = useMemo(() => {
@@ -139,6 +149,17 @@ export function ProjectLayout({ slug }: ProjectLayoutProps) {
             · {t('projects.lastActivity')} {formatRelative(project.last_activity)}
           </span>
           <div className="ml-auto flex items-center gap-1">
+            <NewSummaryDialog project={project.slug} />
+            <Button
+              variant={enPulso ? 'outline' : 'ghost'}
+              size="icon-sm"
+              onClick={() => void navigate({ to: '/p/$project/actividad', params: { project: slug } })}
+              title={t('projects.activity.action')}
+              aria-label={t('projects.activity.action')}
+            >
+              <Activity className="size-3" />
+            </Button>
+            <ChangelogButton slug={project.slug} />
             <ExportProjectButton slug={project.slug} />
             <Button
               variant="ghost"
@@ -179,24 +200,26 @@ export function ProjectLayout({ slug }: ProjectLayoutProps) {
         onConfirm={confirmDeleteProject}
       />
 
-      <div className="shrink-0 px-3 pt-2">
-        <Tabs value={activeCategory} onValueChange={goToCategory}>
-          <TabsList>
-            <TabsTrigger value="todas">
-              {t('projects.tabs.all')}
-              <span className="text-muted-foreground">{project.total}</span>
-            </TabsTrigger>
-            {tabs.map((tab) => (
-              <TabsTrigger key={tab.key} value={tab.key}>
-                {tab.label}
-                <span className={tab.count > 0 ? 'text-muted-foreground' : 'text-border-strong'}>
-                  {tab.count}
-                </span>
+      {enPulso ? null : (
+        <div className="shrink-0 px-3 pt-2">
+          <Tabs value={activeCategory} onValueChange={goToCategory}>
+            <TabsList>
+              <TabsTrigger value="todas">
+                {t('projects.tabs.all')}
+                <span className="text-muted-foreground">{project.total}</span>
               </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-      </div>
+              {tabs.map((tab) => (
+                <TabsTrigger key={tab.key} value={tab.key}>
+                  {tab.label}
+                  <span className={tab.count > 0 ? 'text-muted-foreground' : 'text-border-strong'}>
+                    {tab.count}
+                  </span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+        </div>
+      )}
 
       <div className="min-h-0 flex-1 overflow-hidden">
         <Outlet />
