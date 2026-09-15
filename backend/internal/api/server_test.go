@@ -114,6 +114,42 @@ func TestConfigPatchCanSetZeroValues(t *testing.T) {
 	}
 }
 
+// El modo vim se enciende y se apaga con un parche, sin tocar el resto del
+// editor, y viene apagado de fábrica: es un modo en el que las letras dejan de
+// escribir, y no se le impone a nadie que abra la app sin saberlo.
+func TestConfigVimMode(t *testing.T) {
+	srv, h := newTestServer(t)
+	if srv.cfg.Editor.VimMode {
+		t.Error("vim_mode debe venir apagado por defecto")
+	}
+	srv.cfg.Editor.Wrap = true
+	srv.cfg.Editor.FontSize = 14
+
+	rec := putJSON(t, h, "/api/config", map[string]any{
+		"editor": map[string]any{"vim_mode": true},
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if !srv.cfg.Editor.VimMode {
+		t.Error("mandar vim_mode=true debe encenderlo")
+	}
+	if !srv.cfg.Editor.Wrap || srv.cfg.Editor.FontSize != 14 {
+		t.Error("encender vim no debe tocar el resto de preferencias del editor")
+	}
+
+	// Y se apaga sin arrastrar nada más.
+	rec = putJSON(t, h, "/api/config", map[string]any{
+		"editor": map[string]any{"vim_mode": false},
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	if srv.cfg.Editor.VimMode {
+		t.Error("mandar vim_mode=false debe apagarlo")
+	}
+}
+
 // El tema y el modo conviven: cambiar uno no toca el otro.
 func TestConfigThemeAndEditorAreIndependent(t *testing.T) {
 	srv, h := newTestServer(t)

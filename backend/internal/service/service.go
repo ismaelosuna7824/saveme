@@ -435,15 +435,31 @@ func (s *Service) Confirm(ctx context.Context, token string, d Decision) (*Write
 			}
 		}
 		return nil, ErrProposalResolved
-	case domain.ProposalCancelled, domain.ProposalExpired:
+	case domain.ProposalCancelled:
 		return nil, ErrProposalResolved
+	case domain.ProposalExpired:
+		// Una propuesta vencida **sí se puede aprobar**. El TTL acota lo que
+		// espera el agente, no lo que tarda una persona: el cuerpo sigue en la
+		// base, intacto, y rechazarlo convertía una decisión tardía en una
+		// pérdida. Lo que de verdad la borra es la purga, y esa llega mucho
+		// después; mientras esté, se puede salvar.
 	}
 
 	now := time.Now().UTC()
-	if now.After(rec.ExpiresAt) {
-		if _, err := s.st.ResolveProposal(ctx, token, domain.ProposalExpired, "", d.Via, "", "", now); err != nil {
-			return nil, err
-		}
+	// Vencida por el reloj **o** porque el barrendero ya la marcó: mirar solo la
+	// marca de tiempo dejaría sin anotar el caso más común, que es el que pasó por
+	// la limpieza periódica.
+	tarde := rec.Status == domain.ProposalExpired || now.After(rec.ExpiresAt)
+
+	// Quién puede aprobar tarde es la mitad que importa de esta regla.
+	//
+	// El TTL protege contra un **agente** que confirma algo que nadie llegó a
+	// mirar: ese sigue rechazado, que es lo que promete el plazo. Pero una persona
+	// decidiendo tarde **es** la aprobación —el cuerpo sigue en la base, intacto, y
+	// lo que de verdad lo borra es la purga—, así que a esa no se le puede
+	// contestar «llegas tarde» y tirar el trabajo. Y si el resumen que actualiza
+	// cambió por el camino, el conflicto de hash lo detiene igual.
+	if tarde && !viaHumana(d.Via) {
 		return nil, ErrProposalExpired
 	}
 
@@ -532,8 +548,14 @@ func (s *Service) Confirm(ctx context.Context, token string, d Decision) (*Write
 		summaryID = rec.TargetID
 	}
 	claim := func(path string) (bool, error) {
+		via := d.Via
+		if tarde {
+			// Que quede registrado: no es lo mismo un agente que esperó su turno
+			// que alguien que rescató la propuesta media hora después.
+			via = d.Via + "+tarde"
+		}
 		return s.st.ResolveProposal(ctx, token, domain.ProposalConfirmed,
-			decisionLabel(d), d.Via, path, summaryID, now)
+			decisionLabel(d), via, path, summaryID, now)
 	}
 
 	claimed, err := claim(relPath)
@@ -1109,13 +1131,32 @@ func decisionLabel(d Decision) string {
 	return "modified"
 }
 
+// viaHumana dice si la decisión la tomó una persona y no un agente.
+//
+// La distinción no es cosmética: gobierna quién puede aprobar una propuesta
+// vencida. Un agente actuando por su cuenta sobre un consentimiento caducado es
+// justo lo que el TTL existe para impedir.
+func viaHumana(via string) bool {
+	switch via {
+	case domain.ResolvedViaUI, domain.ResolvedViaCLI:
+		return true
+	}
+	return false
+}
+
 // authorFor distingue el origen de un resumen. Un resumen que nació de una
 // propuesta de agente queda marcado como tal para poder filtrarlo después.
+//
+// El `cli` es la excepción: lo lanza una persona desde la terminal, así que el
+// resumen lo escribió un humano aunque entre por la misma puerta que un agente.
+// El canal no se pierde —queda en el campo `agent`—, que es justo para lo que
+// sirve ese campo.
 func authorFor(agent string) string {
-	if strings.TrimSpace(agent) != "" {
-		return "agent"
+	switch strings.TrimSpace(agent) {
+	case "", "cli":
+		return "human"
 	}
-	return "human"
+	return "agent"
 }
 
 // alreadyResolved responde a una confirmación sobre un token ya resuelto.

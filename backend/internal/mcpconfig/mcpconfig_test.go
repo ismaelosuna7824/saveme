@@ -995,3 +995,102 @@ func TestVersionOfSeLaPreguntaAlBinario(t *testing.T) {
 		t.Error("una ruta inexistente debería fallar")
 	}
 }
+
+// --- sincronización automática de la copia instalada -------------------------
+
+// instalarFalso deja un script en la ruta de instalación que dice ser la versión
+// pedida. Es lo que hace falta para probar la decisión sin copiar binarios de
+// verdad: lo que se está comprobando es **cuándo** se reemplaza, no el `cp`.
+func instalarFalso(t *testing.T, version string) string {
+	t.Helper()
+	path, err := InstallPath()
+	if err != nil {
+		t.Fatalf("InstallPath: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("#!/bin/sh\necho 'saveme "+version+"'\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+// El actualizador reemplaza el binario de dentro de la app, no la copia que
+// lanzan los clientes MCP. Si esa copia se queda atrás, los agentes usan
+// herramientas viejas contra una app nueva y no hay ningún síntoma. Se pone al
+// día sola al arrancar.
+func TestSyncInstalledPoneAlDiaLaCopia(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("el ayudante es un script POSIX")
+	}
+	// HOME a un temporal: InstallPath cuelga de la carpeta personal, y esto no
+	// puede tocar la instalación de verdad de quien ejecute las pruebas.
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	// Sin copia no se hace nada: instalarla es una decisión del usuario.
+	res, err := SyncInstalled("9.9.9")
+	if err != nil {
+		t.Fatalf("sin copia no debería fallar: %v", err)
+	}
+	if res.Replaced {
+		t.Error("sin copia no hay nada que reemplazar")
+	}
+	if _, statErr := os.Stat(res.Path); statErr == nil {
+		t.Error("no debería haber creado la copia: instalarla es cosa del usuario")
+	}
+
+	// Con la misma versión, tampoco se toca.
+	path := instalarFalso(t, "9.9.9")
+	antes, _ := os.ReadFile(path)
+	res, err = SyncInstalled("9.9.9")
+	if err != nil {
+		t.Fatalf("con la misma versión no debería fallar: %v", err)
+	}
+	if res.Replaced {
+		t.Error("si ya está al día no hay nada que hacer")
+	}
+	despues, _ := os.ReadFile(path)
+	if string(antes) != string(despues) {
+		t.Error("no debería haber tocado el fichero")
+	}
+
+	// Con otra versión, se reemplaza.
+	res, err = SyncInstalled("1.0.0")
+	if err != nil {
+		t.Fatalf("con otra versión debería reemplazar sin fallar: %v", err)
+	}
+	if !res.Replaced {
+		t.Error("con otra versión tenía que reemplazarla")
+	}
+	if res.Before != "9.9.9" {
+		t.Errorf("Before = %q, esperaba 9.9.9", res.Before)
+	}
+	despues, _ = os.ReadFile(path)
+	if string(despues) == string(antes) {
+		t.Error("el fichero debería haber cambiado")
+	}
+}
+
+// Una copia que existe pero no se deja preguntar —truncada, sin permiso de
+// ejecución— cuenta como «no está al día»: reemplazarla es lo que la arregla.
+func TestSyncInstalledArreglaUnaCopiaIlegible(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("el ayudante es un script POSIX")
+	}
+	t.Setenv("HOME", t.TempDir())
+
+	path := instalarFalso(t, "9.9.9")
+	if err := os.WriteFile(path, []byte("no soy un ejecutable\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := SyncInstalled("1.0.0")
+	if err != nil {
+		t.Fatalf("debería haberla reemplazado sin fallar: %v", err)
+	}
+	if !res.Replaced {
+		t.Error("una copia ilegible hay que reemplazarla")
+	}
+}

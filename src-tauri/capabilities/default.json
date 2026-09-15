@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Permisos de la ventana principal de SaveMe. El shell no necesita permisos de sistema: lanza el core de Go con std::process::Command desde Rust, no desde la interfaz, así que no hay superficie de ejecución expuesta al webview. Lo único que se le abre es el actualizador (comprobar, descargar e instalar) y el reinicio posterior: no se le da `process:allow-exit` ni nada más.",
+  "description": "Permisos de la ventana principal de SaveMe. El shell no necesita permisos de sistema: lanza el core de Go con std::process::Command desde Rust, no desde la interfaz, así que no hay superficie de ejecución expuesta al webview. Lo que se le abre es el actualizador (comprobar, descargar e instalar), el reinicio posterior, y la ventana de «guardar como» del sistema. No se le da `process:allow-exit`, ni `dialog:default` (que incluiría abrir y mensajes), ni el plugin de ficheros: escribir el documento exportado lo hace el comando `save_text_file`.",
   "windows": [
     "main"
   ],
@@ -9,6 +9,8 @@
     "core:default",
     "core:window:allow-start-dragging",
     "updater:default",
-    "process:allow-restart"
+    "process:allow-restart",
+    "dialog:allow-save",
+    "notification:default"
   ]
 }

@@ -183,14 +183,35 @@ func (s *Store) ResolveProposal(
 		status != domain.ProposalExpired {
 		return false, fmt.Errorf("estado de propuesta inválido: %q", status)
 	}
+	// Una propuesta **vencida** todavía se puede reclamar para confirmarla: su
+	// cuerpo sigue en la base intacto, y lo que de verdad la borra es la purga,
+	// que llega mucho más tarde. Rechazarla convertía una decisión tardía en una
+	// pérdida de trabajo.
+	//
+	// Solo para confirmar. Marcar como vencida o cancelada sigue exigiendo
+	// `pending`: si no, el barrendero podría volver a marcar una ya confirmada.
+	//
+	// La garantía de un solo uso no se toca: el UPDATE sigue siendo condicional,
+	// así que solo una confirmación puede sacarla de esos dos estados.
+	condicion := "status = ?"
+	estados := []any{domain.ProposalPending}
+	if status == domain.ProposalConfirmed {
+		condicion = "status IN (?, ?)"
+		estados = append(estados, domain.ProposalExpired)
+	}
+
+	args := []any{
+		status, nullify(decision), nullify(via), ts(now),
+		nullify(overrideRelPath), nullify(summaryID), token,
+	}
+	args = append(args, estados...)
+
 	res, err := s.db.ExecContext(ctx, `
 		UPDATE proposals
 		SET status = ?, decision = ?, resolved_via = ?, resolved_at = ?,
 		    override_rel_path = ?, summary_id = ?
-		WHERE token = ? AND status = ?`,
-		status, nullify(decision), nullify(via), ts(now),
-		nullify(overrideRelPath), nullify(summaryID),
-		token, domain.ProposalPending)
+		WHERE token = ? AND `+condicion,
+		args...)
 	if err != nil {
 		return false, fmt.Errorf("resolver la propuesta %s: %w", token, err)
 	}

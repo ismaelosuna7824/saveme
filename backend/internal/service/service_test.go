@@ -381,11 +381,22 @@ func TestExpiredProposalCannotBeConfirmed(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := svc.Confirm(ctx, token, Decision{Accepted: true, Via: domain.ResolvedViaUI}); !errors.Is(err, ErrProposalExpired) {
-		t.Fatalf("esperaba ErrProposalExpired, obtuve %v", err)
+	// Un agente no puede: el plazo es su contrato, y confirmar algo que nadie miró
+	// es justo lo que impide.
+	if _, err := svc.Confirm(ctx, token, Decision{Accepted: true, Via: domain.ResolvedViaAgentChat}); !errors.Is(err, ErrProposalExpired) {
+		t.Fatalf("un agente no debería poder confirmar una vencida; obtuve %v", err)
 	}
 	if files := markdownFiles(t, root); len(files) != 0 {
-		t.Errorf("una propuesta vencida no debe escribir: %v", files)
+		t.Errorf("un agente rechazado no debe escribir nada: %v", files)
+	}
+
+	// Una persona sí. Rechazarla convertía quince minutos de margen en una pérdida
+	// de trabajo, con el cuerpo todavía intacto en la base.
+	if _, err := svc.Confirm(ctx, token, Decision{Accepted: true, Via: domain.ResolvedViaUI}); err != nil {
+		t.Fatalf("una persona sí debería poder aprobarla tarde: %v", err)
+	}
+	if files := markdownFiles(t, root); len(files) != 1 {
+		t.Errorf("la persona que aprueba tarde tiene que escribir: %v", files)
 	}
 }
 

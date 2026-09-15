@@ -30,21 +30,34 @@ const DEFAULT_PORT: u16 = 7411;
 struct Sidecar(Mutex<Option<Child>>);
 
 fn main() {
-    let builder = tauri::Builder::default().manage(Sidecar::default());
+    let builder = tauri::Builder::default()
+        .manage(Sidecar::default())
+        .invoke_handler(tauri::generate_handler![save_text_file]);
 
     // Actualizaciones desde la propia app. Se registran en Rust y la interfaz los
     // usa desde JavaScript: el plugin es quien habla con el servidor de
     // actualizaciones y quien verifica la firma, y la interfaz solo decide cuándo
     // preguntar y qué enseñar.
     //
-    // Van bajo `#[cfg(desktop)]` porque el actualizador no existe en móvil, y se
-    // encadena con un `let` que ensombrece al anterior —igual que la barra de
-    // título de macOS más abajo— para que en el resto de plataformas estas
-    // llamadas simplemente no existan, sin dejar una variable `mut` sin usar.
+    // El de diálogo es solo el «guarda como…» del sistema: abre la ventana nativa
+    // y devuelve la ruta elegida. **No da acceso al disco** —eso lo daría el
+    // plugin de ficheros, que se ha evitado a propósito—; escribir lo hace
+    // `save_text_file`, que solo sabe guardar un texto en la ruta que el usuario
+    // acaba de elegir.
+    //
+    // Van bajo `#[cfg(desktop)]` porque no existen en móvil, y se encadena con un
+    // `let` que ensombrece al anterior —igual que la barra de título de macOS más
+    // abajo— para que en el resto de plataformas estas llamadas simplemente no
+    // existan, sin dejar una variable `mut` sin usar.
     #[cfg(desktop)]
     let builder = builder
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(tauri_plugin_process::init());
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_dialog::init())
+        // Avisar de que ha llegado una propuesta. El inbox es pasivo y las
+        // propuestas caducan: sin un aviso del sistema, el trabajo de un agente se
+        // pierde por no estar mirando la ventana correcta.
+        .plugin(tauri_plugin_notification::init());
 
     builder
         .setup(|app| {
@@ -124,6 +137,22 @@ fn main() {
                 }
             }
         });
+}
+
+/// Guarda un texto en la ruta que el usuario acaba de elegir en el diálogo.
+///
+/// Existe para **no** darle al webview permiso de escritura en el disco, que es lo
+/// que haría falta para usar el plugin de ficheros desde JavaScript. Lo único que
+/// se le permite es esto: mandar un texto y una ruta, y la ruta la acaba de elegir
+/// una persona en la ventana nativa de «guardar como».
+///
+/// Se escribe con `fs::write` a secas, sin escritura atómica: el destino es un
+/// archivo que el usuario va a mirar, no algo que otro proceso esté leyendo a la
+/// vez. Si falla —permisos, disco lleno, carpeta que ya no está— el error sube tal
+/// cual, porque el mensaje del sistema es más útil que cualquier paráfrasis.
+#[tauri::command]
+fn save_text_file(path: String, contents: String) -> Result<(), String> {
+    std::fs::write(&path, contents).map_err(|err| format!("no pude escribir en {path}: {err}"))
 }
 
 /// Arranca el core y devuelve el puerto en el que escucha.

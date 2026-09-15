@@ -188,6 +188,16 @@ func (s *Server) registerTools() {
 	}, s.handleSearch)
 
 	mcp.AddTool(s.srv, &mcp.Tool{
+		Name:  "saveme_context",
+		Title: "Qué se hizo en estos archivos",
+		Description: "Devuelve los resúmenes que tocaron estos archivos. Llámalo **antes** de " +
+			"empezar a tocar uno: te dice qué se hizo ahí, cuándo y por qué, para no repetir " +
+			"un error ya resuelto ni deshacer una decisión que ya se tomó. Es más directo que " +
+			"saveme_summary_search, porque aquí no hay que acertar con las palabras.",
+		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true},
+	}, s.handleContext)
+
+	mcp.AddTool(s.srv, &mcp.Tool{
 		Name:  "saveme_summary_list",
 		Title: "Listar resúmenes recientes",
 		Description: "Lista los resúmenes de un proyecto y/o categoría, del más reciente al más " +
@@ -737,6 +747,37 @@ func (s *Server) handleSearch(ctx context.Context, _ *mcp.CallToolRequest, in se
 	}
 	if total == 0 {
 		out.Note = "No hay nada en el historial sobre esto."
+	}
+	return nil, out, nil
+}
+
+// --- saveme_context ----------------------------------------------------------
+
+type contextIn struct {
+	Files []string `json:"files" jsonschema:"Rutas de los archivos que vas a tocar, como aparecen en el repositorio. Se admiten varias."`
+	Limit int      `json:"limit,omitempty" jsonschema:"Cuántos devolver. Por defecto 20."`
+}
+
+type contextOut struct {
+	Items []summaryDTO `json:"items"`
+	Total int          `json:"total"`
+	Note  string       `json:"note,omitempty"`
+}
+
+func (s *Server) handleContext(ctx context.Context, _ *mcp.CallToolRequest, in contextIn) (*mcp.CallToolResult, contextOut, error) {
+	if len(in.Files) == 0 {
+		return nil, contextOut{}, errors.New("dime al menos un archivo")
+	}
+	items, err := s.svc.ContextForFiles(ctx, in.Files, in.Limit)
+	if err != nil {
+		return nil, contextOut{}, err
+	}
+	out := contextOut{Total: len(items), Items: make([]summaryDTO, 0, len(items))}
+	for _, m := range items {
+		out.Items = append(out.Items, toSummaryDTO(m))
+	}
+	if len(items) == 0 {
+		out.Note = "No hay nada en el historial sobre esos archivos."
 	}
 	return nil, out, nil
 }

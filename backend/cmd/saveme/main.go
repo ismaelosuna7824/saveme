@@ -5,6 +5,7 @@
 //	saveme serve   el daemon que consume la interfaz (HTTP + SSE)
 //	saveme mcp     el servidor MCP por stdio, para que lo lance un agente
 //	saveme guide   imprime las instrucciones para pegar en el CLAUDE.md del repo
+//	saveme changelog  saca las notas de versión de un proyecto desde el diario
 //
 // La decisión de fondo: el MCP no habla con el daemon, habla con la misma base
 // de datos y el mismo workspace. Por eso un agente puede registrar un resumen
@@ -30,6 +31,7 @@ import (
 
 	"github.com/ismaelosuna/saveme/backend/internal/api"
 	"github.com/ismaelosuna/saveme/backend/internal/config"
+	"github.com/ismaelosuna/saveme/backend/internal/mcpconfig"
 	"github.com/ismaelosuna/saveme/backend/internal/mcpserver"
 	"github.com/ismaelosuna/saveme/backend/internal/service"
 	"github.com/ismaelosuna/saveme/backend/internal/store"
@@ -51,6 +53,10 @@ func main() {
 		os.Exit(runServe(os.Args[2:]))
 	case "mcp":
 		os.Exit(runMCP(os.Args[2:]))
+	case "add":
+		os.Exit(runAdd(os.Args[2:]))
+	case "changelog":
+		os.Exit(runChangelog(os.Args[2:]))
 	case "reindex":
 		os.Exit(runReindex(os.Args[2:]))
 	case "guide":
@@ -77,6 +83,9 @@ Uso:
   saveme serve    [--port N] [--root PATH] [--no-watch]   daemon para la interfaz
                   [--parent-stdin]  salir cuando el proceso padre cierre stdin
   saveme mcp      [--http ADDR] [--root PATH]             servidor MCP (stdio por defecto)
+  saveme add --project X --title "…"           apunta un resumen desde la terminal
+  saveme changelog --project X [--since AAAA-MM-DD] [--until AAAA-MM-DD] [--json]
+                                               saca las notas de versión del diario
   saveme reindex  [--root PATH] [--hard]                  reconstruye el índice
   saveme guide    [--root PATH]                           instrucciones para agentes
   saveme mcp-config [--provider X] [--write|--remove]     configura o quita el MCP de un cliente
@@ -134,6 +143,19 @@ func runServe(args []string) int {
 		log.Warn("no pude expirar propuestas vencidas", "err", err)
 	} else if expired > 0 {
 		log.Info("propuestas vencidas marcadas", "n", expired)
+	}
+
+	// La copia instalada del MCP —la que lanzan los agentes— no la toca el
+	// actualizador, que solo reemplaza el binario de dentro de la app. Se pone al
+	// día aquí, al arrancar, para que nadie tenga que acordarse: si se quedara
+	// atrás, los agentes usarían herramientas viejas contra una app nueva y no
+	// habría ningún síntoma. Solo se toca si ya había copia.
+	if res, err := mcpconfig.SyncInstalled(version); err != nil {
+		log.Warn("no pude poner al día la copia instalada del MCP; se queda como estaba",
+			"path", res.Path, "err", err)
+	} else if res.Replaced {
+		log.Info("copia instalada del MCP puesta al día",
+			"path", res.Path, "antes", res.Before, "ahora", version)
 	}
 
 	preferred := rt.cfg.Port
@@ -370,6 +392,20 @@ func (r *runtime) Close() {
 // Que `serve` y `mcp` compartan esta función es lo que garantiza que ambos
 // vean exactamente el mismo workspace y el mismo índice: no hay dos
 // configuraciones que puedan divergir.
+// shouldPersistRoot dice si este arranque puede escribir la configuración.
+//
+// Un `--root` es un override **de esta ejecución**: se usa para abrir el
+// workspace, pero no se guarda. Y no es una precaución teórica: `Save()` escribe
+// el archivo entero, así que persistir la lista de recientes arrastraba el
+// `--root` a la configuración, y un `serve --root /tmp/x` de prueba dejaba la app
+// abriendo una carpeta temporal para siempre. El diario del usuario desaparecía
+// de su vista sin un solo aviso.
+//
+// `SAVEME_ROOT` ya se comportaba así; el flag ahora igual.
+func shouldPersistRoot(rootFlag string, fromEnv bool) bool {
+	return rootFlag == "" && !fromEnv
+}
+
 func open(rootFlag string, log *slog.Logger) (*runtime, error) {
 	cfg, err := config.Load()
 	if err != nil {
@@ -419,15 +455,17 @@ func open(rootFlag string, log *slog.Logger) (*runtime, error) {
 		}
 		cfg.RootSuggestions = suggestions
 
-		next := cfg.RememberRoot(cfg.RootDir)
-		// Guardar la lista es barato y solo se hace cuando cambia, para no
-		// reescribir el archivo en cada arranque.
-		if len(next.RecentRoots) != len(cfg.RecentRoots) || (len(next.RecentRoots) > 0 && next.RecentRoots[0] != cfg.RootDir) {
-			if err := next.Save(); err != nil {
-				log.Warn("no pude recordar la raíz", "err", err)
+		if shouldPersistRoot(rootFlag, cfg.RootFromEnv) {
+			next := cfg.RememberRoot(cfg.RootDir)
+			// Guardar la lista es barato y solo se hace cuando cambia, para no
+			// reescribir el archivo en cada arranque.
+			if len(next.RecentRoots) != len(cfg.RecentRoots) || (len(next.RecentRoots) > 0 && next.RecentRoots[0] != cfg.RootDir) {
+				if err := next.Save(); err != nil {
+					log.Warn("no pude recordar la raíz", "err", err)
+				}
 			}
+			cfg = next
 		}
-		cfg = next
 	}
 	log.Info("workspace abierto",
 		"root", ws.Root(), "db", st.Path(), "fts", st.UsesFTS(),

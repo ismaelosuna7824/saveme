@@ -78,11 +78,21 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/projects/{slug}", s.handleGetProject)
 	// Todo el proyecto en una respuesta, para poder exportarlo a un documento.
 	mux.HandleFunc("GET /api/projects/{slug}/export", s.handleExportProject)
+	mux.HandleFunc("GET /api/projects/{slug}/briefing", s.handleBriefing)
+	mux.HandleFunc("GET /api/projects/{slug}/activity", s.handleActivity)
+	mux.HandleFunc("GET /api/projects/{slug}/changelog", s.handleChangelog)
 	mux.HandleFunc("DELETE /api/projects/{slug}", s.handleDeleteProject)
 
 	mux.HandleFunc("GET /api/summaries", s.handleListSummaries)
+	// Escribir un resumen desde la interfaz. Va aparte del PUT, que edita uno que
+	// ya existe y compite con el editor.
+	mux.HandleFunc("POST /api/summaries", s.handleCreateSummary)
 	mux.HandleFunc("GET /api/summaries/{id}", s.handleGetSummary)
 	mux.HandleFunc("PUT /api/summaries/{id}", s.handleSaveSummary)
+	// Cambiar categoría y título. Va aparte del PUT porque el PUT guarda
+	// **contenido** con hash base y puede fallar por conflicto de edición; esto no
+	// toca el cuerpo y no compite con nadie.
+	mux.HandleFunc("PATCH /api/summaries/{id}", s.handleUpdateSummaryMeta)
 	mux.HandleFunc("DELETE /api/summaries/{id}", s.handleDeleteSummary)
 	// Notas: de la interfaz, no del MCP.
 	mux.HandleFunc("GET /api/notes/tree", s.handleNotesTree)
@@ -96,6 +106,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/trash/restore", s.handleRestore)
 	mux.HandleFunc("DELETE /api/trash", s.handleEmptyTrash)
 	mux.HandleFunc("GET /api/summaries/{id}/raw", s.handleRawSummary)
+
+	// Lo hecho en un rango de fechas, cruzando todos los proyectos.
+	mux.HandleFunc("GET /api/digest", s.handleDigest)
 
 	mux.HandleFunc("GET /api/proposals", s.handleListProposals)
 	mux.HandleFunc("GET /api/proposals/{token}", s.handleGetProposal)
@@ -213,6 +226,7 @@ func (s *Server) handlePutConfig(w http.ResponseWriter, r *http.Request) {
 			Wrap        *bool   `json:"wrap"`
 			PreviewMode *string `json:"preview_mode"`
 			AutosaveMs  *int    `json:"autosave_ms"`
+			VimMode     *bool   `json:"vim_mode"`
 		} `json:"editor"`
 		Onboard *bool `json:"onboarded"`
 	}
@@ -275,6 +289,9 @@ func (s *Server) handlePutConfig(w http.ResponseWriter, r *http.Request) {
 		}
 		if e.AutosaveMs != nil && *e.AutosaveMs >= 0 {
 			next.Editor.AutosaveMs = *e.AutosaveMs
+		}
+		if e.VimMode != nil {
+			next.Editor.VimMode = *e.VimMode
 		}
 	}
 	if body.Onboard != nil {
@@ -531,6 +548,132 @@ func (s *Server) handleExportProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, out)
+}
+
+// handleCreateSummary escribe un resumen nuevo desde la interfaz.
+func (s *Server) handleCreateSummary(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Project      string   `json:"project"`
+		Title        string   `json:"title"`
+		Body         string   `json:"body"`
+		Category     string   `json:"category"`
+		Summary      string   `json:"summary"`
+		Tags         []string `json:"tags"`
+		FilesTouched []string `json:"files_touched"`
+	}
+	if !decodeBody(w, r, &body) {
+		return
+	}
+
+	res, err := s.svc.CreateNow(r.Context(), domain.CreateRequest{
+		Project:      body.Project,
+		Title:        body.Title,
+		Body:         body.Body,
+		Category:     body.Category,
+		Summary:      body.Summary,
+		Tags:         body.Tags,
+		FilesTouched: body.FilesTouched,
+		// El autor y el agente distinguen lo que escribió una persona de lo que
+		// escribió una máquina, que es lo que permite filtrarlo después.
+		Author: "humano",
+		Agent:  "ui",
+	}, domain.ResolvedViaUI)
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, res)
+}
+
+// handleUpdateSummaryMeta cambia la categoría y el título de un resumen.
+func (s *Server) handleUpdateSummaryMeta(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Category string `json:"category"`
+		Title    string `json:"title"`
+	}
+	if !decodeBody(w, r, &body) {
+		return
+	}
+	meta, err := s.svc.UpdateMeta(r.Context(), r.PathValue("id"), body.Category, body.Title)
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, meta)
+}
+
+// handleDigest sirve lo hecho en los últimos días, de todos los proyectos.
+func (s *Server) handleDigest(w http.ResponseWriter, r *http.Request) {
+	dias := atoiDefault(r.URL.Query().Get("days"), service.DigestDaysPorDefecto)
+	out, err := s.svc.Digest(r.Context(), dias)
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+// handleBriefing sirve «¿dónde lo dejamos?» de un proyecto.
+func (s *Server) handleBriefing(w http.ResponseWriter, r *http.Request) {
+	dias := atoiDefault(r.URL.Query().Get("days"), service.BriefingDaysPorDefecto)
+	out, err := s.svc.Briefing(r.Context(), r.PathValue("slug"), dias)
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+// handleActivity sirve el mapa de actividad de un proyecto: qué días se trabajó y
+// cuánto, con los días vacíos incluidos para que la interfaz solo tenga que pintar
+// el array que recibe.
+func (s *Server) handleActivity(w http.ResponseWriter, r *http.Request) {
+	dias := atoiDefault(r.URL.Query().Get("days"), service.ActivityDaysPorDefecto)
+	out, err := s.svc.ActivityMap(r.Context(), r.PathValue("slug"), dias)
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+// handleChangelog sirve las notas de versión de un proyecto entre dos fechas.
+//
+// Devuelve **datos, no markdown**: los títulos de sección los pone quien lo lee, y
+// el idioma solo lo conoce la interfaz. `until` incluye el día entero.
+func (s *Server) handleChangelog(w http.ResponseWriter, r *http.Request) {
+	desde, err := parseFechaQuery(r.URL.Query().Get("since"))
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, "invalid_date", err.Error())
+		return
+	}
+	hasta, err := parseFechaQuery(r.URL.Query().Get("until"))
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, "invalid_date", err.Error())
+		return
+	}
+
+	out, err := s.svc.ChangelogProject(r.Context(), r.PathValue("slug"), desde, service.EndOfDay(hasta))
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+// parseFechaQuery lee una fecha AAAA-MM-DD de la barra de direcciones. Vacío es
+// cero, que significa «lo que corresponda»: el servicio pone entonces su ventana
+// por defecto.
+func parseFechaQuery(valor string) (time.Time, error) {
+	valor = strings.TrimSpace(valor)
+	if valor == "" {
+		return time.Time{}, nil
+	}
+	fecha, err := time.ParseInLocation("2006-01-02", valor, time.Local)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("fecha ilegible %q: se espera AAAA-MM-DD", valor)
+	}
+	return fecha, nil
 }
 
 // handleProposalDiff sirve el antes y el después de una propuesta, para poder

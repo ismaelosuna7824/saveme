@@ -636,6 +636,58 @@ func sameFile(a, b string) (bool, error) {
 	return os.SameFile(infoA, infoB), nil
 }
 
+// SyncResult cuenta qué pasó al poner al día la copia instalada.
+type SyncResult struct {
+	Path string
+	// Replaced indica que había copia, estaba en otra versión, y se reemplazó.
+	Replaced bool
+	// Before es la versión que tenía la copia; vacía si no se pudo leer.
+	Before string
+}
+
+// SyncInstalled deja la copia instalada en la misma versión que este binario.
+//
+// Existe porque el actualizador reemplaza el binario de dentro de la app y **no
+// esta copia**, que es la que lanzan los clientes MCP: sin esto, tras cada
+// actualización los agentes seguirían usando las herramientas viejas contra una
+// app nueva, y el producto promete justo lo contrario —que la app y el MCP son el
+// mismo programa—. Dejar ese arreglo en un botón es trasladarle al usuario un
+// problema que el programa sabe resolver solo.
+//
+// **No instala si no había copia.** Que el MCP esté instalado o no es una decisión
+// del usuario y tiene su sitio en el onboarding; esto solo evita dejar
+// desactualizado algo que ya existe.
+//
+// Un error aquí no puede tumbar un arranque: en Windows no se puede reemplazar un
+// ejecutable en marcha, y eso es una situación normal —un cliente MCP abierto—,
+// no una avería. Quien llame decide qué hacer con el aviso.
+func SyncInstalled(currentVersion string) (SyncResult, error) {
+	target, err := InstallPath()
+	if err != nil {
+		return SyncResult{}, err
+	}
+
+	if _, statErr := os.Stat(target); statErr != nil {
+		// No hay copia: crearla no es asunto nuestro.
+		return SyncResult{Path: target}, nil
+	}
+
+	// Si no se deja preguntar —truncada, sin permiso de ejecución— se trata como
+	// «no está al día»: reemplazarla es exactamente lo que la arregla.
+	installed, err := VersionOf(target)
+	if err != nil {
+		installed = ""
+	}
+	if installed == currentVersion {
+		return SyncResult{Path: target, Before: installed}, nil
+	}
+
+	if _, err := SelfInstall(); err != nil {
+		return SyncResult{Path: target, Before: installed}, err
+	}
+	return SyncResult{Path: target, Replaced: true, Before: installed}, nil
+}
+
 // VersionOf le pregunta a un binario de SaveMe qué versión dice ser.
 //
 // Se ejecuta en vez de dejar un fichero con la versión al instalar. La diferencia

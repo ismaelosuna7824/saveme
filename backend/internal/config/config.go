@@ -37,6 +37,13 @@ type EditorPrefs struct {
 	Wrap        bool   `json:"wrap"`
 	PreviewMode string `json:"preview_mode"` // source | split | preview
 	AutosaveMs  int    `json:"autosave_ms"`
+	// VimMode activa las teclas modales de vim (normal/visual/insertar) en el
+	// editor de notas.
+	//
+	// Está apagado por defecto a propósito: enciende un modo en el que las teclas
+	// dejan de escribir letras, y eso no se le impone a nadie que abra la app sin
+	// saberlo. Solo afecta al editor de notas, no al de resúmenes.
+	VimMode bool `json:"vim_mode"`
 }
 
 // Config es la configuración persistida. RootDir es el único campo que el
@@ -183,6 +190,8 @@ func Defaults() Config {
 			// disponibles para cuando se quiera ver el markdown crudo.
 			PreviewMode: "live",
 			AutosaveMs:  1200,
+			// Vim apagado: se enciende desde Ajustes, nunca por sorpresa.
+			VimMode: false,
 		},
 		Path: DefaultConfigPath(),
 	}

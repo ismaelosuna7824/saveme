@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 
@@ -19,9 +18,9 @@ import (
 // que estuviera escrito en Go —que es ninguno— o habría que duplicar las
 // traducciones en el núcleo. Montarlo en la interfaz deja cada cosa en su sitio.
 type ProjectExport struct {
-	Project     string          `json:"project"`
-	GeneratedAt time.Time       `json:"generated_at"`
-	Count       int             `json:"count"`
+	Project     string    `json:"project"`
+	GeneratedAt time.Time `json:"generated_at"`
+	Count       int       `json:"count"`
 	// Skipped son los resúmenes que el índice conocía pero ya no se pudieron leer
 	// (los borró alguien entre la consulta y la lectura). Va aparte para que quien
 	// exporta sepa que el documento no está completo, en vez de recibir uno que
@@ -87,20 +86,6 @@ func (s *Service) ExportProject(ctx context.Context, slug string) (*ProjectExpor
 		}
 	}
 
-	// Las categorías se recorren en el orden canónico de la taxonomía, no en el
-	// que devuelva la consulta: así el documento sale siempre igual, y las
-	// categorías que no tienen nada no aparecen.
-	//
-	// El conjunto de conocidas se arma desde la lista canónica y **no** con
-	// `CategoryByKey`: esa función resuelve también nombres de carpeta y devuelve
-	// cierto para "uncategorized", que es justo el cajón donde caen las
-	// desconocidas. Usándola, un resumen huérfano se quedaba fuera del documento.
-	canonicas := domain.Categories()
-	conocidas := make(map[string]bool, len(canonicas))
-	for _, c := range canonicas {
-		conocidas[c.Key] = true
-	}
-
 	out := &ProjectExport{
 		Project:     slug,
 		GeneratedAt: time.Now().UTC(),
@@ -129,31 +114,19 @@ func (s *Service) ExportProject(ctx context.Context, slug string) (*ProjectExpor
 		})
 	}
 
-	for _, category := range canonicas {
-		items := entries[category.Key]
-		if len(items) == 0 {
-			continue
-		}
-		out.Sections = append(out.Sections, ExportSection{Category: category.Key, Summaries: items})
-		out.Count += len(items)
-	}
-
-	// Lo que quedó en una categoría que la taxonomía no conoce (un archivo escrito
-	// a mano, una categoría retirada) no se puede perder por el camino: se añade al
-	// final en vez de desaparecer del documento.
-	//
-	// Se recorren las claves ordenadas para que el documento no cambie de una
-	// exportación a otra: en Go, iterar un mapa da un orden distinto cada vez.
-	var desconocidas []string
+	// Las categorías se recorren en el orden canónico de la taxonomía y no en el que
+	// devuelva la consulta: así el documento sale siempre igual, los proyectos se
+	// leen en el mismo orden y las categorías sin nada no aparecen. Lo que la
+	// taxonomía no conoce se añade al final en vez de perderse por el camino; el
+	// porqué de las dos cosas está en `canonicalOrder`.
+	presentes := make(map[string]bool, len(entries))
 	for key := range entries {
-		if !conocidas[key] {
-			desconocidas = append(desconocidas, key)
-		}
+		presentes[key] = true
 	}
-	sort.Strings(desconocidas)
-	for _, key := range desconocidas {
-		out.Sections = append(out.Sections, ExportSection{Category: key, Summaries: entries[key]})
-		out.Count += len(entries[key])
+	for _, key := range canonicalOrder(presentes) {
+		items := entries[key]
+		out.Sections = append(out.Sections, ExportSection{Category: key, Summaries: items})
+		out.Count += len(items)
 	}
 
 	return out, nil

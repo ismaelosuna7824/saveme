@@ -393,10 +393,13 @@ type SummaryFilter struct {
 	Category string
 	Status   string
 	Tag      string
-	Query    string
-	Sort     string // recent (default) | oldest | title
-	Limit    int
-	Offset   int
+	// File filtra por archivo tocado. Es lo que responde «¿qué se hizo aquí?»
+	// antes de tocar un archivo.
+	File   string
+	Query  string
+	Sort   string // recent (default) | oldest | title
+	Limit  int
+	Offset int
 }
 
 // Normalize aplica los valores por defecto y acota el limit.
@@ -479,6 +482,13 @@ func (f SummaryFilter) where() (string, []any) {
 		conds = append(conds,
 			"EXISTS (SELECT 1 FROM summary_tags t WHERE t.summary_id = s.id AND t.tag = ?)")
 		args = append(args, strings.ToLower(strings.TrimSpace(f.Tag)))
+	}
+	if f.File != "" {
+		// `files_json` guarda las rutas como cadenas JSON entrecomilladas, así que
+		// se busca **con las comillas incluidas**: sin ellas, «a.go» casaría también
+		// con «otro/a.go.bak», que es otra cosa.
+		conds = append(conds, `files_json LIKE ? ESCAPE '\'`)
+		args = append(args, "%\""+escapeLike(strings.TrimSpace(f.File))+"\"%")
 	}
 	if len(conds) == 0 {
 		return "", nil
