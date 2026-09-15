@@ -3,7 +3,7 @@
 # sidecar con el mismo nombre que el paquete de Cargo. El ejecutable que ve el
 # usuario se llama SaveMe (productName), y el core de Go sigue siendo `saveme`.
 name = "saveme-desktop"
-version = "0.1.0"
+version = "0.2.0"
 description = "SaveMe — diario técnico de proyecto, en markdown"
 authors = ["SaveMe"]
 edition = "2021"
