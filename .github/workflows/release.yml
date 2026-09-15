@@ -199,9 +199,7 @@ jobs:
           cat instalables/latest.json
 
       # Publicar desde la web escribiendo tus propias notas y que el workflow las
-      # pisara sería una faena: `generate_release_notes` **sustituye** el cuerpo.
-      # Así que solo se pide cuando la Release no existe todavía y la creamos
-      # nosotros. Si ya existe, se le añaden los instalables y no se toca nada más.
+      # pisara sería una faena, así que primero se mira si la Release ya está.
       - name: ¿Existe ya la Release?
         id: existe
         env:
@@ -217,16 +215,47 @@ jobs:
             echo "existe=false" >> "$GITHUB_OUTPUT"
           fi
 
-      # `tag_name` apunta al tag ya existente: si la Release se creó desde la web,
-      # esto le añade los ficheros; si no existía, la crea.
+      # No se usa `generate_release_notes`: ese endpoint de GitHub devuelve un 500
+      # cuando no hay una release anterior con la que comparar, que es justo el
+      # caso de la **primera** release del repositorio. En vez de depender de él, el
+      # cuerpo lo escribe este fichero.
       #
-      # No se fija `name` a propósito: sin él GitHub usa el tag como título, y así
-      # tampoco se pisa el título que hayas escrito tú.
-      - name: Publicar la Release
+      # Son dos pasos y no uno con una condición porque el cuerpo solo se puede
+      # pasar al crear: si la Release ya existe y se le pasa, se le pisa el que
+      # haya escrito el usuario. Con `if`, cada caso hace solo lo que le toca.
+      #
+      # Tampoco se fija `name`: sin él GitHub usa el tag como título, y así no se
+      # pisa el que hayas escrito tú.
+      - name: Crear la Release
+        if: steps.existe.outputs.existe == 'false'
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.preparar.outputs.tag }}
           files: instalables/*
           fail_on_unmatched_files: true
-          generate_release_notes: ${{ steps.existe.outputs.existe == 'false' }}
+          draft: false
+          body: |
+            Instalables para macOS (un solo `.dmg` con Intel y Apple Silicon),
+            Windows y Linux.
+
+            **La app se actualiza sola.** Al abrirla comprueba si hay una versión
+            nueva y, si la hay, avisa y la instala desde dentro. Las actualizaciones
+            van firmadas y la firma se verifica antes de instalar.
+
+            | Plataforma | Fichero |
+            |---|---|
+            | macOS | `SaveMe_${{ needs.preparar.outputs.version }}_universal.dmg` |
+            | Windows | `.msi` o `-setup.exe` |
+            | Linux | `.deb` o `.AppImage` |
+
+            Los `.tar.gz`, `.sig` y `latest.json` son los paquetes que descarga el
+            actualizador; no hace falta bajarlos a mano.
+
+      - name: Adjuntar los instalables a la Release que ya existe
+        if: steps.existe.outputs.existe == 'true'
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.preparar.outputs.tag }}
+          files: instalables/*
+          fail_on_unmatched_files: true
           draft: false
