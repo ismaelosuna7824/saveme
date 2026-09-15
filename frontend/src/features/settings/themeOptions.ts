@@ -85,6 +85,36 @@ export const THEME_OPTIONS: readonly ThemeOption[] = [
     nameKey: 'settings.appearance.theme.option.plain.name',
     descriptionKey: 'settings.appearance.theme.option.plain.description',
   },
+  {
+    key: 'dracula',
+    nameKey: 'settings.appearance.theme.option.dracula.name',
+    descriptionKey: 'settings.appearance.theme.option.dracula.description',
+  },
+  {
+    key: 'tokyo-night',
+    nameKey: 'settings.appearance.theme.option.tokyo-night.name',
+    descriptionKey: 'settings.appearance.theme.option.tokyo-night.description',
+  },
+  {
+    key: 'catppuccin',
+    nameKey: 'settings.appearance.theme.option.catppuccin.name',
+    descriptionKey: 'settings.appearance.theme.option.catppuccin.description',
+  },
+  {
+    key: 'onedark',
+    nameKey: 'settings.appearance.theme.option.onedark.name',
+    descriptionKey: 'settings.appearance.theme.option.onedark.description',
+  },
+  {
+    key: 'kanagawa',
+    nameKey: 'settings.appearance.theme.option.kanagawa.name',
+    descriptionKey: 'settings.appearance.theme.option.kanagawa.description',
+  },
+  {
+    key: 'ember',
+    nameKey: 'settings.appearance.theme.option.ember.name',
+    descriptionKey: 'settings.appearance.theme.option.ember.description',
+  },
 ]
 
 const BY_KEY = new Map(THEME_OPTIONS.map((option) => [option.key, option]))

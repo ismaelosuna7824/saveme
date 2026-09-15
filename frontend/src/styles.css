@@ -434,6 +434,213 @@ html[data-theme='mono'] {
 
 /* El mismo esquema de `phosphor`, sin el efecto de scanline. Hereda el resto a
    propósito: solo cambia lo que su nombre dice. */
+/* Paletas conocidas, con la misma forma que las de arriba. */
+html[data-theme='dracula'] {
+  --color-background: #282a36;
+  --color-foreground: #f8f8f2;
+  --color-panel: #343746;
+  --color-panel-raised: #3c3f52;
+  --color-sunken: #21222c;
+  --color-border: #3c3f52;
+  --color-border-strong: #4a4d61;
+  --color-border-hover: #5d6078;
+  --color-strong: #ffffff;
+  --color-primary: #bd93f9;
+  --color-primary-foreground: #282a36;
+  --color-secondary: #50fa7b;
+  --color-secondary-foreground: #282a36;
+  --color-muted: #343746;
+  --color-muted-foreground: #b8bcd0;
+  --color-accent: #3c3f52;
+  --color-accent-foreground: #bd93f9;
+  --color-destructive: #ff7b8a;
+  --color-destructive-foreground: #282a36;
+  --color-warning: #f1fa8c;
+  --color-info: #8be9fd;
+  --color-ring: #bd93f9;
+  --color-syntax-comment: #9aa0b5;
+  --color-syntax-string: #a6e3a1;
+  --color-syntax-number: #ffb0d0;
+  --color-syntax-keyword: #8be9fd;
+  --color-syntax-operator: #b8bcd0;
+  --color-syntax-function: #bd93f9;
+  --color-syntax-type: #8be9fd;
+  --color-syntax-property: #ffb86c;
+  --color-scanline: rgb(248 248 242 / 0.022);
+}
+
+html[data-theme='tokyo-night'] {
+  --color-background: #1a1b26;
+  --color-foreground: #a9b1d6;
+  --color-panel: #1f2335;
+  --color-panel-raised: #24283b;
+  --color-sunken: #16161e;
+  --color-border: #292e42;
+  --color-border-strong: #3b4261;
+  --color-border-hover: #545c7e;
+  --color-strong: #c0caf5;
+  --color-primary: #7aa2f7;
+  --color-primary-foreground: #1a1b26;
+  --color-secondary: #9ece6a;
+  --color-secondary-foreground: #1a1b26;
+  --color-muted: #1f2335;
+  --color-muted-foreground: #9aa5ce;
+  --color-accent: #24283b;
+  --color-accent-foreground: #7aa2f7;
+  --color-destructive: #f7768e;
+  --color-destructive-foreground: #1a1b26;
+  --color-warning: #e0af68;
+  --color-info: #7dcfff;
+  --color-ring: #7aa2f7;
+  --color-syntax-comment: #7f87b0;
+  --color-syntax-string: #9ece6a;
+  --color-syntax-number: #ff9e64;
+  --color-syntax-keyword: #bb9af7;
+  --color-syntax-operator: #89ddff;
+  --color-syntax-function: #7aa2f7;
+  --color-syntax-type: #2ac3de;
+  --color-syntax-property: #e0af68;
+  --color-scanline: rgb(169 177 214 / 0.022);
+}
+
+html[data-theme='catppuccin'] {
+  --color-background: #1e1e2e;
+  --color-foreground: #cdd6f4;
+  --color-panel: #252537;
+  --color-panel-raised: #313244;
+  --color-sunken: #181825;
+  --color-border: #313244;
+  --color-border-strong: #45475a;
+  --color-border-hover: #585b70;
+  --color-strong: #f5e0dc;
+  --color-primary: #89b4fa;
+  --color-primary-foreground: #1e1e2e;
+  --color-secondary: #a6e3a1;
+  --color-secondary-foreground: #1e1e2e;
+  --color-muted: #313244;
+  --color-muted-foreground: #a6adc8;
+  --color-accent: #313244;
+  --color-accent-foreground: #89b4fa;
+  --color-destructive: #f38ba8;
+  --color-destructive-foreground: #1e1e2e;
+  --color-warning: #f9e2af;
+  --color-info: #89dceb;
+  --color-ring: #89b4fa;
+  --color-syntax-comment: #8b90a8;
+  --color-syntax-string: #a6e3a1;
+  --color-syntax-number: #fab387;
+  --color-syntax-keyword: #cba6f7;
+  --color-syntax-operator: #89dceb;
+  --color-syntax-function: #89b4fa;
+  --color-syntax-type: #f9e2af;
+  --color-syntax-property: #f5c2e7;
+  --color-scanline: rgb(205 214 244 / 0.022);
+}
+
+html[data-theme='onedark'] {
+  --color-background: #282c34;
+  --color-foreground: #abb2bf;
+  --color-panel: #2f343d;
+  --color-panel-raised: #383e4a;
+  --color-sunken: #21252b;
+  --color-border: #3b4048;
+  --color-border-strong: #4b5263;
+  --color-border-hover: #5c6370;
+  --color-strong: #d7dae0;
+  --color-primary: #61afef;
+  --color-primary-foreground: #21252b;
+  --color-secondary: #98c379;
+  --color-secondary-foreground: #21252b;
+  --color-muted: #3b4048;
+  --color-muted-foreground: #9da5b4;
+  --color-accent: #383e4a;
+  --color-accent-foreground: #61afef;
+  --color-destructive: #e88b94;
+  --color-destructive-foreground: #21252b;
+  --color-warning: #e5c07b;
+  --color-info: #56b6c2;
+  --color-ring: #61afef;
+  --color-syntax-comment: #8b93a1;
+  --color-syntax-string: #98c379;
+  --color-syntax-number: #d19a66;
+  --color-syntax-keyword: #c678dd;
+  --color-syntax-operator: #56b6c2;
+  --color-syntax-function: #61afef;
+  --color-syntax-type: #e5c07b;
+  --color-syntax-property: #e06c75;
+  --color-scanline: rgb(171 178 191 / 0.022);
+}
+
+/* Inspirado en la gran ola de Hokusai. */
+html[data-theme='kanagawa'] {
+  --color-background: #1f1f28;
+  --color-foreground: #dcd7ba;
+  --color-panel: #2a2a37;
+  --color-panel-raised: #363646;
+  --color-sunken: #16161d;
+  --color-border: #363646;
+  --color-border-strong: #54546d;
+  --color-border-hover: #6d6d8a;
+  --color-strong: #f2ecbc;
+  --color-primary: #7e9cd8;
+  --color-primary-foreground: #1f1f28;
+  --color-secondary: #98bb6c;
+  --color-secondary-foreground: #1f1f28;
+  --color-muted: #2a2a37;
+  --color-muted-foreground: #a9a9b8;
+  --color-accent: #363646;
+  --color-accent-foreground: #7e9cd8;
+  --color-destructive: #e88b93;
+  --color-destructive-foreground: #1f1f28;
+  --color-warning: #e6c384;
+  --color-info: #7fb4ca;
+  --color-ring: #7e9cd8;
+  --color-syntax-comment: #8f8f9e;
+  --color-syntax-string: #98bb6c;
+  --color-syntax-number: #ffa066;
+  --color-syntax-keyword: #957fb8;
+  --color-syntax-operator: #7fb4ca;
+  --color-syntax-function: #7e9cd8;
+  --color-syntax-type: #7aa89f;
+  --color-syntax-property: #e6c384;
+  --color-scanline: rgb(220 215 186 / 0.022);
+}
+
+/* Azul pizarra con acento naranja: el naranja manda y el resto acompaña. */
+html[data-theme='ember'] {
+  --color-background: #161a24;
+  --color-foreground: #d5dbe8;
+  --color-panel: #1c2230;
+  --color-panel-raised: #242b3b;
+  --color-sunken: #10131b;
+  --color-border: #242b3b;
+  --color-border-strong: #333d52;
+  --color-border-hover: #47536b;
+  --color-strong: #ffffff;
+  --color-primary: #f0a868;
+  --color-primary-foreground: #161a24;
+  --color-secondary: #9ece6a;
+  --color-secondary-foreground: #161a24;
+  --color-muted: #1c2230;
+  --color-muted-foreground: #9aa5bd;
+  --color-accent: #242b3b;
+  --color-accent-foreground: #f0a868;
+  --color-destructive: #f28f9b;
+  --color-destructive-foreground: #161a24;
+  --color-warning: #e8c07d;
+  --color-info: #7dcfff;
+  --color-ring: #f0a868;
+  --color-syntax-comment: #7f8aa3;
+  --color-syntax-string: #9ece6a;
+  --color-syntax-number: #f0a868;
+  --color-syntax-keyword: #bb9af7;
+  --color-syntax-operator: #89ddff;
+  --color-syntax-function: #7aa2f7;
+  --color-syntax-type: #7dcfff;
+  --color-syntax-property: #e0af68;
+  --color-scanline: rgb(213 219 232 / 0.022);
+}
+
 html[data-theme='plain'] {
   --color-scanline: transparent;
 }

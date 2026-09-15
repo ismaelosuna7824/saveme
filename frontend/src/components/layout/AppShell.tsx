@@ -4,12 +4,15 @@ import { useServerEvents } from '@/api/events'
 import { useConfig } from '@/api/queries'
 import { useUi } from '@/app/preferences'
 import { ProjectSidebar } from '@/components/layout/ProjectSidebar'
+import { ShortcutsDialog } from '@/components/layout/ShortcutsDialog'
+import { StatusBar } from '@/components/layout/StatusBar'
 import { TopBar } from '@/components/layout/TopBar'
 import { useGlobalShortcuts } from '@/components/layout/useGlobalShortcuts'
 import { CommandPalette } from '@/features/command/CommandPalette'
 import { OnboardingGate } from '@/features/onboarding/OnboardingGate'
 import { SettingsDialog } from '@/features/settings/SettingsDialog'
 import { resolveTheme } from '@/features/settings/themeOptions'
+import { useProposalAlert } from '@/features/inbox/useProposalAlert'
 import { UpdateNotice } from '@/features/update/UpdateNotice'
 import { applyWindowOpacity } from '@/lib/translucency'
 
@@ -40,6 +43,9 @@ function useThemeSync(): void {
 /** Marco de la aplicación: barra superior, navegación lateral y contenido. */
 export function AppShell({ children }: { children: ReactNode }) {
   const events = useServerEvents()
+  // Avisa cuando un agente deja una propuesta esperando: caducan, y el inbox no
+  // hace ruido solo.
+  useProposalAlert(events)
   const { settingsOpen, setSettingsOpen } = useUi()
   useThemeSync()
   useGlobalShortcuts()
@@ -51,6 +57,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         <ProjectSidebar />
         <main className="min-w-0 flex-1 overflow-hidden">{children}</main>
       </div>
+      {/* Dentro de la columna, no flotando: así el alto del contenido se reparte
+          solo y el `h-full` de los editores sigue significando lo mismo. */}
+      <StatusBar />
       <CommandPalette />
       {/* Los dos overlays de la app viven aquí, como hermanos. La paleta de
           comandos no debería ser dueña del diálogo de Ajustes: solo comparte el
@@ -59,6 +68,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       {/* El aviso de versión nueva se pinta encima de la app, pero no es un
           diálogo: no bloquea nada y se puede apartar. */}
+      <ShortcutsDialog />
       <UpdateNotice />
       <div className="scanlines" aria-hidden />
     </div>

@@ -268,7 +268,7 @@ for (const key of offered) {
   if (parseHexColor(palette.get('--color-background') ?? '') === null) nonHex.push(key)
 }
 if (nonHex.length > 0) fail(`temas cuyo fondo no es un hex: ${nonHex.join(', ')}`)
-else ok('el fondo de los 11 temas es convertible')
+else ok('el fondo de todos los temas es convertible')
 
 console.log('')
 if (failures > 0) {

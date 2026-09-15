@@ -345,6 +345,28 @@ export function SettingsAppearance() {
           />
         </div>
 
+        <div className="flex items-center gap-3 border border-border bg-panel px-2 py-2">
+          <span className="min-w-0 flex-1">
+            <span className="block text-xs text-foreground">
+              {t('settings.appearance.vim.label')}
+            </span>
+            <span className="block text-2xs text-muted-foreground">
+              {t('settings.appearance.vim.description')}
+            </span>
+          </span>
+          <Switch
+            checked={editor.vim_mode}
+            disabled={busy}
+            aria-label={t('settings.appearance.vim.label')}
+            onCheckedChange={(checked) =>
+              apply(
+                { editor: { vim_mode: checked } },
+                checked ? t('settings.appearance.vim.on') : t('settings.appearance.vim.off'),
+              )
+            }
+          />
+        </div>
+
         <div className="space-y-1.5">
           <div className="text-xs text-foreground">
             {t('settings.appearance.previewMode.label')}

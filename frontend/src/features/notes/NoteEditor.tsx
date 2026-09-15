@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ModeSwitch } from '@/features/editor/ModeSwitch'
 import { PreviewPane } from '@/features/editor/PreviewPane'
+import { VimModeBadge } from '@/features/editor/VimModeBadge'
 import { toggleTaskAtLine } from '@/features/editor/toggleTask'
 import { useAutosave } from '@/features/editor/useAutosave'
 import { useMarkdownEditor } from '@/features/editor/useMarkdownEditor'
@@ -60,6 +61,9 @@ export function NoteEditor({ path }: NoteEditorProps) {
   const wrap = config.data?.editor.wrap ?? true
   const fontSize = config.data?.editor.font_size ?? 14
   const autosaveMs = config.data?.editor.autosave_ms ?? 1200
+  // Solo el editor de notas: el de resúmenes se escribe de un tirón con un
+  // formulario delante, y ahí un modo modal estorba más de lo que ayuda.
+  const vimMode = config.data?.editor.vim_mode ?? false
 
   const persist = useCallback(
     (content: string) => {
@@ -94,6 +98,7 @@ export function NoteEditor({ path }: NoteEditorProps) {
     wrap,
     fontSize,
     livePreviewEnabled: mode === 'live',
+    vimMode,
     onDocChange: setDoc,
   })
 
@@ -193,13 +198,18 @@ export function NoteEditor({ path }: NoteEditorProps) {
         <div className="mt-0.5 flex flex-wrap items-center gap-x-3 text-2xs text-muted-foreground">
           <code className="truncate text-secondary">{path}</code>
           <span>· {t('common.words', { count: words })}</span>
-          <span className="ml-auto flex shrink-0 items-center gap-1.5" aria-live="polite">
-            <StatusDot tone={save.isPending ? 'warn' : dirty ? 'warn' : 'ok'} />
-            {save.isPending
-              ? t('common.state.saving')
-              : dirty
-                ? t('editor.toolbar.unsaved')
-                : t('common.state.saved')}
+          <span className="ml-auto flex shrink-0 items-center gap-2">
+            {/* Fuera del `aria-live`: el modo cambia a cada rato y anunciarlo cada
+                vez convertiría el lector de pantalla en un metralleta. */}
+            {editor.vimModeName === null ? null : <VimModeBadge mode={editor.vimModeName} />}
+            <span className="flex items-center gap-1.5" aria-live="polite">
+              <StatusDot tone={save.isPending ? 'warn' : dirty ? 'warn' : 'ok'} />
+              {save.isPending
+                ? t('common.state.saving')
+                : dirty
+                  ? t('editor.toolbar.unsaved')
+                  : t('common.state.saved')}
+            </span>
           </span>
         </div>
       </div>

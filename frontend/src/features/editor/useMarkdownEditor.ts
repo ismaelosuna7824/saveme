@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
+import { getCM, vim, type CodeMirror } from '@replit/codemirror-vim'
 import {
   bracketMatching,
   foldGutter,
@@ -26,6 +27,31 @@ import {
 import { savemeEditorTheme, savemeHighlighting } from '@/features/editor/cmTheme'
 import { livePreview } from '@/features/editor/livePreview/livePreview'
 
+/**
+ * Modo modal de vim. `normal` es el de partida: las letras son órdenes, no
+ * texto, y por eso el indicador de la barra es obligatorio —sin él no hay forma
+ * de saber por qué escribir no escribe.
+ */
+export type VimModeName = 'normal' | 'insert' | 'visual' | 'visual-line' | 'visual-block'
+
+/**
+ * Modo de vim en curso, leído del estado.
+ *
+ * Se pregunta al estado en vez de fiarse del evento: el evento solo trae `mode`,
+ * y lo que separa una selección de línea de una de bloque son las banderas del
+ * estado.
+ */
+function leerModoVim(cm: CodeMirror): VimModeName {
+  const estado = cm.state.vim
+  if (estado === undefined || estado === null) return 'normal'
+  if (estado.visualMode) {
+    if (estado.visualLine) return 'visual-line'
+    if (estado.visualBlock) return 'visual-block'
+    return 'visual'
+  }
+  return estado.insertMode ? 'insert' : 'normal'
+}
+
 export interface UseMarkdownEditorArgs {
   hostRef: RefObject<HTMLDivElement | null>
   /** `false` mientras no hay documento: el editor se crea cuando pasa a `true`. */
@@ -40,12 +66,16 @@ export interface UseMarkdownEditorArgs {
   fontSize: number
   /** `true` en modo `live`: el editor renderiza el markdown en línea. */
   livePreviewEnabled: boolean
+  /** `true` activa las teclas modales de vim. Apagado por defecto. */
+  vimMode?: boolean
   onDocChange: (doc: string) => void
 }
 
 export interface MarkdownEditorHandle {
   view: EditorView | null
   focus: () => void
+  /** Modo de vim en curso, o `null` si el modo vim está apagado. */
+  vimModeName: VimModeName | null
 }
 
 /**
@@ -71,20 +101,25 @@ export function useMarkdownEditor({
   wrap,
   fontSize,
   livePreviewEnabled,
+  vimMode = false,
   onDocChange,
 }: UseMarkdownEditorArgs): MarkdownEditorHandle {
   const viewRef = useRef<EditorView | null>(null)
   const [view, setView] = useState<EditorView | null>(null)
+  const [vimModeName, setVimModeName] = useState<VimModeName | null>(null)
 
   const wrapCompartment = useRef(new Compartment())
   const themeCompartment = useRef(new Compartment())
   const livePreviewCompartment = useRef(new Compartment())
+  const vimCompartment = useRef(new Compartment())
   const initialDocRef = useRef(initialDoc)
   const adoptedVersionRef = useRef(adoptVersion)
 
   // El valor más reciente, disponible para el efecto de creación sin volver a
-  // dispararlo.
+  // dispararlo: el editor se crea una sola vez por documento.
   initialDocRef.current = initialDoc
+  const vimModeRef = useRef(vimMode)
+  vimModeRef.current = vimMode
 
   const onDocChangeRef = useRef(onDocChange)
   useEffect(() => {
@@ -101,6 +136,10 @@ export function useMarkdownEditor({
       state: EditorState.create({
         doc: initialDocRef.current,
         extensions: [
+          // Vim va el primero a propósito: sus atajos tienen que resolverse antes
+          // que los de por defecto. Al revés, `defaultKeymap` se quedaría con
+          // teclas como Tab o Enter y el modo normal dejaría de responder.
+          vimCompartment.current.of(vimModeRef.current ? vim() : []),
           lineNumbers(),
           highlightActiveLineGutter(),
           highlightSpecialChars(),
@@ -185,8 +224,43 @@ export function useMarkdownEditor({
     })
   }, [adoptVersion, docToAdopt])
 
+  // Se monta y se quita por compartment: encender vim en Ajustes no debe recrear
+  // el editor ni, por tanto, perder el cursor ni el scroll.
+  useEffect(() => {
+    const instance = viewRef.current
+    if (instance === null) return
+    instance.dispatch({
+      effects: vimCompartment.current.reconfigure(vimMode ? vim() : []),
+    })
+  }, [vimMode])
+
+  /**
+   * Indicador de modo.
+   *
+   * `vim()` no publica el modo por ninguna extensión de CodeMirror 6, así que se
+   * le pregunta al adaptador de CodeMirror 5 que el paquete lleva por dentro:
+   * `getCM` lo devuelve, y de ahí salen tanto el estado como el evento de cambio.
+   */
+  useEffect(() => {
+    if (view === null) return
+    const cm = vimMode ? getCM(view) : null
+    if (cm === null) {
+      setVimModeName(null)
+      return
+    }
+    const alCambiar = () => setVimModeName(leerModoVim(cm))
+    cm.on('vim-mode-change', alCambiar)
+    // El modo de partida no dispara evento: el editor nace ya en normal y hay que
+    // leerlo para que el indicador no arranque mintiendo.
+    alCambiar()
+    return () => {
+      cm.off('vim-mode-change', alCambiar)
+    }
+  }, [view, vimMode])
+
   return {
     view,
     focus: () => viewRef.current?.focus(),
+    vimModeName,
   }
 }
