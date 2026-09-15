@@ -70,8 +70,18 @@ jobs:
       - name: Dependencias del proyecto
         run: make setup
 
+      # El core tiene que existir **antes** de `cargo test`, y no solo antes de
+      # empaquetar: `tauri.conf.json` lo declara como `externalBin`, y el build
+      # script de Tauri comprueba que el binario del triplete del host esté ahí
+      # también al compilar las pruebas. Sin esto, un clon limpio falla con
+      # «resource path binaries/saveme-<triple> doesn't exist», que no dice nada
+      # de que lo que falta es compilar el core.
+      - name: Compilar el core (lo exige `cargo test`)
+        run: make sidecar
+
       # Las nueve suites: Go con -race, Rust, tipos, Live Preview, traducciones,
-      # orden CSS, temas, Mermaid y el árbol de notas; más el icono y la versión.
+      # orden CSS, temas, Mermaid y el árbol de notas; más el icono, el
+      # actualizador y la versión.
       - name: Suites de verificación
         run: make test
 

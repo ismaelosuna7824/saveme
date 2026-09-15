@@ -7,7 +7,10 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
-VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo 0.1.0-dev)
+# La `v` es del tag, no de la versión: `git describe` sobre el tag `v0.1.0`
+# devuelve `v0.1.0`, y la interfaz ya pinta la `v` delante («core listo ·
+# v0.1.0»). Sin quitarla aquí, la app enseñaba «v v0.1.0».
+VERSION ?= $(shell (git describe --tags --always --dirty 2>/dev/null || echo 0.1.0-dev) | sed 's/^v//')
 # Dónde se instala el binario con `make install`. /usr/local puede requerir sudo;
 # PREFIX=$HOME/.local no requiere nada.
 PREFIX  ?= /usr/local
