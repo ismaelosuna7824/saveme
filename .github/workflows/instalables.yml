@@ -67,7 +67,11 @@ jobs:
             os: macos-latest
             modo: universal
             target: universal-apple-darwin
-            bundles: dmg
+            # `app` además de `dmg` no es redundante: es el target que habilita
+            # los artefactos de actualización. Solo con `dmg`, el bundler avisa de
+            # que no generó ninguno —no habría `.app.tar.gz` ni `.sig`— y la app
+            # instalada se quedaría sin poder actualizarse nunca.
+            bundles: app,dmg
             # El `.app.tar.gz` y su `.sig` son el paquete que descarga el
             # actualizador: sin ellos el .dmg se instala a mano pero la app nunca
             # se actualiza sola. Viven en `bundle/macos`, no en `bundle/dmg`.
@@ -173,9 +177,10 @@ jobs:
 
       # El sidecar tiene que existir **y llamarse con el triplete del target** antes
       # de que Tauri empaquete: `externalBin` lo busca por ese nombre exacto. En un
-      # universal hacen falta **los dos**, uno por arquitectura: Tauri los junta
-      # después con `lipo`. Con uno solo, el .dmg se construye y la app no arranca
-      # en la otra mitad de los Mac.
+      # universal el triplete es `universal-apple-darwin`, y el fichero con ese
+      # nombre tiene que ser ya un binario universal: Tauri no combina las dos
+      # arquitecturas por su cuenta. Con solo una, la app arranca en la mitad de los
+      # Mac y en la otra no abre.
       #
       # La versión va **sin la `v`**: la interfaz ya la pinta (`core listo · v…`),
       # así que pasar el tag entero enseñaba «v v0.2.0».
@@ -196,6 +201,16 @@ jobs:
                   go build -ldflags "$LDFLAGS" -o "bin/saveme-${triple}" ./cmd/saveme )
               cp "backend/bin/saveme-${triple}" "src-tauri/binaries/saveme-${triple}"
             done
+
+            # Y además el unido. Hacen falta los tres: Tauri compila la app una vez
+            # por arquitectura y cada compilación exige el sidecar de ESA
+            # arquitectura; después, al empaquetar el universal, busca uno que ya
+            # sea universal y no lo combina él («resource path
+            # binaries/saveme-universal-apple-darwin doesn't exist»).
+            lipo -create \
+              -output "src-tauri/binaries/saveme-universal-apple-darwin" \
+              backend/bin/saveme-aarch64-apple-darwin \
+              backend/bin/saveme-x86_64-apple-darwin
           else
             EXT=""
             if [[ "$RUNNER_OS" == "Windows" ]]; then EXT=".exe"; fi

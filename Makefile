@@ -17,6 +17,9 @@ PREFIX  ?= /usr/local
 TRIPLE  ?= $(shell rustc -vV | sed -n 's/^host: //p')
 BIN     := backend/bin/saveme
 SIDECAR := src-tauri/binaries/saveme-$(TRIPLE)
+# Un solo fichero con las dos arquitecturas de macOS, que es lo que Tauri busca
+# al empaquetar para `universal-apple-darwin`.
+SIDECAR_UNIVERSAL := src-tauri/binaries/saveme-universal-apple-darwin
 
 LDFLAGS := -s -w -X main.version=$(VERSION)
 
@@ -152,13 +155,19 @@ dmg: sidecar ## Instalador .dmg para macOS (el que se arrastra a Aplicaciones)
 	$(SIGN) bunx tauri build --bundles dmg
 
 .PHONY: sidecar-universal
-sidecar-universal: ## Compila el core para las dos arquitecturas de macOS
+sidecar-universal: ## Compila el core para un macOS universal (los dos por-arquitectura y el unido)
 	@mkdir -p src-tauri/binaries
 	cd backend && GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o bin/saveme-aarch64-apple-darwin ./cmd/saveme
 	cd backend && GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o bin/saveme-x86_64-apple-darwin ./cmd/saveme
+	# Hacen falta los tres. Tauri compila la app una vez por arquitectura y cada
+	# compilación exige el sidecar de ESA arquitectura; después, al empaquetar el
+	# universal, busca además uno que ya sea universal y no lo combina él.
 	cp backend/bin/saveme-aarch64-apple-darwin src-tauri/binaries/saveme-aarch64-apple-darwin
 	cp backend/bin/saveme-x86_64-apple-darwin src-tauri/binaries/saveme-x86_64-apple-darwin
-	@echo "sidecars listos para un universal"
+	lipo -create -output $(SIDECAR_UNIVERSAL) \
+		backend/bin/saveme-aarch64-apple-darwin \
+		backend/bin/saveme-x86_64-apple-darwin
+	@echo "sidecar universal listo: $(SIDECAR_UNIVERSAL)"
 
 .PHONY: dmg-universal
 dmg-universal: sidecar-universal ## .dmg para Intel y Apple Silicon en un solo archivo
