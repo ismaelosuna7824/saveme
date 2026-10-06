@@ -1,3 +1,9 @@
+// En Windows, un ejecutable es de consola salvo que se diga lo contrario: abrir
+// SaveMe abría también una terminal con el log de `[saveme-shell]`, y cerrarla
+// cerraba la app. Como app de ventana no tiene consola. En debug se conserva,
+// para ver ese log mientras se desarrolla.
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 // SaveMe — shell de escritorio.
 //
 // Este proceso NO tiene lógica de dominio. Su único trabajo es:
@@ -195,6 +201,17 @@ fn start_core(app: &tauri::AppHandle) -> u16 {
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+
+    // El core es un programa de consola (es el mismo binario que lanza un agente
+    // por stdio). Lanzado desde una app sin consola, Windows le crearía una ventana
+    // de terminal propia; CREATE_NO_WINDOW se la ahorra. Los pipes siguen igual, y
+    // lo que el core lance a su vez hereda esa consola invisible.
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
 
     // El log del core es útil mientras se desarrolla, pero ruidoso en uso
     // normal. Se activa con SAVEME_CORE_VERBOSE=1 sin recompilar nada.
