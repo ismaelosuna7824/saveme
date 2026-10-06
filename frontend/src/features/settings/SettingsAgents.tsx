@@ -204,10 +204,7 @@ export function SettingsAgents() {
 
       <p className="flex items-start gap-1.5 border border-border bg-sunken px-2 py-2 text-2xs text-muted-foreground">
         <RefreshCw className="mt-0.5 size-3 shrink-0 text-primary" />
-        <span>
-          Los clientes leen su configuración de MCP al arrancar: reinicia el que acabas de
-          configurar para que sus tools aparezcan.
-        </span>
+        <span>{t('settings.agents.restart')}</span>
       </p>
     </div>
   )

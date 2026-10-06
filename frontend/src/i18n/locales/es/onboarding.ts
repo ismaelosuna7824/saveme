@@ -155,7 +155,7 @@ export const onboarding = {
     lead: 'Ya está. El servidor MCP y las configuraciones viven fuera de la app, así que seguirán funcionando con SaveMe cerrada.',
     restart: {
       title: 'Reinicia el cliente que configuraste',
-      body: 'Los clientes leen su configuración de MCP al arrancar. Hasta que no lo reinicies, las tools de SaveMe no aparecen.',
+      body: 'Los clientes leen su configuración de MCP al arrancar. Hasta que no lo reinicies, las tools de SaveMe no aparecen. Cerrar la ventana no basta, porque las apps de escritorio siguen abiertas: en Windows, clic derecho en su icono junto al reloj → Salir; en macOS, Cmd+Q.',
     },
     guide: {
       title: 'Enséñale el flujo al agente',

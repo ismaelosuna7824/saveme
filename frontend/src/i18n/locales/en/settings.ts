@@ -213,7 +213,8 @@ export const settings = {
     explainEnd: ' and paste the block.',
     selectedHint: 'nothing ticked yet: your call',
     added: 'Adds the entry {name} to {path}',
-    restart: 'Restart the client afterwards so it picks up the server.',
+    restart:
+      'Clients read their MCP config on startup: restart the one you just configured so its tools show up. Closing the window is not enough, because desktop apps keep running: on Windows, right-click its icon by the clock → Quit; on macOS, Cmd+Q.',
     binary: 'binary',
     apply: 'apply',
     marked: { one: '{count} ticked', other: '{count} ticked' },

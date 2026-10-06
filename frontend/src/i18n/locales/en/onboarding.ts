@@ -151,7 +151,7 @@ export const onboarding = {
     lead: 'That is it. The MCP server and the configs live outside the app, so they keep working with SaveMe closed.',
     restart: {
       title: 'Restart the client you configured',
-      body: 'Clients read their MCP config on startup. Until you restart it, the SaveMe tools will not show up.',
+      body: 'Clients read their MCP config on startup. Until you restart it, the SaveMe tools will not show up. Closing the window is not enough, because desktop apps keep running: on Windows, right-click its icon by the clock → Quit; on macOS, Cmd+Q.',
     },
     guide: {
       title: 'Teach the agent the workflow',

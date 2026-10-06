@@ -306,7 +306,7 @@ saveme reindex        # y la app lo verá al abrir
 
 | Síntoma | Causa habitual |
 | --- | --- |
-| El cliente no lista las tools | No reiniciaste el cliente después de configurarlo. |
+| El cliente no lista las tools (Claude Desktop: «No servers added» en Settings → Developer) | No reiniciaste el cliente después de configurarlo. Cerrar la ventana no cuenta: las apps de escritorio siguen abiertas en la bandeja. En Windows, clic derecho en su icono junto al reloj → Salir; en macOS, Cmd+Q. Se nota en que el proceso arrancó antes de que se escribiera el archivo. |
 | «command not found: saveme» | El binario no está en el PATH **que ve el cliente** (no es lo mismo que el de tu terminal: los clientes de GUI heredan otro entorno). Usa la ruta absoluta. |
 | Las tools están pero no aparecen resúmenes | El MCP y la app apuntan a raíces distintas. `saveme doctor`. |
 | El agente escribe pero la app no lo muestra con la app abierta | La app arrancó con `--no-watch`. Reiníciala sin ese flag. |

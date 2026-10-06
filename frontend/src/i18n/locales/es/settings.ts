@@ -217,7 +217,8 @@ export const settings = {
     explainEnd: ' y pega el bloque.',
     selectedHint: 'nada marcado todavía: elige tú',
     added: 'Se añade la entrada {name} a {path}',
-    restart: 'Reinicia el cliente después para que cargue el servidor.',
+    restart:
+      'Los clientes leen su configuración de MCP al arrancar: reinicia el que acabas de configurar para que sus tools aparezcan. Cerrar la ventana no basta, porque las apps de escritorio siguen abiertas: en Windows, clic derecho en su icono junto al reloj → Salir; en macOS, Cmd+Q.',
     binary: 'binario',
     apply: 'aplicar',
     marked: { one: '{count} marcado', other: '{count} marcados' },
