@@ -11,10 +11,21 @@
 # es peor que no tener instalable.
 name: CI
 
+# La landing tiene su propio workflow, manual (`landing.yml`). Un push que solo
+# toca la landing no cambia nada de la app, así que no gasta veinte minutos de
+# runners en probarla y empaquetarla en tres sistemas. Si el push toca también
+# algo de la app, CI corre igual: `paths-ignore` solo salta cuando *todos* los
+# archivos cambiados están en la lista.
 on:
   push:
     branches: [main, master]
+    paths-ignore:
+      - 'landing/**'
+      - '.github/workflows/landing.yml'
   pull_request:
+    paths-ignore:
+      - 'landing/**'
+      - '.github/workflows/landing.yml'
   workflow_dispatch:
 
 # Un push nuevo sobre la misma rama cancela la ejecución anterior: en una matriz

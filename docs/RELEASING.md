@@ -80,7 +80,9 @@ Cuatro ficheros para la app, y cada uno tiene una responsabilidad:
 | `release.yml` | Llama a los dos y además publica la Release. |
 
 Y uno aparte, `landing.yml`, que publica la página web y solo se lanza a mano
-(ver [La landing](#la-landing)).
+(ver [La landing](#la-landing)). Los dos mundos no se cruzan: `ci.yml` ignora los
+push que solo tocan `landing/` o `landing.yml`, y `landing.yml` no se dispara con
+nada de la app.
 
 Dos decisiones que no son obvias:
 
