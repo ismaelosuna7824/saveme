@@ -27,6 +27,13 @@ BIN="$ROOT_DIR/backend/bin/saveme"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/saveme-e2e.XXXXXX")"
 export SAVEME_ROOT="$WORK/ws"
 export SAVEME_CONFIG="$WORK/config.json"
+# HOME también va a la carpeta de trabajo. Al arrancar, `serve` pone al día la
+# copia instalada del MCP (`~/.saveme/bin/saveme`) con su propia versión: sin
+# esto, correr el e2e sustituía el servidor MCP que usan los agentes del usuario
+# por el binario recién compilado. Las cachés de Go y bun no dependen de HOME:
+# `env.sh` ya las manda a SAVEME_CACHE_ROOT.
+mkdir -p "$WORK/home"
+export HOME="$WORK/home"
 PORT=7456
 BASE="http://127.0.0.1:$PORT"
 DAEMON_PID=""
