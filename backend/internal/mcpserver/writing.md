@@ -65,6 +65,10 @@ Según la categoría conviene otra forma:
   Lo que quedó sin responder.
 - **design** — Contexto, Decisión, Alternativas consideradas, Consecuencias (lo que se
   gana y lo que se paga).
+- **perf** — Qué iba lento o gastaba de más, Cifras de antes y después (y cómo se
+  midieron), Dónde estaba el coste, Qué se cambió, Qué se sacrificó a cambio.
+- **security** — Qué riesgo había y a quién afectaba, Cómo se podía explotar (sin una
+  receta paso a paso), Arreglo, Cómo se verificó, Qué más conviene revisar.
 
 Si aparecen términos del dominio que no todo el mundo conoce, añade un **Glosario** en
 una tabla de dos columnas: término y qué es.

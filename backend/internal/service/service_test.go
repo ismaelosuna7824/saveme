@@ -179,7 +179,7 @@ func TestConfirmWritesFileAndIndexesIt(t *testing.T) {
 		t.Errorf("el cuerpo se perdió: %q", doc.Body)
 	}
 
-	// 2. El proyecto se creó con sus nueve carpetas.
+	// 2. El proyecto se creó con una carpeta por categoría.
 	entries, err := os.ReadDir(filepath.Join(root, "saveme-app"))
 	if err != nil {
 		t.Fatal(err)
@@ -190,8 +190,8 @@ func TestConfirmWritesFileAndIndexesIt(t *testing.T) {
 			dirs = append(dirs, e.Name())
 		}
 	}
-	if len(dirs) != 9 {
-		t.Errorf("esperaba 9 carpetas de categoría, hay %d: %v", len(dirs), dirs)
+	if len(dirs) != len(domain.Categories()) {
+		t.Errorf("esperaba %d carpetas de categoría, hay %d: %v", len(domain.Categories()), len(dirs), dirs)
 	}
 
 	// 3. El índice lo conoce y la huella quedó registrada.

@@ -17,6 +17,8 @@ import type { Translate, TranslationKey } from '@/i18n'
 const CATEGORY_KEYS: Record<string, TranslationKey> = {
   feature: 'projects.category.feature',
   fix: 'projects.category.fix',
+  perf: 'projects.category.perf',
+  security: 'projects.category.security',
   chore: 'projects.category.chore',
   refactor: 'projects.category.refactor',
   docs: 'projects.category.docs',
@@ -83,6 +85,8 @@ export function providerNote(t: Translate, key: string, fallback?: string): stri
 const CATEGORY_DESCRIPTION_KEYS: Record<string, TranslationKey> = {
   feature: 'projects.categoryDescription.feature',
   fix: 'projects.categoryDescription.fix',
+  perf: 'projects.categoryDescription.perf',
+  security: 'projects.categoryDescription.security',
   chore: 'projects.categoryDescription.chore',
   refactor: 'projects.categoryDescription.refactor',
   docs: 'projects.categoryDescription.docs',

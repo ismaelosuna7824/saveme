@@ -57,8 +57,11 @@ Reglas:
   `SaveMe App` → `saveme-app`. El **nombre visible** se conserva en la base de datos.
 - Nombre de archivo: `YYYY-MM-DD-<slug-titulo>.md`. Ordena cronológicamente de forma natural.
   Colisión → sufijo `-2`, `-3`, …
-- Todo directorio de proyecto contiene **las 9 categorías**, creadas al registrar el proyecto,
-  incluso si están vacías. Así el agente nunca elige entre "crear carpeta" o "escribir".
+- Todo directorio de proyecto contiene **una carpeta por categoría**, creadas al registrar el
+  proyecto, incluso si están vacías. Así el agente nunca elige entre "crear carpeta" o
+  "escribir". Cuando se añade una categoría, los proyectos que ya existían reciben su carpeta
+  la próxima vez que se confirma algo en ellos (`EnsureProject` corre en cada confirmación) o
+  al escribir en ella; las pestañas salen de `GET /api/categories`, así que se ven desde ya.
 - Escritura **atómica**: archivo temporal en el mismo directorio + `rename`. Nunca se observa
   un archivo a medias.
 - Se permiten `.md` sueltos en la raíz del proyecto o en subcarpetas propias del usuario. El
@@ -74,6 +77,8 @@ es estable; la carpeta es la traducción a disco; la etiqueta es para la UI.
 | --- | --- | --- | --- |
 | `feature` | `features` | Feature | funcionalidad nueva visible para el usuario |
 | `fix` | `fixes` | Fix | se corrigió un comportamiento incorrecto |
+| `perf` | `perf` | Perf | rendimiento: algo va más rápido o gasta menos; lo valioso son las cifras de antes y después |
+| `security` | `security` | Security | seguridad: una vulnerabilidad, permisos, validación de entradas, secretos |
 | `chore` | `chores` | Chore | dependencias, tooling, limpieza, versiones |
 | `refactor` | `refactors` | Refactor | reestructura sin cambiar comportamiento |
 | `docs` | `docs` | Docs | documentación, guías, comentarios |
@@ -81,6 +86,15 @@ es estable; la carpeta es la traducción a disco; la etiqueta es para la UI.
 | `design` | `design` | Design | decisión de arquitectura o diseño (ADR ligero) |
 | `research` | `research` | Research | spike, exploración, comparación de opciones |
 | `incident` | `incidents` | Incident | post-mortem de algo que se rompió |
+
+`perf` y `security` se añadieron después de las nueve originales. `perf` existe porque un cambio
+de rendimiento no es un fix (nada estaba roto) ni un refactor (sí cambia algo medible), y acababa
+mal clasificado. `security` existe para poder encontrar juntos todos los cambios de seguridad,
+que antes se mezclaban con los fixes. Sus señales de inferencia son estrechas a propósito:
+«auth» o «token» salen en cualquier cambio de login y no lo convierten en seguridad. En el
+desempate, `security` va justo detrás de `incident` y `perf` detrás de `fix`; en las
+alternativas sin señales, las dos van al final, para no ofrecerlas como primera opción a un
+cambio cualquiera.
 
 Inferencia automática (`saveme_summary_propose` sin `category`): por palabras clave del título y
 del cuerpo, ordenadas por especificidad. La inferencia **nunca es silenciosa**: siempre viaja en

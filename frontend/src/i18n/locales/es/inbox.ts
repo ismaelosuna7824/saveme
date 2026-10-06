@@ -5,7 +5,7 @@ export const inbox = {
   projectsLoadFailed: 'no pude listar los proyectos',
   projectsEmpty: {
     title: 'Todavía no hay proyectos',
-    hint: 'Crea el primero: SaveMe generará las 9 carpetas de categoría dentro.',
+    hint: 'Crea el primero: SaveMe generará dentro una carpeta por categoría.',
   },
   pending: {
     expiredTitle: 'confirmaciones vencidas',

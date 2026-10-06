@@ -92,8 +92,8 @@ func TestCategoryLookup(t *testing.T) {
 	if c := CategoryByFolder("carpeta-inventada"); c.Key != CategoryUncategorized {
 		t.Errorf("carpeta desconocida debería caer en uncategorized, dio %q", c.Key)
 	}
-	if len(Categories()) != 9 {
-		t.Errorf("esperaba 9 categorías canónicas, hay %d", len(Categories()))
+	if len(Categories()) != 11 {
+		t.Errorf("esperaba 11 categorías canónicas, hay %d", len(Categories()))
 	}
 }
 
@@ -145,6 +145,18 @@ func TestInferCategory(t *testing.T) {
 			title: "Refactor del store para desacoplar SQL",
 			body:  "Se extrajo la capa de consultas sin cambiar comportamiento.",
 			want:  "refactor",
+		},
+		{
+			name:  "perf por optimización",
+			title: "Optimización del arranque: de 8 s a 40 ms",
+			body:  "El core anunciaba que estaba listo después de reconciliar; ahora antes, y la latencia de arranque baja.",
+			want:  "perf",
+		},
+		{
+			name:  "security por vulnerabilidad",
+			title: "Vulnerabilidad de path traversal en el endpoint de imágenes",
+			body:  "El nombre se valida antes de tocar el disco para que no se puedan leer otros archivos.",
+			want:  "security",
 		},
 		{
 			name:  "sin señales cae en feature con baja confianza",
@@ -275,6 +287,18 @@ func TestInferCategorySpanishConjugations(t *testing.T) {
 			title: "Caída del servicio de sincronización",
 			body:  "El post mortem muestra que el rollback tardó veinte minutos.",
 			want:  "incident",
+		},
+		{
+			name:  "perf al acelerar",
+			title: "Aceleramos la búsqueda",
+			body:  "Era lenta con miles de resúmenes; el cuello de botella era abrir cada archivo.",
+			want:  "perf",
+		},
+		{
+			name:  "security al endurecer",
+			title: "Endurecimiento de los permisos del webview",
+			body:  "Se quitaron privilegios que no hacían falta y se sanitizan las rutas.",
+			want:  "security",
 		},
 	}
 

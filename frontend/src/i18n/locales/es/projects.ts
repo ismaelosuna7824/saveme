@@ -23,6 +23,8 @@ export const projects = {
   category: {
     feature: 'Feature',
     fix: 'Fix',
+    perf: 'Perf',
+    security: 'Security',
     chore: 'Chore',
     refactor: 'Refactor',
     docs: 'Docs',
@@ -45,6 +47,8 @@ export const projects = {
   categoryDescription: {
     feature: 'Funcionalidad nueva visible para quien usa el producto.',
     fix: 'Se corrigió un comportamiento incorrecto.',
+    perf: 'Rendimiento: algo va más rápido o gasta menos, con cifras de antes y después.',
+    security: 'Seguridad: una vulnerabilidad, permisos, validación de entradas o secretos.',
     chore: 'Dependencias, tooling, versiones, limpieza.',
     refactor: 'Se reestructuró el código sin cambiar su comportamiento.',
     docs: 'Documentación, guías y comentarios explicativos.',
@@ -170,7 +174,7 @@ export const projects = {
     nameLabel: 'nombre visible',
     slugLabel: 'slug (opcional)',
     description:
-      'Se crearán las 9 carpetas de categoría dentro del proyecto, aunque estén vacías. El nombre visible se guarda en la base de datos; el slug es el directorio en disco.',
+      'Se creará una carpeta por categoría dentro del proyecto, aunque estén vacías. El nombre visible se guarda en la base de datos; el slug es el directorio en disco.',
     submit: 'crear proyecto',
     creating: 'creando…',
     created: 'Proyecto {name} creado',

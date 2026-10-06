@@ -147,7 +147,7 @@ func (s *Server) registerTools() {
 	mcp.AddTool(s.srv, &mcp.Tool{
 		Name:  "saveme_project_create",
 		Title: "Crear un proyecto en SaveMe",
-		Description: "Crea la carpeta de un proyecto con sus nueve subcarpetas de categoría. " +
+		Description: "Crea la carpeta de un proyecto con una subcarpeta por categoría. " +
 			"Normalmente NO necesitas llamar a esto: `saveme_summary_propose` ya crea el " +
 			"proyecto cuando el usuario confirma. Úsalo solo si el usuario pide explícitamente " +
 			"dar de alta un proyecto sin escribir ningún resumen todavía.",
@@ -287,7 +287,7 @@ type proposeIn struct {
 	Title   string `json:"title" jsonschema:"Título corto y descriptivo, en el idioma del usuario. Es lo primero que se ve en el historial: que diga QUÉ se hizo, no cómo. Ejemplo: \"Editor markdown con preview sincronizado\"."`
 	Body    string `json:"body" jsonschema:"El resumen en markdown: documentación para alguien que lo leerá en seis meses sin haber visto la conversación. Contexto, qué se hizo, por qué, cómo funciona, cómo verificarlo y qué falta, con diagramas mermaid (flowchart, sequenceDiagram…) cuando haya flujos o piezas que se hablan. NO es un changelog ni un diff. Estructura y ejemplos en el recurso saveme://guide."`
 
-	Category     string   `json:"category,omitempty" jsonschema:"Categoría: feature, fix, chore, refactor, docs, infra, design, research o incident. OMÍTELO si no estás seguro: SaveMe la infiere del título y el cuerpo, y se la propone al usuario junto con alternativas."`
+	Category     string   `json:"category,omitempty" jsonschema:"Categoría: feature, fix, perf, security, chore, refactor, docs, infra, design, research o incident. OMÍTELO si no estás seguro: SaveMe la infiere del título y el cuerpo, y se la propone al usuario junto con alternativas."`
 	Summary      string   `json:"summary,omitempty" jsonschema:"Una sola línea que resuma el cambio, para las listas. Si no la pasas se toma la primera frase del cuerpo."`
 	Tags         []string `json:"tags,omitempty" jsonschema:"Etiquetas para agrupar y buscar, en minúsculas. Dos o tres bastan: [\"editor\", \"markdown\"]."`
 	FilesTouched []string `json:"files_touched,omitempty" jsonschema:"Archivos que de verdad importan para entender el cambio, como rutas relativas al repositorio. No listes todo lo que tocaste: para eso está git."`
@@ -401,7 +401,7 @@ func (s *Server) handlePropose(ctx context.Context, _ *mcp.CallToolRequest, in p
 
 type overrideIn struct {
 	Project  string `json:"project,omitempty" jsonschema:"Otro proyecto. Opcional."`
-	Category string `json:"category,omitempty" jsonschema:"Otra categoría. Opcional. Usa una de: feature, fix, chore, refactor, docs, infra, design, research, incident."`
+	Category string `json:"category,omitempty" jsonschema:"Otra categoría. Opcional. Usa una de: feature, fix, perf, security, chore, refactor, docs, infra, design, research, incident."`
 	RelPath  string `json:"rel_path,omitempty" jsonschema:"Ruta relativa exacta donde guardar, por ejemplo \"api-pagos/docs/2026-02-14-mi-nota.md\". Es la forma más directa de decir \"guárdalo aquí\". No puede salirse del workspace."`
 	Title    string `json:"title,omitempty" jsonschema:"Corregir el título. Opcional."`
 }
@@ -786,7 +786,7 @@ func (s *Server) handleContext(ctx context.Context, _ *mcp.CallToolRequest, in c
 
 type listIn struct {
 	Project  string `json:"project,omitempty" jsonschema:"Proyecto del que listar. Si lo omites, lista de todos."`
-	Category string `json:"category,omitempty" jsonschema:"Filtrar por categoría: feature, fix, chore, refactor, docs, infra, design, research o incident."`
+	Category string `json:"category,omitempty" jsonschema:"Filtrar por categoría: feature, fix, perf, security, chore, refactor, docs, infra, design, research o incident."`
 	Limit    int    `json:"limit,omitempty" jsonschema:"Cuántos devolver. Por defecto 15."`
 }
 

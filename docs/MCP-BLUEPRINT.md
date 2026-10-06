@@ -17,7 +17,7 @@ Un agente de IA sabe perfectamente **qué** hizo, y se olvida de **por qué**. S
 una herramienta para escribir ese «por qué» en markdown, en una carpeta que la persona
 elige, y **nunca deja que el agente decida solo dónde guardarlo**.
 
-Todo lo demás —SQLite, las nueve categorías, los doce clientes— son detalles al servicio
+Todo lo demás —SQLite, las once categorías, los clientes— son detalles al servicio
 de esa frase.
 
 ## Un binario, dos caras
@@ -185,8 +185,8 @@ La verdad es markdown con frontmatter YAML, en una carpeta que el usuario elige
 <raíz>/<proyecto>/<categoría>/2026-02-14-titulo-del-resumen.md
 ```
 
-Nueve categorías fijas —`feature`, `fix`, `chore`, `refactor`, `docs`, `infra`, `design`,
-`research`, `incident`— más `uncategorized`. Que sean carpetas fijas es lo que permite que
+Once categorías fijas —`feature`, `fix`, `perf`, `security`, `chore`, `refactor`, `docs`,
+`infra`, `design`, `research`, `incident`— más `uncategorized`. Que sean carpetas fijas es lo que permite que
 **quien escribe nunca tenga que decidir entre «crear carpeta» o «guardar»**: la carpeta ya
 existe.
 
@@ -385,7 +385,7 @@ estaba. `POST /api/mcp/unconfigure` y `--remove`:
 | Fusionar con copia y negarse ante JSONC | **Sí** |
 | Rutas seguras (`SafeRel`) y escritura atómica | **Sí** |
 | Índice SQLite reconstruible con FTS5 | **Sí**, si vas a buscar |
-| Las nueve categorías y sus stems en español | **No.** Es de este dominio |
+| Las once categorías y sus stems en español | **No.** Es de este dominio |
 | La inferencia por señales léxicas | **No.** Solo si tu problema es clasificar |
 | El esquema de frontmatter | **No.** Adáptalo |
 

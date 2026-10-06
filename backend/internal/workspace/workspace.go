@@ -129,7 +129,7 @@ func (w *Workspace) DBPath() string { return filepath.Join(w.stateDir(), "saveme
 // ProjectDir devuelve el directorio absoluto de un proyecto.
 func (w *Workspace) ProjectDir(slug string) string { return filepath.Join(w.root, slug) }
 
-// EnsureProject crea el directorio del proyecto y las nueve carpetas de
+// EnsureProject crea el directorio del proyecto y una carpeta por cada
 // categoría. Se crean todas aunque estén vacías para que quien escribe (humano
 // o agente) nunca tenga que decidir entre crear una carpeta o guardar el
 // archivo.

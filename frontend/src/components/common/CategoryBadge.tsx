@@ -10,6 +10,8 @@ import { cn } from '@/lib/utils'
 const VARIANT_BY_KEY: Record<string, BadgeProps['variant']> = {
   feature: 'default',
   fix: 'destructive',
+  perf: 'info',
+  security: 'destructive',
   incident: 'destructive',
   chore: 'muted',
   refactor: 'info',

@@ -22,6 +22,8 @@ export const projects = {
   category: {
     feature: 'Feature',
     fix: 'Fix',
+    perf: 'Perf',
+    security: 'Security',
     chore: 'Chore',
     refactor: 'Refactor',
     docs: 'Docs',
@@ -40,6 +42,8 @@ export const projects = {
   categoryDescription: {
     feature: 'New functionality the people using the product can see.',
     fix: 'Something that behaved incorrectly was corrected.',
+    perf: 'Performance: something got faster or cheaper, with before and after numbers.',
+    security: 'Security: a vulnerability, permissions, input validation, or secrets.',
     chore: 'Dependencies, tooling, versions, cleanup.',
     refactor: 'The code was restructured without changing its behaviour.',
     docs: 'Documentation, guides, and explanatory comments.',
@@ -163,7 +167,7 @@ export const projects = {
     nameLabel: 'visible name',
     slugLabel: 'slug (optional)',
     description:
-      'The 9 category folders are created inside the project, even if they are empty. The visible name is stored in the database; the slug is the directory on disk.',
+      'A folder per category is created inside the project, even if they are empty. The visible name is stored in the database; the slug is the directory on disk.',
     submit: 'create project',
     creating: 'creating…',
     created: 'Project {name} created',

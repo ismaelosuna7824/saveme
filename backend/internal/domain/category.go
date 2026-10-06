@@ -25,6 +25,10 @@ var categories = []Category{
 		Description: "Funcionalidad nueva visible para quien usa el producto."},
 	{Key: "fix", Folder: "fixes", Label: "Fix",
 		Description: "Se corrigió un comportamiento incorrecto."},
+	{Key: "perf", Folder: "perf", Label: "Perf",
+		Description: "Rendimiento: algo va más rápido o gasta menos, con cifras de antes y después."},
+	{Key: "security", Folder: "security", Label: "Security",
+		Description: "Seguridad: una vulnerabilidad, permisos, validación de entradas o secretos."},
 	{Key: "chore", Folder: "chores", Label: "Chore",
 		Description: "Dependencias, tooling, versiones, limpieza."},
 	{Key: "refactor", Folder: "refactors", Label: "Refactor",
@@ -164,6 +168,22 @@ var categorySignals = map[string][]string{
 		"decis*", "diseñ*", "disen*", "arquitect*", "enfoqu*", "contrat*",
 		"esquem*", "elecci*", "elegi*", "acord*",
 	},
+	// Rendimiento. Va aparte de fix (nada estaba roto) y de refactor (sí cambia
+	// algo medible): lo que vale la pena guardar son las cifras y el porqué.
+	"perf": {
+		"perf", "performance", "optimiz*", "latenc*", "throughput", "memory leak",
+		"rendimiento*", "lentitud", "lento", "lenta", "acelera*",
+		"milisegundo*", "cuello de botella", "bottleneck*", "fuga de memoria",
+		"uso de memoria", "uso de cpu", "mas rapido", "faster", "speedup",
+	},
+	// Seguridad. Las señales son específicas a propósito: «auth» o «token» salen
+	// en cualquier cambio de login y no lo convierten en un arreglo de seguridad.
+	"security": {
+		"security", "vulnerab*", "cve", "xss", "csrf", "injection", "exploit*",
+		"seguridad", "inyecc*", "sanitiz*", "saneamiento", "path traversal",
+		"privilegi*", "escalada", "secreto*", "credencial*", "cifrad*", "encrypt*",
+		"hardening", "endurec*", "fuga de datos", "data leak",
+	},
 	"research": {
 		"spike", "poc", "research*", "benchmark*", "investig*", "explor*",
 		"evalu*", "compar*", "prototip*", "viabilid*", "experiment*", "analiz*",
@@ -180,14 +200,14 @@ var categorySignals = map[string][]string{
 // la que aparece antes. El orden prioriza lo específico sobre lo genérico, para
 // que un empate entre "fix" y "feature" lo gane "fix" (es más informativo).
 var categoryOrder = []string{
-	"incident", "fix", "feature", "refactor", "infra", "docs", "chore", "design", "research",
+	"incident", "security", "fix", "perf", "feature", "refactor", "infra", "docs", "chore", "design", "research",
 }
 
 // commonalityOrder ordena por frecuencia esperada en un proyecto real. Se usa
 // solo para rellenar las alternativas cuando no hay señales: ofrecer "incident"
 // como primera opción para un cambio cualquiera sería ruido.
 var commonalityOrder = []string{
-	"feature", "fix", "chore", "refactor", "docs", "infra", "design", "research", "incident",
+	"feature", "fix", "chore", "refactor", "docs", "infra", "perf", "design", "research", "security", "incident",
 }
 
 // Inference explica por qué se propuso una categoría. Siempre viaja hasta el

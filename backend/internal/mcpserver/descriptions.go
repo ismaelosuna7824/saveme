@@ -5,8 +5,8 @@ import "fmt"
 // proposeDescription es el texto que lee el modelo para decidir cómo usar la
 // tool. Es la superficie de prompt más importante del proyecto: explica el
 // contrato de dos fases y, sobre todo, deja claro que proponer NO escribe.
-const proposeDescription = `Prepara el guardado de un resumen humano de un cambio reciente (feature, fix, chore,
-refactor, docs, infra, design, research o incident).
+const proposeDescription = `Prepara el guardado de un resumen humano de un cambio reciente (feature, fix, perf,
+security, chore, refactor, docs, infra, design, research o incident).
 
 IMPORTANTE: esta tool NO escribe nada. Ni un archivo, ni una carpeta. Devuelve una
 propuesta —la categoría sugerida, la ruta final y las alternativas— junto con un token

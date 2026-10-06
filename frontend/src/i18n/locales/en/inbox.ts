@@ -5,7 +5,7 @@ export const inbox = {
   projectsLoadFailed: "couldn't list the projects",
   projectsEmpty: {
     title: 'No projects yet',
-    hint: 'Create the first one: SaveMe will generate the 9 category folders inside.',
+    hint: 'Create the first one: SaveMe will generate a folder per category inside.',
   },
   pending: {
     expiredTitle: 'expired confirmations',

@@ -55,6 +55,8 @@ Dos cosas que conviene saber:
 | --- | --- |
 | `feature` | funcionalidad nueva visible para quien usa el producto |
 | `fix` | se corrigió un comportamiento incorrecto |
+| `perf` | rendimiento: algo va más rápido o gasta menos (cuenta las cifras de antes y después) |
+| `security` | seguridad: una vulnerabilidad, permisos, validación de entradas, secretos |
 | `chore` | dependencias, tooling, versiones, limpieza |
 | `refactor` | se reestructuró el código sin cambiar su comportamiento |
 | `docs` | documentación, guías, comentarios |
@@ -71,8 +73,8 @@ usuario junto a tres alternativas. El usuario siempre tiene la última palabra.
 
 El `project` es el nombre de la carpeta de primer nivel dentro del
 workspace, en minúsculas y con guiones: `saveme-app`, `api-pagos`.
-Si el proyecto no existe, SaveMe lo crea con sus nueve carpetas de categoría
-cuando el usuario confirma.
+Si el proyecto no existe, SaveMe lo crea con una carpeta por categoría cuando
+el usuario confirma.
 
 Antes de proponer, puedes usar `saveme_project_list` para ver los
 proyectos existentes y no inventar uno nuevo por un error de tipeo.

@@ -118,7 +118,7 @@ func (s *Service) Reindex(ctx context.Context) (*ReindexResult, error) {
 //
 // Deliberadamente NO crea las carpetas de categoría: si el usuario tiene una
 // carpeta con sus propias notas, SaveMe no le impone una estructura. Solo los
-// proyectos creados desde SaveMe nacen con las nueve categorías.
+// proyectos creados desde SaveMe nacen con todas las categorías.
 func (s *Service) registerDiscoveredProjects(ctx context.Context, entries []workspace.FileEntry, res *ReindexResult) error {
 	known := map[string]bool{}
 	slugs, err := s.st.ProjectSlugs(ctx)
