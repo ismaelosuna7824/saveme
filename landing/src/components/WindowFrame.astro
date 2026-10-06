@@ -1,0 +1,75 @@
+---
+/**
+ * Marco de ventana de macOS alrededor de una captura. Las capturas se hacen en
+ * el navegador, sin la ventana de Tauri, así que los semáforos se dibujan aquí.
+ */
+interface Props {
+  title: string
+}
+
+const { title } = Astro.props
+---
+
+<figure class="window">
+  <div class="window-bar" aria-hidden="true">
+    <span class="light red"></span><span class="light yellow"></span><span class="light green"></span>
+    <span class="window-title">{title}</span>
+  </div>
+  <div class="window-body"><slot /></div>
+</figure>
+
+<style>
+  .window {
+    margin: 0;
+    overflow: hidden;
+    border: 1px solid var(--color-border-strong);
+    border-radius: 10px;
+    background: var(--color-background);
+    box-shadow:
+      0 0 0 1px rgb(0 0 0 / 0.6),
+      0 40px 120px -40px rgb(255 180 84 / 0.18),
+      0 40px 100px -30px rgb(0 0 0 / 0.9);
+  }
+
+  .window-bar {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 34px;
+    padding: 0 14px;
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-panel-raised);
+  }
+
+  .light {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+  }
+
+  .red {
+    background: #ff5f57;
+  }
+
+  .yellow {
+    background: #febc2e;
+  }
+
+  .green {
+    background: #28c840;
+  }
+
+  .window-title {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    color: var(--color-muted-foreground);
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+
+  .window-body :global(img) {
+    width: 100%;
+  }
+</style>

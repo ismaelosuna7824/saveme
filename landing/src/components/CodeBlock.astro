@@ -1,0 +1,14 @@
+---
+/**
+ * Comandos de terminal: un `$` por línea y un botón que copia el texto sin los `$`.
+ * El botón va fuera del `<pre>` para que no se desplace con una línea larga.
+ */
+interface Props {
+  code: string
+  labels: { copy: string; copied: string }
+}
+
+const { code, labels } = Astro.props
+---
+
+<div class="code-block"><pre><code>{code.split('\n').map((line) => <span class="line">{line}</span>)}</code></pre><button class="copy-button" type="button" data-copy={code} data-copied-label={labels.copied}>{labels.copy}</button></div>

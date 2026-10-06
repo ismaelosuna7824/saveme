@@ -1,0 +1,249 @@
+---
+import { Image } from 'astro:assets'
+import type { ImageMetadata } from 'astro'
+
+import type { Dict } from '../i18n/es'
+import { assetHref, LATEST_RELEASE_URL, type LatestRelease, REPO_URL } from '../lib/release'
+import Icon from './Icon.astro'
+import Sprite from './Sprite.astro'
+import WindowFrame from './WindowFrame.astro'
+
+interface Props {
+  t: Dict
+  release: LatestRelease | null
+  screenshot?: ImageMetadata
+}
+
+const { t, release, screenshot } = Astro.props
+const label = (os: string) => t.hero.downloadFor.replace('{os}', os)
+---
+
+<section class="hero">
+  <div class="container hero-grid">
+    <div class="hero-copy">
+      <p class="eyebrow">
+        <Sprite name="squid" color="oklch(0.72 0.16 150)" size={18} />
+        {t.hero.eyebrow}
+      </p>
+      <h1 set:html={t.hero.titleHtml} />
+      <p class="lead">{t.hero.lead}</p>
+      <div class="cta">
+        {
+          /*
+           * El enlace sale apuntando al .dmg; el script de la página lo cambia por
+           * el instalable del sistema de quien visita, con las etiquetas de abajo.
+           */
+        }
+        <a
+          class="button button-primary"
+          href={assetHref(release, 'dmg')}
+          data-hero-download
+          data-asset="dmg"
+          data-label-macos={label(t.os.macos)}
+          data-label-windows={label(t.os.windows)}
+          data-label-linux={label(t.os.linux)}
+          data-label-other={t.hero.allDownloads}
+          data-track="download_click"
+          data-track-location="hero"
+        >
+          <Icon name="download" />
+          <span data-hero-label>{label(t.os.macos)}</span>
+        </a>
+        <a class="button" href={REPO_URL} target="_blank" rel="noopener" data-track="repo_click" data-track-location="hero">
+          <Icon name="github" />
+          {t.hero.viewOnGithub}
+        </a>
+      </div>
+      <p class="meta">
+        <span>{t.hero.latest}: <a href={release?.url ?? LATEST_RELEASE_URL} data-release-link><strong data-version data-version-fallback={release ? undefined : t.hero.seeOnGithub}>{release ? `v${release.version}` : t.hero.loading}</strong></a></span>
+        <span class="dot" aria-hidden="true">·</span>
+        <a href="#download">{t.hero.allDownloads}</a>
+      </p>
+      <p class="free">{t.hero.free}</p>
+    </div>
+
+    <div class="terminal panel" aria-hidden="true">
+      <div class="terminal-bar">
+        <span></span><span></span><span></span>
+        <em>~/Documents/SaveMe</em>
+      </div>
+      <pre><code><span class="c">$</span> tree ~/Documents/SaveMe
+<span class="d">saveme-app/</span>
+├── <span class="d">features/</span>
+│   └── 2026-09-14-markdown-editor-with-preview.md
+├── <span class="d">fixes/</span>
+│   └── 2026-09-16-watcher-race.md
+└── <span class="d">design/</span>
+    └── 2026-09-18-index-schema.md
+<span class="d">billing-api/</span>
+└── <span class="d">incidents/</span>
+    └── 2026-10-02-webhook-retries-storm.md
+
+<span class="c">$</span> head -6 fixes/2026-09-16-watcher-race.md
+<span class="k">---</span>
+<span class="p">title:</span> <span class="s">Watcher race on rename</span>
+<span class="p">category:</span> <span class="s">fix</span>
+<span class="p">agent:</span> <span class="s">claude-code</span>
+<span class="p">summary:</span> <span class="s">Debounce + atomic rename, no lost events.</span>
+<span class="k">---</span></code></pre>
+    </div>
+  </div>
+
+  {
+    screenshot && (
+      <div class="container hero-shot">
+        <WindowFrame title="SaveMe">
+          <Image src={screenshot} alt={t.screenshots.items.editor.caption} widths={[720, 1440, 2160]} sizes="(max-width: 1180px) 100vw, 1132px" loading="eager" fetchpriority="high" />
+        </WindowFrame>
+      </div>
+    )
+  }
+</section>
+
+<style>
+  .hero {
+    position: relative;
+    padding: 88px 0 112px;
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: -20% -10% auto;
+    height: 720px;
+    background:
+      radial-gradient(ellipse 50% 50% at 30% 30%, rgb(255 180 84 / 0.09), transparent 70%),
+      radial-gradient(ellipse 40% 40% at 80% 20%, rgb(127 216 143 / 0.06), transparent 70%);
+    pointer-events: none;
+  }
+
+  .hero-grid {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+    gap: 56px;
+    align-items: center;
+  }
+
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 24px;
+    padding: 6px 12px;
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-md);
+    background: var(--color-panel);
+    color: var(--color-secondary);
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+
+  h1 {
+    font-size: clamp(36px, 5.4vw, 60px);
+    letter-spacing: -0.035em;
+  }
+
+  .lead {
+    max-width: 580px;
+    margin-top: 24px;
+    color: var(--color-foreground);
+    font-size: 19px;
+  }
+
+  .cta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 36px;
+  }
+
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 20px;
+    color: var(--color-muted-foreground);
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+
+  .meta strong {
+    color: var(--color-secondary);
+  }
+
+  .free {
+    margin-top: 6px;
+    color: var(--color-muted-foreground);
+    font-size: 14px;
+  }
+
+  .terminal {
+    overflow: hidden;
+    box-shadow: 0 30px 80px -30px rgb(0 0 0 / 0.8);
+  }
+
+  .terminal-bar {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-panel-raised);
+  }
+
+  .terminal-bar span {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--color-border-strong);
+  }
+
+  .terminal-bar em {
+    margin-left: 10px;
+    color: var(--color-muted-foreground);
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+
+  .terminal pre {
+    margin: 0;
+    padding: 18px 20px;
+    overflow-x: auto;
+    color: var(--color-foreground);
+    font-size: 12.5px;
+    line-height: 1.7;
+  }
+
+  .c {
+    color: var(--color-primary);
+  }
+
+  .d {
+    color: var(--color-info);
+  }
+
+  .k {
+    color: var(--color-syntax-comment);
+  }
+
+  .p {
+    color: #9fd2c4;
+  }
+
+  .s {
+    color: var(--color-syntax-string);
+  }
+
+  .hero-shot {
+    position: relative;
+    margin-top: 88px;
+  }
+
+  @media (max-width: 960px) {
+    .hero-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+</style>

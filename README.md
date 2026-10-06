@@ -300,6 +300,7 @@ them without going back to the chat.
 backend/           Go core: domain, store, service, api, mcp, mcpconfig, watch
 frontend/          React 19 + TanStack Router/Query + shadcn, terminal look
 src-tauri/         desktop shell (sidecar + window)
+landing/           the public landing page (Astro), English and Spanish
 docs/ARCHITECTURE.md   frozen contracts: API, MCP tools, frontmatter, SQL schema
 docs/MCP-SETUP.md      configuring the MCP server in each client
 docs/MCP-BLUEPRINT.md  how the MCP server works inside, and how to reuse it in another project
@@ -308,6 +309,36 @@ scripts/env.sh     redirects build caches to a temporary directory
 scripts/e2e.sh     end-to-end verification against the real binary
 scripts/mcp-smoke.py  minimal stdio MCP client, to test without an agent
 ```
+
+## Landing page
+
+`landing/` is the project's public page: what SaveMe is for, its benefits, screenshots,
+supported platforms, install steps per system (including the Gatekeeper, SmartScreen and
+permission prompts an unsigned app gets) and the link to this repository. English lives at
+`/` and Spanish at `/es/`; a first visit with the browser in Spanish is sent to `/es/` until
+the visitor picks a language.
+
+```bash
+cd landing
+bun install
+cp .env.example .env    # Firebase web config, SITE_URL; all optional
+bun run dev             # http://localhost:4321
+bun run build           # astro check + static site in landing/dist/
+```
+
+**Downloads always point to the newest release.** Installer names carry the version
+(`SaveMe_0.3.0_universal.dmg`), so a fixed `releases/latest/download/<name>` URL can't work.
+The build asks the GitHub API for the latest release and writes direct links; the page asks
+again in the browser, so a release published after the last deploy shows up without
+rebuilding. If both fail, every link falls back to the latest release page.
+
+**Analytics** is Firebase Analytics, configured through the `PUBLIC_FIREBASE_*` variables in
+`.env`. Without them nothing is initialised and no event is sent. Besides `page_view`, it
+records `download_click` (with `asset`, `location`, `version` and, on the hero button, the
+detected `os`), `repo_click`, `select_language`, `select_tab` and `copy_command`.
+
+The screenshots in `landing/src/assets/screenshots/<lang>/` are real captures of the app,
+taken against demo data; Astro converts them to WebP at build time.
 
 ## Data and configuration
 

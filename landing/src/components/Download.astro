@@ -1,0 +1,176 @@
+---
+import type { Dict } from '../i18n/es'
+import { type AssetKey, assetHref, formatSize, LATEST_RELEASE_URL, type LatestRelease, REPO_URL } from '../lib/release'
+import Icon from './Icon.astro'
+
+interface Props {
+  t: Dict
+  release: LatestRelease | null
+}
+
+const { t, release } = Astro.props
+
+const PLATFORMS: { os: 'macos' | 'windows' | 'linux'; icon: 'apple' | 'windows' | 'linux'; assets: AssetKey[] }[] = [
+  { os: 'macos', icon: 'apple', assets: ['dmg'] },
+  { os: 'windows', icon: 'windows', assets: ['exe', 'msi'] },
+  { os: 'linux', icon: 'linux', assets: ['deb', 'appimage'] },
+]
+---
+
+<section class="section" id="download">
+  <div class="container">
+    <div class="section-head">
+      <span class="kicker">{t.download.kicker}</span>
+      <h2 class="section-title">{t.download.title}</h2>
+      <p class="section-lead">{t.download.lead}</p>
+    </div>
+
+    <div class="platforms">
+      {
+        PLATFORMS.map(({ os, icon, assets }) => (
+          <article class="panel platform" data-platform={os}>
+            <div class="platform-head">
+              <Icon name={icon} class="platform-icon" />
+              <h3>{t.download.platforms[os].name}</h3>
+              <span class="badge">{t.download.recommended}</span>
+            </div>
+            <p class="requirements">{t.download.platforms[os].requirements}</p>
+            <div class="assets">
+              {assets.map((key, index) => (
+                <a
+                  class:list={['button', 'asset', { 'button-primary': index === 0 }]}
+                  href={assetHref(release, key)}
+                  data-asset={key}
+                  data-track="download_click"
+                  data-track-location="platforms"
+                >
+                  <Icon name="download" />
+                  <span>{t.download.assets[key]}</span>
+                  <small data-asset-size={key}>{release?.assets[key] ? formatSize(release.assets[key].size) : ''}</small>
+                </a>
+              ))}
+            </div>
+            <a class="install-link" href={`#install-${os}`} data-install-link={os}>
+              {t.download.howToInstall.replace('{os}', t.download.platforms[os].name)} <Icon name="arrow" />
+            </a>
+          </article>
+        ))
+      }
+    </div>
+
+    <p class="release-line">
+      <span>{t.download.version}: <a href={release?.url ?? LATEST_RELEASE_URL} data-release-link><strong data-version data-version-fallback={release ? undefined : t.hero.seeOnGithub}>{release ? `v${release.version}` : t.hero.loading}</strong></a></span>
+      <span aria-hidden="true">·</span>
+      <a href={`${REPO_URL}/releases`} target="_blank" rel="noopener">{t.download.allReleases}</a>
+    </p>
+  </div>
+</section>
+
+<style>
+  .platforms {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  .platform {
+    display: flex;
+    flex-direction: column;
+    padding: 28px;
+    transition: border-color 150ms ease;
+  }
+
+  .platform[data-current] {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 1px var(--color-primary), 0 30px 80px -40px rgb(255 180 84 / 0.35);
+  }
+
+  .platform-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .platform-head :global(.platform-icon) {
+    width: 28px;
+    height: 28px;
+    color: var(--color-strong);
+  }
+
+  .platform-head h3 {
+    font-size: 20px;
+  }
+
+  .badge {
+    display: none;
+    margin-left: auto;
+    padding: 2px 8px;
+    border: 1px solid var(--color-primary);
+    border-radius: var(--radius-sm);
+    color: var(--color-primary);
+    font-family: var(--font-mono);
+    font-size: 11px;
+  }
+
+  .platform[data-current] .badge {
+    display: inline-block;
+  }
+
+  .requirements {
+    min-height: 3.2em;
+    margin: 14px 0 20px;
+    color: var(--color-muted-foreground);
+    font-size: 14px;
+  }
+
+  .assets {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .asset {
+    justify-content: flex-start;
+  }
+
+  .asset small {
+    margin-left: auto;
+    font-weight: 400;
+    opacity: 0.7;
+  }
+
+  .install-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: auto;
+    padding-top: 20px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+
+  .install-link :global(svg) {
+    width: 14px;
+    height: 14px;
+  }
+
+  .release-line {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 28px;
+    color: var(--color-muted-foreground);
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+
+  .release-line strong {
+    color: var(--color-secondary);
+  }
+
+  @media (max-width: 960px) {
+    .platforms {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+</style>

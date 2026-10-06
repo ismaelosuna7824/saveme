@@ -1,0 +1,57 @@
+---
+/**
+ * Los bichos de píxeles de la app (frontend/src/lib/projectSprite.ts), copiados
+ * tal cual: son los iconos de proyecto, y aquí sirven de marca. Se dibujan como
+ * un SVG de cuadrados, con `crispEdges` para que no se emborronen al escalar.
+ */
+interface Props {
+  name: keyof typeof SPRITES
+  color: string
+  size?: number
+  class?: string
+}
+
+const SPRITES = {
+  squid: ['...##...', '..####..', '.######.', '##.##.##', '########', '..#..#..', '.#.##.#.', '#.#..#.#'],
+  crab: [
+    '..#.....#..',
+    '...#...#...',
+    '..#######..',
+    '.##.###.##.',
+    '###########',
+    '#.#######.#',
+    '#.#.....#.#',
+    '...##.##...',
+  ],
+  octopus: [
+    '....####....',
+    '.##########.',
+    '############',
+    '###..##..###',
+    '############',
+    '...##..##...',
+    '..##.##.##..',
+    '##........##',
+  ],
+  saucer: ['....###....', '..#######..', '.##.#.#.##.', '###########', '..##...##..', '...#...#...'],
+  robot: ['...###...', '.#######.', '##..#..##', '#########', '.#.###.#.', '.#######.', '..#...#..', '.##...##.'],
+} as const
+
+const { name, color, size = 32, class: className } = Astro.props
+const rows = SPRITES[name]
+const width = rows[0].length
+const height = rows.length
+const pixels = rows.flatMap((row, y) => [...row].flatMap((cell, x) => (cell === '#' ? [{ x, y }] : [])))
+---
+
+<svg
+  class={className}
+  width={size}
+  height={(size * height) / width}
+  viewBox={`0 0 ${width} ${height}`}
+  shape-rendering="crispEdges"
+  fill={color}
+  aria-hidden="true"
+>
+  {pixels.map(({ x, y }) => <rect x={x} y={y} width="1" height="1" />)}
+</svg>

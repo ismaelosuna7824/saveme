@@ -1,0 +1,109 @@
+---
+import type { Dict } from '../i18n/es'
+import { REPO_URL } from '../lib/release'
+import CodeBlock from './CodeBlock.astro'
+import Icon from './Icon.astro'
+import Sprite from './Sprite.astro'
+
+interface Props {
+  t: Dict
+}
+
+const { t } = Astro.props
+---
+
+<section class="section" id="open-source">
+  <div class="container">
+    <div class="panel oss">
+      <div class="sprites" aria-hidden="true">
+        <Sprite name="crab" color="oklch(0.68 0.14 250)" size={44} />
+        <Sprite name="octopus" color="oklch(0.70 0.19 350)" size={48} />
+        <Sprite name="saucer" color="oklch(0.72 0.11 195)" size={44} />
+      </div>
+      <div class="copy">
+        <span class="kicker">{t.openSource.kicker}</span>
+        <h2 class="section-title">{t.openSource.title}</h2>
+        <p class="section-lead">{t.openSource.lead}</p>
+        <div class="actions">
+          <a class="button button-primary" href={REPO_URL} target="_blank" rel="noopener" data-track="repo_click" data-track-location="open_source">
+            <Icon name="github" />
+            {t.openSource.star}
+          </a>
+          <a class="button" href={`${REPO_URL}/issues`} target="_blank" rel="noopener" data-track="repo_click" data-track-location="issues">
+            {t.openSource.issues}
+          </a>
+        </div>
+        <p class="repo">
+          <a href={REPO_URL} target="_blank" rel="noopener">github.com/ismaelosuna7824/saveme</a>
+          <span aria-hidden="true">·</span>
+          {t.openSource.stack}
+        </p>
+      </div>
+      <div class="build">
+        <h3>{t.openSource.buildTitle}</h3>
+        <CodeBlock code={t.openSource.build} labels={t.common} />
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .oss {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+    gap: 48px;
+    align-items: end;
+    padding: 56px;
+    overflow: hidden;
+    background:
+      radial-gradient(ellipse 60% 80% at 100% 0%, rgb(255 180 84 / 0.08), transparent 70%),
+      var(--color-panel);
+  }
+
+  .sprites {
+    position: absolute;
+    top: 32px;
+    right: 40px;
+    display: flex;
+    gap: 20px;
+    align-items: flex-end;
+    opacity: 0.85;
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 32px;
+  }
+
+  .repo {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 20px;
+    color: var(--color-muted-foreground);
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+
+  .build h3 {
+    color: var(--color-primary);
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  @media (max-width: 960px) {
+    .oss {
+      grid-template-columns: minmax(0, 1fr);
+      padding: 32px 24px;
+    }
+
+    .sprites {
+      position: static;
+      order: -1;
+    }
+  }
+</style>

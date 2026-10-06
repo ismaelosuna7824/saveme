@@ -1,0 +1,66 @@
+---
+import type { Dict } from '../i18n/es'
+import { REPO_URL } from '../lib/release'
+
+interface Props {
+  t: Dict
+}
+
+const { t } = Astro.props
+---
+
+<footer class="footer">
+  <div class="container footer-inner">
+    <div class="brand">
+      <img src="/icon.png" alt="" width="24" height="24" />
+      <strong>SaveMe</strong>
+      <span>{t.footer.tagline}</span>
+    </div>
+    <nav>
+      <a href={`${REPO_URL}/releases`} target="_blank" rel="noopener">{t.footer.releases}</a>
+      <a href={REPO_URL} target="_blank" rel="noopener" data-track="repo_click" data-track-location="footer">{t.footer.repo}</a>
+      <a href={`${REPO_URL}/tree/main/docs`} target="_blank" rel="noopener">{t.footer.docs}</a>
+    </nav>
+  </div>
+</footer>
+
+<style>
+  .footer {
+    padding: 40px 0;
+    border-top: 1px solid var(--color-border);
+    color: var(--color-muted-foreground);
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+
+  .footer-inner {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .brand strong {
+    color: var(--color-strong);
+  }
+
+  nav {
+    display: flex;
+    gap: 20px;
+  }
+
+  nav a {
+    color: var(--color-muted-foreground);
+  }
+
+  nav a:hover {
+    color: var(--color-strong);
+  }
+</style>

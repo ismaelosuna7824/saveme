@@ -1,0 +1,55 @@
+---
+import type { ImageMetadata } from 'astro'
+import { getImage } from 'astro:assets'
+
+import { DICTS, type Lang } from '../i18n'
+import Base from '../layouts/Base.astro'
+import { latestRelease } from '../lib/buildRelease'
+import Clients from './Clients.astro'
+import Download from './Download.astro'
+import Features from './Features.astro'
+import Footer from './Footer.astro'
+import Header from './Header.astro'
+import Hero from './Hero.astro'
+import Install from './Install.astro'
+import OpenSource from './OpenSource.astro'
+import Screenshots, { type ShotKey } from './Screenshots.astro'
+import Why from './Why.astro'
+
+interface Props {
+  lang: Lang
+}
+
+const { lang } = Astro.props
+const t = DICTS[lang]
+const release = await latestRelease
+
+// Capturas de la app en el idioma de la página; si falta alguna, la inglesa.
+const files = import.meta.glob<{ default: ImageMetadata }>('../assets/screenshots/*/*.png', { eager: true })
+const SHOT_ORDER: ShotKey[] = ['editor', 'background', 'inbox', 'pulse', 'onboarding', 'palette', 'settings']
+const shots = SHOT_ORDER.flatMap((key) => {
+  const file = files[`../assets/screenshots/${lang}/${key}.png`] ?? files[`../assets/screenshots/en/${key}.png`]
+  return file ? [{ key, image: file.default }] : []
+})
+const heroShot = shots.find((shot) => shot.key === 'editor')?.image
+const ogImage = heroShot ? (await getImage({ src: heroShot, width: 1200, format: 'png' })).src : undefined
+---
+
+<Base lang={lang} t={t} ogImage={ogImage}>
+  <Header lang={lang} t={t} />
+  <main>
+    <Hero t={t} release={release} screenshot={heroShot} />
+    <Why t={t} />
+    <Features t={t} />
+    {shots.length > 0 && <Screenshots t={t} shots={shots} />}
+    <Clients t={t} />
+    <Download t={t} release={release} />
+    <Install t={t} />
+    <OpenSource t={t} />
+  </main>
+  <Footer t={t} />
+</Base>
+
+<script>
+  import '../scripts/landing'
+</script>

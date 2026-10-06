@@ -1,0 +1,185 @@
+---
+import type { Dict } from '../i18n/es'
+import Sprite from './Sprite.astro'
+
+interface Props {
+  t: Dict
+}
+
+const { t } = Astro.props
+---
+
+<section class="section" id="why">
+  <div class="container">
+    <div class="section-head">
+      <span class="kicker">{t.why.kicker}</span>
+      <h2 class="section-title">{t.why.title}</h2>
+      <p class="section-lead">{t.why.lead}</p>
+    </div>
+
+    <div class="cards">
+      {
+        t.why.cards.map((card, index) => (
+          <article class="panel card">
+            <span class="index">0{index + 1}</span>
+            <h3>{card.title}</h3>
+            <p>{card.body}</p>
+          </article>
+        ))
+      }
+    </div>
+
+    <div class="how" id="how">
+      <div class="how-head">
+        <span class="kicker">{t.how.kicker}</span>
+        <h3 class="how-title">{t.how.title}</h3>
+      </div>
+      <ol class="steps">
+        {
+          t.how.steps.map((step, index) => (
+            <li class="step">
+              <span class="step-number">{index + 1}</span>
+              <div>
+                <h4>{step.title}</h4>
+                <p set:html={step.bodyHtml} />
+              </div>
+            </li>
+          ))
+        }
+      </ol>
+      <div class="flow" aria-hidden="true">
+        <span class="node">{t.how.flow.agent}</span>
+        <span class="arrow">─ {t.how.flow.propose} ─▶</span>
+        <span class="node">SaveMe</span>
+        <span class="arrow">─ {t.how.flow.ask} ─▶</span>
+        <span class="node you"><Sprite name="robot" color="oklch(0.80 0.15 95)" size={14} /> {t.how.flow.you}</span>
+        <span class="arrow">─ {t.how.flow.confirm} ─▶</span>
+        <span class="node file">.md</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  .card {
+    padding: 28px;
+  }
+
+  .index {
+    color: var(--color-syntax-comment);
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+
+  .card h3 {
+    margin: 14px 0 10px;
+    font-size: 18px;
+  }
+
+  .card p {
+    color: var(--color-muted-foreground);
+  }
+
+  .how {
+    margin-top: 96px;
+  }
+
+  .how-title {
+    font-size: clamp(22px, 3vw, 30px);
+  }
+
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 32px;
+    margin: 36px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .step {
+    display: flex;
+    gap: 16px;
+  }
+
+  .step-number {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--color-primary);
+    border-radius: var(--radius-md);
+    color: var(--color-primary);
+    font-family: var(--font-mono);
+    font-weight: 700;
+  }
+
+  .step h4 {
+    margin-bottom: 8px;
+    font-size: 16px;
+  }
+
+  .step p {
+    color: var(--color-muted-foreground);
+    font-size: 15px;
+  }
+
+  .step p :global(code) {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .flow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 48px;
+    padding: 20px;
+    border: 1px dashed var(--color-border-strong);
+    border-radius: var(--radius-lg);
+    color: var(--color-muted-foreground);
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+
+  .flow .arrow {
+    color: var(--color-syntax-comment);
+  }
+
+  .node {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--color-panel);
+    color: var(--color-strong);
+  }
+
+  .node.you {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
+
+  .node.file {
+    border-color: var(--color-secondary);
+    color: var(--color-secondary);
+  }
+
+  @media (max-width: 860px) {
+    .cards,
+    .steps {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+</style>

@@ -1,0 +1,166 @@
+---
+import { LANG_NAMES, LANG_PATHS, LANGS, type Lang } from '../i18n'
+import type { Dict } from '../i18n/es'
+import { REPO_URL } from '../lib/release'
+import Icon from './Icon.astro'
+
+interface Props {
+  lang: Lang
+  t: Dict
+}
+
+const { lang, t } = Astro.props
+const links = [
+  ['#why', t.nav.why],
+  ['#features', t.nav.features],
+  ['#screenshots', t.nav.screenshots],
+  ['#download', t.nav.download],
+  ['#install', t.nav.install],
+] as const
+---
+
+<header class="header">
+  <div class="container header-inner">
+    <a class="brand" href={LANG_PATHS[lang]} aria-label="SaveMe">
+      <img src="/icon.png" alt="" width="28" height="28" />
+      <span>SaveMe</span>
+    </a>
+    <nav class="nav" aria-label="SaveMe">
+      {links.map(([href, label]) => <a href={href}>{label}</a>)}
+    </nav>
+    <div class="header-actions">
+      <div class="lang-switch" role="group" aria-label={t.nav.language}>
+        {
+          LANGS.map((code) => (
+            <a
+              href={LANG_PATHS[code]}
+              hreflang={code}
+              lang={code}
+              aria-current={code === lang ? 'true' : undefined}
+              title={LANG_NAMES[code]}
+              data-lang={code}
+            >
+              {code}
+            </a>
+          ))
+        }
+      </div>
+      <a class="github-link" href={REPO_URL} target="_blank" rel="noopener" data-track="repo_click" data-track-location="header">
+        <Icon name="github" />
+        <span class="visually-hidden">{t.nav.github}</span>
+      </a>
+    </div>
+  </div>
+</header>
+
+<style>
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    border-bottom: 1px solid var(--color-border);
+    background: color-mix(in oklab, var(--color-background) 82%, transparent);
+    backdrop-filter: blur(14px) saturate(1.2);
+    -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  }
+
+  .header-inner {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    height: var(--header-height);
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--color-strong);
+    font-family: var(--font-mono);
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  .brand img {
+    width: 28px;
+    height: 28px;
+  }
+
+  .nav {
+    display: flex;
+    gap: 24px;
+    margin-right: auto;
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+
+  .nav a {
+    color: var(--color-muted-foreground);
+  }
+
+  .nav a:hover {
+    color: var(--color-strong);
+    text-decoration: none;
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .lang-switch {
+    display: flex;
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-md);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    text-transform: uppercase;
+  }
+
+  .lang-switch a {
+    padding: 4px 10px;
+    color: var(--color-muted-foreground);
+  }
+
+  .lang-switch a + a {
+    border-left: 1px solid var(--color-border-strong);
+  }
+
+  .lang-switch a:hover {
+    color: var(--color-strong);
+    text-decoration: none;
+  }
+
+  .lang-switch a[aria-current] {
+    background: var(--color-panel-raised);
+    color: var(--color-primary);
+  }
+
+  .github-link {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    color: var(--color-foreground);
+  }
+
+  .github-link:hover {
+    color: var(--color-strong);
+  }
+
+  .github-link :global(svg) {
+    width: 20px;
+    height: 20px;
+  }
+
+  @media (max-width: 860px) {
+    .nav {
+      display: none;
+    }
+
+    .header-actions {
+      margin-left: auto;
+    }
+  }
+</style>

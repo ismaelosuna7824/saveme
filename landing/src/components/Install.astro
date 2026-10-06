@@ -1,0 +1,273 @@
+---
+import type { Dict } from '../i18n/es'
+import CodeBlock from './CodeBlock.astro'
+import Icon from './Icon.astro'
+
+interface Props {
+  t: Dict
+}
+
+const { t } = Astro.props
+const OSES = [
+  { os: 'macos', icon: 'apple' },
+  { os: 'windows', icon: 'windows' },
+  { os: 'linux', icon: 'linux' },
+] as const
+---
+
+<section class="section" id="install">
+  <div class="container">
+    <div class="section-head">
+      <span class="kicker">{t.install.kicker}</span>
+      <h2 class="section-title">{t.install.title}</h2>
+      <p class="section-lead">{t.install.lead}</p>
+    </div>
+
+    <div data-tabs="install">
+      <div class="tabs" role="tablist" aria-label={t.install.title}>
+        {
+          OSES.map(({ os, icon }, index) => (
+            <button
+              type="button"
+              role="tab"
+              id={`install-tab-${os}`}
+              aria-controls={`install-${os}`}
+              aria-selected={index === 0 ? 'true' : 'false'}
+              tabindex={index === 0 ? 0 : -1}
+              data-tab={os}
+            >
+              <Icon name={icon} />
+              {t.install.tabs[os]}
+            </button>
+          ))
+        }
+      </div>
+
+      {
+        OSES.map(({ os }, index) => {
+          const guide = t.install[os]
+          return (
+            <div class="panel guide" role="tabpanel" id={`install-${os}`} aria-labelledby={`install-tab-${os}`} hidden={index !== 0} data-panel={os}>
+              <ol class="steps">
+                {guide.steps.map((step) => (
+                  <li>
+                    <h3>{step.title}</h3>
+                    <p set:html={step.bodyHtml} />
+                    {'code' in step && step.code && <CodeBlock code={step.code} labels={t.common} />}
+                  </li>
+                ))}
+              </ol>
+
+              <div class="aside">
+                <div class="block">
+                  <h3 class="block-title">{t.install.permissionsTitle}</h3>
+                  <dl>
+                    {guide.permissions.map((item) => (
+                      <div class="item">
+                        <dt>{item.title}</dt>
+                        <dd set:html={item.bodyHtml} />
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+                <div class="block">
+                  <h3 class="block-title">{t.install.troubleshootingTitle}</h3>
+                  <dl>
+                    {guide.troubleshooting.map((item) => (
+                      <div class="item">
+                        <dt>{item.title}</dt>
+                        <dd>
+                          <p set:html={item.bodyHtml} />
+                          {'code' in item && item.code && <CodeBlock code={item.code} labels={t.common} />}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              </div>
+            </div>
+          )
+        })
+      }
+    </div>
+
+    <div class="cli panel">
+      <div>
+        <h3>{t.install.cli.title}</h3>
+        <p set:html={t.install.cli.bodyHtml} />
+      </div>
+      <CodeBlock code={t.install.cli.code} labels={t.common} />
+    </div>
+  </div>
+</section>
+
+<style>
+  .tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .tabs button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: -1px;
+    padding: 12px 18px;
+    border: 1px solid transparent;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--color-muted-foreground);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .tabs button :global(svg) {
+    width: 16px;
+    height: 16px;
+  }
+
+  .tabs button:hover {
+    color: var(--color-strong);
+  }
+
+  .tabs button[aria-selected='true'] {
+    border-color: var(--color-border);
+    border-bottom: 2px solid var(--color-primary);
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    background: var(--color-panel);
+    color: var(--color-primary);
+  }
+
+  .guide {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+    gap: 48px;
+    padding: 36px;
+    border-top: 0;
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  }
+
+  .steps {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: step;
+  }
+
+  .steps li {
+    position: relative;
+    padding: 0 0 28px 48px;
+    counter-increment: step;
+  }
+
+  .steps li::before {
+    content: counter(step);
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--color-primary);
+    border-radius: var(--radius-md);
+    color: var(--color-primary);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .steps li:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 34px;
+    bottom: 6px;
+    left: 14px;
+    border-left: 1px dashed var(--color-border-strong);
+  }
+
+  .steps h3 {
+    margin-bottom: 6px;
+    font-size: 16px;
+  }
+
+  .steps p,
+  dd {
+    color: var(--color-muted-foreground);
+    font-size: 15px;
+  }
+
+  .steps :global(code),
+  dd :global(code) {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .aside {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+
+  .block-title {
+    margin-bottom: 14px;
+    color: var(--color-primary);
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  dl {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin: 0;
+  }
+
+  .item {
+    padding-left: 14px;
+    border-left: 2px solid var(--color-border-strong);
+  }
+
+  dt {
+    margin-bottom: 4px;
+    color: var(--color-strong);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  dd {
+    margin: 0;
+  }
+
+  .cli {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 32px;
+    align-items: center;
+    margin-top: 24px;
+    padding: 28px 36px;
+  }
+
+  .cli h3 {
+    margin-bottom: 8px;
+    font-size: 16px;
+  }
+
+  .cli p {
+    color: var(--color-muted-foreground);
+    font-size: 15px;
+  }
+
+  @media (max-width: 960px) {
+    .guide,
+    .cli {
+      grid-template-columns: minmax(0, 1fr);
+      padding: 24px;
+    }
+  }
+</style>

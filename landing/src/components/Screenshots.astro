@@ -1,0 +1,139 @@
+---
+import { Image } from 'astro:assets'
+import type { ImageMetadata } from 'astro'
+
+import type { Dict } from '../i18n/es'
+import WindowFrame from './WindowFrame.astro'
+
+export type ShotKey = keyof Dict['screenshots']['items']
+
+interface Props {
+  t: Dict
+  shots: { key: ShotKey; image: ImageMetadata }[]
+}
+
+const { t, shots } = Astro.props
+---
+
+<section class="section" id="screenshots">
+  <div class="container">
+    <div class="section-head">
+      <span class="kicker">{t.screenshots.kicker}</span>
+      <h2 class="section-title">{t.screenshots.title}</h2>
+    </div>
+
+    <div class="gallery" data-tabs="screenshots">
+      <div class="tabs" role="tablist" aria-label={t.screenshots.title}>
+        {
+          shots.map(({ key }, index) => (
+            <button
+              type="button"
+              role="tab"
+              id={`shot-tab-${key}`}
+              aria-controls={`shot-${key}`}
+              aria-selected={index === 0 ? 'true' : 'false'}
+              tabindex={index === 0 ? 0 : -1}
+              data-tab={key}
+            >
+              <strong>{t.screenshots.items[key].title}</strong>
+              <span>{t.screenshots.items[key].caption}</span>
+            </button>
+          ))
+        }
+      </div>
+      <div class="stage">
+        {
+          shots.map(({ key, image }, index) => (
+            <div role="tabpanel" id={`shot-${key}`} aria-labelledby={`shot-tab-${key}`} hidden={index !== 0} data-panel={key}>
+              <WindowFrame title="SaveMe">
+                <Image src={image} alt={t.screenshots.items[key].caption} widths={[720, 1440]} sizes="(max-width: 960px) 100vw, 800px" />
+              </WindowFrame>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .gallery {
+    display: grid;
+    grid-template-columns: 320px minmax(0, 1fr);
+    gap: 32px;
+    align-items: start;
+  }
+
+  .tabs {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .tabs button {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 14px 16px;
+    border: 1px solid transparent;
+    border-left: 2px solid var(--color-border);
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    background: transparent;
+    color: var(--color-muted-foreground);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .tabs button:hover {
+    background: var(--color-panel);
+  }
+
+  .tabs button strong {
+    color: var(--color-foreground);
+    font-family: var(--font-mono);
+    font-size: 14px;
+  }
+
+  .tabs button span {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .tabs button[aria-selected='true'] {
+    border-color: var(--color-border);
+    border-left-color: var(--color-primary);
+    background: var(--color-panel);
+  }
+
+  .tabs button[aria-selected='true'] strong {
+    color: var(--color-primary);
+  }
+
+  @media (max-width: 960px) {
+    .gallery {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .tabs {
+      flex-direction: row;
+      overflow-x: auto;
+    }
+
+    .tabs button {
+      flex: none;
+      border-left: 1px solid transparent;
+      border-bottom: 2px solid var(--color-border);
+      border-radius: var(--radius-md) var(--radius-md) 0 0;
+    }
+
+    .tabs button span {
+      display: none;
+    }
+
+    .tabs button[aria-selected='true'] {
+      border-left-color: var(--color-border);
+      border-bottom-color: var(--color-primary);
+    }
+  }
+</style>

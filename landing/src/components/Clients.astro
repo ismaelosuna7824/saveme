@@ -1,0 +1,79 @@
+---
+import type { Dict } from '../i18n/es'
+
+interface Props {
+  t: Dict
+}
+
+const { t } = Astro.props
+
+// Los que conoce `saveme mcp-config` (backend/internal/mcpconfig), como en la
+// tabla «Supported clients» del README. Si se añade uno allí, va aquí también.
+const CLIENTS = [
+  'Claude Code',
+  'Claude Desktop',
+  'Cursor',
+  'Codex CLI',
+  'GitHub Copilot',
+  'VS Code',
+  'Gemini CLI',
+  'OpenCode',
+  'Antigravity',
+  'Qwen Code',
+  'Kiro',
+  'Kilo Code',
+  'Amp',
+  'Z Code',
+  'Kimi Code',
+  'Devin',
+  'Windsurf',
+  'Hermes Agent',
+  'DeepSeek Harness',
+  'omp',
+  'pi',
+  'Orca',
+  'Mono',
+  'T3 Code',
+  'Omnigent',
+]
+---
+
+<section class="section" id="clients">
+  <div class="container">
+    <div class="section-head">
+      <span class="kicker">{t.clients.kicker}</span>
+      <h2 class="section-title">{t.clients.title}</h2>
+      <p class="section-lead">{t.clients.lead}</p>
+    </div>
+    <ul class="clients">
+      {CLIENTS.map((name) => <li>{name}</li>)}
+      <li class="custom">+ custom</li>
+    </ul>
+  </div>
+</section>
+
+<style>
+  .clients {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .clients li {
+    padding: 8px 14px;
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-md);
+    background: var(--color-panel);
+    color: var(--color-foreground);
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+
+  .clients li.custom {
+    border-style: dashed;
+    color: var(--color-primary);
+  }
+</style>

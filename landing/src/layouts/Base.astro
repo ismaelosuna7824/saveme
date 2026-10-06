@@ -1,0 +1,67 @@
+---
+import '@fontsource/jetbrains-mono/400.css'
+import '@fontsource/jetbrains-mono/700.css'
+import '../styles/global.css'
+
+import { LANG_PATHS, LANGS, type Lang } from '../i18n'
+import { LANG_STORAGE_KEY } from '../i18n/storage'
+import type { Dict } from '../i18n/es'
+
+interface Props {
+  lang: Lang
+  t: Dict
+  /** URL de la imagen para Open Graph, ya procesada por Astro. */
+  ogImage?: string
+}
+
+const { lang, t, ogImage } = Astro.props
+const absolute = (path: string) => (Astro.site ? new URL(path, Astro.site).href : path)
+---
+
+<!doctype html>
+<html lang={lang} data-theme="phosphor">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0b0e0f" />
+    <title>{t.meta.title}</title>
+    <meta name="description" content={t.meta.description} />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/icon.png" />
+    <link rel="canonical" href={absolute(LANG_PATHS[lang])} />
+    {LANGS.map((code) => <link rel="alternate" hreflang={code} href={absolute(LANG_PATHS[code])} />)}
+    <link rel="alternate" hreflang="x-default" href={absolute(LANG_PATHS.en)} />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="SaveMe" />
+    <meta property="og:title" content={t.meta.title} />
+    <meta property="og:description" content={t.meta.description} />
+    <meta property="og:url" content={absolute(LANG_PATHS[lang])} />
+    <meta property="og:locale" content={lang === 'es' ? 'es_ES' : 'en_US'} />
+    {ogImage && <meta property="og:image" content={absolute(ogImage)} />}
+    <meta name="twitter:card" content="summary_large_image" />
+
+    {
+      /*
+       * Primera visita a la portada en inglés con el navegador en español: se
+       * manda a /es/. Solo si la persona no ha elegido idioma a mano; en cuanto
+       * usa el selector, su elección manda. Va en línea y en el <head> para que
+       * la redirección ocurra antes de pintar nada.
+       */
+      lang === 'en' && (
+        <script is:inline define:vars={{ key: LANG_STORAGE_KEY, target: LANG_PATHS.es }}>
+          try {
+            if (!localStorage.getItem(key) && /^es\b/i.test(navigator.language || '')) {
+              location.replace(target + location.hash)
+            }
+          } catch {}
+        </script>
+      )
+    }
+  </head>
+  <body>
+    <div class="scanlines" aria-hidden="true"></div>
+    <slot />
+  </body>
+</html>
