@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ManualSnippet, StepApply } from '@/features/onboarding/StepApply'
 import { StepProviders } from '@/features/onboarding/StepProviders'
 import { MCPBinaryPanel } from '@/features/settings/MCPBinaryPanel'
+import { CustomProviderPanel } from '@/features/settings/CustomProviderPanel'
 import { useT } from '@/i18n'
 
 /**
@@ -198,6 +199,8 @@ export function SettingsAgents() {
           {t('settings.agents.noneSelected')}
         </p>
       )}
+
+      <CustomProviderPanel />
 
       <p className="flex items-start gap-1.5 border border-border bg-sunken px-2 py-2 text-2xs text-muted-foreground">
         <RefreshCw className="mt-0.5 size-3 shrink-0 text-primary" />

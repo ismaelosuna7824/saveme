@@ -24,6 +24,7 @@ import type {
   CreateProjectInput,
   Health,
   MCPConfigureInput,
+  MCPCustomDef,
   MCPConfigureResponse,
   MCPUnconfigureResponse,
   MCPInstallResult,
@@ -88,6 +89,7 @@ export const queryKeys = {
   mcp: {
     providers: ['mcp', 'providers'] as const,
     snippet: (key: string) => ['mcp', 'snippet', key] as const,
+    customSnippet: (def: MCPCustomDef | null) => ['mcp', 'snippet', 'custom', def] as const,
   },
 } as const
 
@@ -372,6 +374,30 @@ export function useMCPSnippet(key: string | null): UseQueryResult<MCPSnippet> {
       api.get<MCPSnippet>(`/mcp/snippet${buildQuery({ provider: key })}`, signal),
     staleTime: 30_000,
     enabled: key !== null,
+  })
+}
+
+/**
+ * Bloque de un cliente personalizado. Se pide a demanda (`null` = no pedir) con
+ * la definición que haya escrito el usuario; la clave de caché la incluye para
+ * que cambiar un campo no enseñe el bloque anterior.
+ */
+export function useMCPCustomSnippet(def: MCPCustomDef | null): UseQueryResult<MCPSnippet> {
+  return useQuery({
+    queryKey: queryKeys.mcp.customSnippet(def),
+    queryFn: ({ signal }) =>
+      api.get<MCPSnippet>(
+        `/mcp/snippet${buildQuery({
+          provider: 'custom',
+          path: def?.path,
+          servers_key: def?.servers_key,
+          entry_type: def?.entry_type,
+          command_array: def?.command_array ? 'true' : undefined,
+          env_key: def?.env_key,
+        })}`,
+        signal,
+      ),
+    enabled: def !== null,
   })
 }
 
@@ -682,8 +708,8 @@ export function useUnconfigureMCP(): UseMutationResult<
 > {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ providers }: MCPConfigureInput) =>
-      api.post<MCPUnconfigureResponse>('/mcp/unconfigure', { providers }),
+    mutationFn: ({ providers, custom }: MCPConfigureInput) =>
+      api.post<MCPUnconfigureResponse>('/mcp/unconfigure', { providers, custom }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.mcp.providers })
     },
@@ -697,8 +723,8 @@ export function useConfigureMCP(): UseMutationResult<
 > {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ providers }: MCPConfigureInput) =>
-      api.post<MCPConfigureResponse>('/mcp/configure', { providers }),
+    mutationFn: ({ providers, custom }: MCPConfigureInput) =>
+      api.post<MCPConfigureResponse>('/mcp/configure', { providers, custom }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.mcp.providers })
     },

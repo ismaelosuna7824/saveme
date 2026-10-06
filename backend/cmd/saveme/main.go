@@ -367,7 +367,7 @@ func runGuide(args []string) int {
 		}
 		cfg.RootDir = abs
 	}
-	fmt.Print(api.Guide(cfg.RootDir))
+	fmt.Print(mcpserver.Guide(cfg.RootDir))
 	return 0
 }
 

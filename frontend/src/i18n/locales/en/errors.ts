@@ -8,6 +8,7 @@ export const errors = {
   no_providers: "You didn't ask to configure any client.",
   missing_provider: 'Which client to configure is missing.',
   unknown_provider: "That client isn't one I know how to configure.",
+  invalid_custom: 'The custom client definition is not valid.',
   invalid_decision: 'The decision must be "accepted", "modified", or "cancelled".',
   no_streaming: "The server doesn't support streaming.",
 } as const

@@ -108,6 +108,26 @@ func (s *Server) handleMCPInstall(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// resolveProvider busca un cliente por clave. `custom` es el que describe el
+// propio usuario: se arma con su definición en vez de buscarse en la tabla.
+func resolveProvider(key string, custom *mcpconfig.CustomDef) (mcpconfig.Provider, string, bool) {
+	if strings.EqualFold(strings.TrimSpace(key), "custom") {
+		if custom == nil {
+			return mcpconfig.Provider{}, "falta la definición del cliente personalizado", false
+		}
+		p, err := mcpconfig.Custom(*custom)
+		if err != nil {
+			return mcpconfig.Provider{}, err.Error(), false
+		}
+		return p, "", true
+	}
+	p, ok := mcpconfig.Find(key)
+	if !ok {
+		return mcpconfig.Provider{}, "cliente desconocido", false
+	}
+	return p, "", true
+}
+
 // handleMCPConfigure instala el binario y configura los clientes pedidos.
 //
 // Se hace todo en una operación porque el orden importa: una configuración que
@@ -116,6 +136,8 @@ func (s *Server) handleMCPInstall(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleMCPConfigure(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Providers []string `json:"providers"`
+		// Custom describe el cliente `custom`, si está entre los pedidos.
+		Custom *mcpconfig.CustomDef `json:"custom"`
 	}
 	if !decodeBody(w, r, &body) {
 		return
@@ -134,12 +156,12 @@ func (s *Server) handleMCPConfigure(w http.ResponseWriter, r *http.Request) {
 
 	results := make([]map[string]any, 0, len(body.Providers))
 	for _, key := range body.Providers {
-		provider, ok := mcpconfig.Find(key)
+		provider, problem, ok := resolveProvider(key, body.Custom)
 		if !ok {
 			results = append(results, map[string]any{
 				"key":     key,
 				"action":  "unknown",
-				"message": "cliente desconocido",
+				"message": problem,
 			})
 			continue
 		}
@@ -184,7 +206,8 @@ func (s *Server) handleMCPConfigure(w http.ResponseWriter, r *http.Request) {
 // binario dejaría sin servidor a los demás clientes que sí lo tengan configurado.
 func (s *Server) handleMCPUnconfigure(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		Providers []string `json:"providers"`
+		Providers []string             `json:"providers"`
+		Custom    *mcpconfig.CustomDef `json:"custom"`
 	}
 	if !decodeBody(w, r, &body) {
 		return
@@ -198,12 +221,12 @@ func (s *Server) handleMCPUnconfigure(w http.ResponseWriter, r *http.Request) {
 
 	results := make([]map[string]any, 0, len(body.Providers))
 	for _, key := range body.Providers {
-		provider, ok := mcpconfig.Find(key)
+		provider, problem, ok := resolveProvider(key, body.Custom)
 		if !ok {
 			results = append(results, map[string]any{
 				"key":     key,
 				"action":  "unknown",
-				"message": "cliente desconocido",
+				"message": problem,
 			})
 			continue
 		}
@@ -240,14 +263,32 @@ func (s *Server) handleMCPUnconfigure(w http.ResponseWriter, r *http.Request) {
 
 // handleMCPSnippet devuelve el bloque de configuración de un cliente, para que la
 // interfaz pueda enseñarlo y copiarlo (la vía manual cuando no se puede escribir).
+//
+// Para `provider=custom` la definición llega en la query: `path`, `servers_key`,
+// `entry_type`, `command_array` y `env_key`.
 func (s *Server) handleMCPSnippet(w http.ResponseWriter, r *http.Request) {
-	key := strings.TrimSpace(r.URL.Query().Get("provider"))
+	query := r.URL.Query()
+	key := strings.TrimSpace(query.Get("provider"))
 	if key == "" {
 		writeErr(w, http.StatusBadRequest, "missing_provider", "falta el parámetro provider")
 		return
 	}
-	provider, ok := mcpconfig.Find(key)
+	var custom *mcpconfig.CustomDef
+	if strings.EqualFold(key, "custom") {
+		custom = &mcpconfig.CustomDef{
+			Path:         query.Get("path"),
+			ServersKey:   query.Get("servers_key"),
+			EntryType:    query.Get("entry_type"),
+			CommandArray: query.Get("command_array") == "true",
+			EnvKey:       query.Get("env_key"),
+		}
+	}
+	provider, problem, ok := resolveProvider(key, custom)
 	if !ok {
+		if custom != nil {
+			writeErr(w, http.StatusBadRequest, "invalid_custom", problem)
+			return
+		}
 		writeErr(w, http.StatusNotFound, "unknown_provider", "cliente desconocido: "+key)
 		return
 	}

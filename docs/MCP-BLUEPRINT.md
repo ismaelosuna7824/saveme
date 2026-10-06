@@ -227,21 +227,24 @@ Y sigue con «QUÉ HACER DESPUÉS, EN ESTE ORDEN: 1. Muéstrale la propuesta al 
 PREGÚNTALE…». No es documentación: es el contrato, y está en el mismo archivo que el
 código que lo hace cumplir.
 
-## Cómo llega a doce clientes
+## Cómo llega a tantos clientes
 
-El paquete `mcpconfig` conoce doce clientes: `opencode`, `codex`, `claude-code`,
-`claude-desktop`, `cursor`, `windsurf`, `gemini-cli`, `qwen`, `kiro`, `vscode-copilot`,
-`kilocode` y `generic`. Cada uno declara su formato (JSON, TOML, comando o manual), su
-ruta y —esto es lo importante— si su formato está **verificado contra su documentación**.
+El paquete `mcpconfig` conoce 26 clientes (`saveme mcp-config --list` los enseña). Cada
+uno declara su formato —JSON (con la clave plana, literal como `amp.mcpServers`, o
+anidada como `mcp.servers` en Z Code), TOML, comando (Claude Code, Hermes), manual
+(el YAML de DeepSeek Harness) o **delegado** (Orca, Mono, T3 Code, Omnigent: no tienen
+configuración propia y usan la de los agentes que lanzan)—, su ruta y —esto es lo
+importante— si su formato está **verificado contra su documentación**.
 
 ```
 Verified: true   → se escribe solo
-Verified: false  → se ofrece el bloque para pegar, y se dice que no está confirmado
+Verified: false  → se escribe con un aviso de que la ruta no está confirmada
 ```
 
 Inventar el formato de un cliente y escribirlo a ciegas es una forma estupenda de romperle
 la configuración a alguien. Los que no están confirmados se marcan como tales; no se
-finge.
+finge. Para un cliente que no esté en la tabla, `custom` deja que el usuario describa la
+ruta y la forma de la entrada (`mcpconfig.Custom`), y se escribe con las mismas reglas.
 
 Las escrituras son **fusiones**, nunca reemplazos: se añade la entrada `saveme` y se deja
 copia de seguridad. Y si el archivo tiene comentarios (JSONC), **no se reescribe** —un

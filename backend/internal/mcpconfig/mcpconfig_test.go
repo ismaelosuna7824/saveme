@@ -109,6 +109,9 @@ func TestCodexBlockShape(t *testing.T) {
 
 // TestClaudeCodeIsACommand: Claude Code se configura con `claude mcp add`, no
 // editando un archivo, y el ámbito correcto para "todos mis proyectos" es user.
+// El entorno tiene que ir ANTES de `--`: lo que viene detrás se le pasa tal cual
+// al servidor, y un `-e` ahí acababa como argumento de `saveme mcp` sin fijar
+// nada.
 func TestClaudeCodeIsACommand(t *testing.T) {
 	p := mustFind(t, "claude-code")
 	s, err := Build(p, Options{
@@ -122,11 +125,9 @@ func TestClaudeCodeIsACommand(t *testing.T) {
 	if s.Language != "sh" {
 		t.Errorf("language = %q, want sh", s.Language)
 	}
-	if !strings.HasPrefix(s.Body, "claude mcp add --scope user saveme -- /usr/local/bin/saveme mcp") {
-		t.Errorf("comando inesperado: %s", s.Body)
-	}
-	if !strings.Contains(s.Body, "-e SAVEME_ROOT=/tmp/ws") {
-		t.Errorf("falta el entorno: %s", s.Body)
+	want := "claude mcp add --scope user --env SAVEME_ROOT=/tmp/ws saveme -- /usr/local/bin/saveme mcp"
+	if s.Body != want {
+		t.Errorf("comando inesperado:\n got %s\nwant %s", s.Body, want)
 	}
 	if s.Writable {
 		t.Error("un proveedor por comando no debe declararse escribible")
@@ -501,6 +502,17 @@ func TestFormatosPorCliente(t *testing.T) {
 		{"kiro", "mcpServers", "", false, FormatJSON},
 		{"codex", "mcp_servers", "", false, FormatTOML},
 		{"claude-code", "mcpServers", "", false, FormatCLI},
+		{"copilot", "mcpServers", "stdio", false, FormatJSON},
+		{"kilocode", "mcp", "local", true, FormatJSON},
+		{"amp", "amp.mcpServers", "", false, FormatJSON},
+		{"zcode", "servers", "", false, FormatJSON},
+		{"omp", "mcpServers", "", false, FormatJSON},
+		{"pi", "mcpServers", "", false, FormatJSON},
+		{"antigravity", "mcpServers", "", false, FormatJSON},
+		{"kimi-code", "mcpServers", "", false, FormatJSON},
+		{"devin", "mcpServers", "", false, FormatJSON},
+		{"hermes", "mcp_servers", "", false, FormatCLI},
+		{"deepseek", "mcpServers", "", false, FormatManual},
 	}
 	for _, tc := range cases {
 		t.Run(tc.key, func(t *testing.T) {

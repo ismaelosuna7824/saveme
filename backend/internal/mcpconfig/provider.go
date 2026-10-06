@@ -15,6 +15,7 @@ package mcpconfig
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -35,11 +36,17 @@ const (
 	FormatJSON Format = "json"
 	// FormatTOML: un archivo TOML con una sección por servidor (Codex).
 	FormatTOML Format = "toml"
-	// FormatCLI: se configura con un comando, no editando un archivo (Claude Code).
+	// FormatCLI: se configura con un comando, no editando un archivo (Claude
+	// Code, Hermes).
 	FormatCLI Format = "cli"
-	// FormatManual: no se conoce el formato con suficiente confianza. Se le da al
-	// usuario el bloque genérico y su ruta para que lo coloque él.
+	// FormatManual: no se escribe solo, porque el formato no está confirmado o
+	// porque el archivo exige fusionar a mano (el YAML de DeepSeek Harness). Se le
+	// da al usuario el bloque y su ruta para que lo coloque él.
 	FormatManual Format = "manual"
+	// FormatDelegated: el cliente no tiene configuración de MCP propia; lanza
+	// otros agentes (Orca, T3 Code…) y cada uno carga la suya. Configurarlo es
+	// configurar esos.
+	FormatDelegated Format = "delegated"
 )
 
 // CommandStyle describe cómo espera el cliente el ejecutable y sus argumentos.
@@ -60,20 +67,37 @@ type Provider struct {
 	Format Format
 	// Path resuelve el archivo de configuración global. Puede ser nil.
 	Path func() string
-	// ServersKey es la clave o sección que agrupa los servidores.
+	// ServersKey es la clave o sección que agrupa los servidores. Es literal:
+	// Amp usa `amp.mcpServers`, con el punto dentro de la clave.
 	ServersKey string
+	// ServersParent, si no está vacío, es la clave de primer nivel que contiene a
+	// ServersKey. Z Code guarda los servidores en `mcp` → `servers`.
+	ServersParent string
 	// EntryType, si no está vacío, se emite como `"type"` en la entrada.
-	// OpenCode quiere "local"; VS Code quiere "stdio".
+	// OpenCode y Kilo quieren "local"; VS Code y Copilot, "stdio".
 	EntryType string
+	// Enabled emite `"enabled": true` en la entrada (OpenCode, Kilo).
+	Enabled bool
 	// Style indica dónde van los argumentos.
 	Style CommandStyle
 	// EnvKey es el nombre de la clave de variables de entorno, si la tiene.
 	EnvKey string
-	// EnvInline indica que el entorno se pasa con `-e VAR=valor` en el comando
-	// (Claude Code) en vez de dentro del bloque.
-	EnvInline bool
+	// CLIAdd arma el comando de alta de un cliente FormatCLI, entorno incluido.
+	CLIAdd func(opts Options) []string
+	// CLIRemove arma el comando de baja simétrico.
+	CLIRemove func(opts Options) []string
+	// CLINoEnv indica que el comando de alta no admite variables de entorno: si
+	// hacen falta, el usuario tiene que añadirlas a mano y se le avisa.
+	CLINoEnv bool
+	// Render sustituye el bloque JSON estándar de la vía manual cuando el cliente
+	// usa otro formato. RenderLanguage es su lenguaje, para el resaltado.
+	Render         func(opts Options) string
+	RenderLanguage string
+	// Via son las claves de los clientes cuya configuración usa un cliente
+	// FormatDelegated.
+	Via []string
 	// DetectDirs son directorios cuya existencia indica que el cliente está
-	// instalado.
+	// instalado (también sirven los `.app` de macOS, que son directorios).
 	DetectDirs []func() string
 	// DetectBins son ejecutables cuya presencia en el PATH indica lo mismo.
 	DetectBins []string
@@ -106,6 +130,101 @@ func configDir(parts ...string) func() string {
 	}
 }
 
+// under devuelve una ruta dentro de la carpeta que fija la variable de entorno
+// envVar o, si no está, dentro de la carpeta por defecto. Varios clientes dejan
+// mover su carpeta así (COPILOT_HOME, HERMES_HOME, DSH_HOME…), y escribir en la
+// de por defecto cuando el usuario la movió sería escribir donde nadie lee.
+func under(envVar string, base func() string, parts ...string) func() string {
+	return func() string {
+		dir := strings.TrimSpace(os.Getenv(envVar))
+		if dir == "" {
+			dir = base()
+		}
+		if dir == "" {
+			return ""
+		}
+		return filepath.Join(append([]string{dir}, parts...)...)
+	}
+}
+
+// firstExisting devuelve el primer candidato que existe y, si no existe
+// ninguno, el último. Sirve para clientes que aceptan `.jsonc` y `.json`: si el
+// usuario ya tiene uno, es ese el que hay que tocar; si no tiene ninguno, se crea
+// el que crea el propio cliente.
+func firstExisting(candidates ...func() string) func() string {
+	return func() string {
+		last := ""
+		for _, candidate := range candidates {
+			last = candidate()
+			if last == "" {
+				continue
+			}
+			if _, err := os.Stat(last); err == nil {
+				return last
+			}
+		}
+		return last
+	}
+}
+
+// macApp devuelve la ruta de una aplicación de macOS, o "" en otros sistemas.
+func macApp(name string) func() string {
+	return func() string {
+		if runtime.GOOS != "darwin" {
+			return ""
+		}
+		return filepath.Join("/Applications", name)
+	}
+}
+
+// hermesHome es la carpeta de Hermes: `%LOCALAPPDATA%\hermes` en Windows y
+// `~/.hermes` en el resto.
+func hermesHome() string {
+	if runtime.GOOS == "windows" {
+		if dir := os.Getenv("LOCALAPPDATA"); dir != "" {
+			return filepath.Join(dir, "hermes")
+		}
+	}
+	return home(".hermes")()
+}
+
+// devinHome es la carpeta de configuración de Devin: `%APPDATA%\devin` en
+// Windows y `~/.config/devin` en el resto (también en macOS, que aquí no usa
+// Library/Application Support).
+func devinHome() string {
+	if runtime.GOOS == "windows" {
+		return configDir("devin")()
+	}
+	return home(".config", "devin")()
+}
+
+// mcpServersJSON es la forma más común: un JSON con `mcpServers` y entradas
+// `command` + `args` + `env`. La comparten Claude Desktop, Cursor, Gemini CLI,
+// Qwen, Kiro, omp, pi, Antigravity, Kimi Code, Devin y otros.
+func mcpServersJSON(p Provider) Provider {
+	p.Format = FormatJSON
+	if p.ServersKey == "" {
+		p.ServersKey = "mcpServers"
+	}
+	p.Style = CommandSplit
+	if p.EnvKey == "" {
+		p.EnvKey = "env"
+	}
+	return p
+}
+
+// delegated arma un cliente sin configuración de MCP propia: lanza los agentes
+// de `via` y cada uno carga la suya.
+func delegated(p Provider, via ...string) Provider {
+	p.Format = FormatDelegated
+	p.Via = via
+	p.Verified = true
+	return p
+}
+
+// Las rutas y formatos de esta tabla salen de la documentación oficial de cada
+// cliente o de su código fuente (revisados en octubre de 2026). Los que siguen
+// con `Verified: false` son los que no se han podido confirmar.
 func defaultProviders() []Provider {
 	return []Provider{
 		{
@@ -119,6 +238,7 @@ func defaultProviders() []Provider {
 			DetectBins: []string{"opencode"},
 			ServersKey: "mcp",
 			EntryType:  "local",
+			Enabled:    true,
 			Style:      CommandArray,
 			EnvKey:     "environment",
 			Verified:   true,
@@ -150,96 +270,61 @@ func defaultProviders() []Provider {
 			DetectBins: []string{"claude"},
 			ServersKey: "mcpServers",
 			EnvKey:     "env",
-			EnvInline:  true,
-			Verified:   true,
+			// Las opciones van antes del nombre: lo que sigue a `--` se le pasa
+			// tal cual al servidor, así que un `--env` puesto detrás acabaría como
+			// argumento de `saveme mcp` y el entorno no se fijaría.
+			CLIAdd: func(opts Options) []string {
+				argv := []string{"claude", "mcp", "add", "--scope", "user"}
+				for _, k := range sortedKeys(opts.Env) {
+					argv = append(argv, "--env", k+"="+opts.Env[k])
+				}
+				argv = append(argv, opts.Name, "--", opts.Command)
+				return append(argv, opts.Args...)
+			},
+			CLIRemove: func(opts Options) []string {
+				return []string{"claude", "mcp", "remove", "--scope", "user", opts.Name}
+			},
+			Verified: true,
 			Note: "Claude Code tiene tres ámbitos: local (solo este proyecto), project (se\n" +
 				"# comparte por git) y user (todos tus proyectos). Para que funcione en\n" +
 				"# cualquier proyecto, este último es el que quieres. Se configura con su\n" +
 				"# propio comando, no editando ~/.claude.json, que es su archivo de estado.",
 		},
-		{
+		mcpServersJSON(Provider{
 			Key:        "claude-desktop",
 			Name:       "Claude Desktop",
-			Format:     FormatJSON,
 			Path:       configDir("Claude", "claude_desktop_config.json"),
 			DetectDirs: []func() string{configDir("Claude")},
-			ServersKey: "mcpServers",
-			Style:      CommandSplit,
-			EnvKey:     "env",
 			Verified:   true,
-		},
-		{
+		}),
+		mcpServersJSON(Provider{
 			Key:        "cursor",
 			Name:       "Cursor",
-			Format:     FormatJSON,
 			Path:       home(".cursor", "mcp.json"),
 			DetectDirs: []func() string{home(".cursor")},
 			DetectBins: []string{"cursor"},
+			Verified:   true,
+		}),
+		{
+			Key:        "copilot",
+			Name:       "GitHub Copilot (CLI y VS Code)",
+			Format:     FormatJSON,
+			Path:       under("COPILOT_HOME", home(".copilot"), "mcp-config.json"),
+			DetectDirs: []func() string{home(".copilot")},
+			DetectBins: []string{"copilot"},
 			ServersKey: "mcpServers",
+			EntryType:  "stdio",
 			Style:      CommandSplit,
 			EnvKey:     "env",
 			Verified:   true,
-		},
-		{
-			Key:        "windsurf",
-			Name:       "Windsurf",
-			Format:     FormatJSON,
-			Path:       home(".codeium", "windsurf", "mcp_config.json"),
-			DetectDirs: []func() string{home(".codeium", "windsurf")},
-			ServersKey: "mcpServers",
-			Style:      CommandSplit,
-			EnvKey:     "env",
-			Verified:   false,
-			Note: "La ruta y el formato salen de la convención de Windsurf, no de\n" +
-				"# documentación que haya podido confirmar. Si no lo detecta, revisa su doc.",
-		},
-		{
-			Key:        "gemini-cli",
-			Name:       "Gemini CLI",
-			Format:     FormatJSON,
-			Path:       home(".gemini", "settings.json"),
-			DetectDirs: []func() string{home(".gemini")},
-			DetectBins: []string{"gemini"},
-			ServersKey: "mcpServers",
-			Style:      CommandSplit,
-			EnvKey:     "env",
-			Verified:   false,
-			Note: "La ruta y el formato salen de la convención de Gemini CLI, no de\n" +
-				"# documentación que haya podido confirmar. Si no lo detecta, revisa su doc.",
-		},
-		{
-			Key:        "qwen",
-			Name:       "Qwen Code",
-			Format:     FormatJSON,
-			Path:       home(".qwen", "settings.json"),
-			DetectDirs: []func() string{home(".qwen")},
-			DetectBins: []string{"qwen"},
-			ServersKey: "mcpServers",
-			Style:      CommandSplit,
-			EnvKey:     "env",
-			Verified:   false,
-			Note: "La ruta y el formato salen de la convención de Qwen Code, no de\n" +
-				"# documentación que haya podido confirmar. Si no lo detecta, revisa su doc.",
-		},
-		{
-			Key:        "kiro",
-			Name:       "Kiro",
-			Format:     FormatJSON,
-			Path:       home(".kiro", "settings", "mcp.json"),
-			DetectDirs: []func() string{home(".kiro")},
-			DetectBins: []string{"kiro"},
-			ServersKey: "mcpServers",
-			Style:      CommandSplit,
-			EnvKey:     "env",
-			Verified:   false,
-			Note: "La ruta y el formato salen de la convención de Kiro, no de\n" +
-				"# documentación que haya podido confirmar. Si no lo detecta, revisa su doc.",
+			Note: "Lo leen GitHub Copilot CLI y VS Code: es el destino «Copilot Global» que\n" +
+				"# VS Code recomienda. Si defines COPILOT_HOME, el archivo va en esa carpeta.",
 		},
 		{
 			Key:        "vscode-copilot",
-			Name:       "VS Code (Copilot)",
+			Name:       "VS Code (perfil de usuario)",
 			Format:     FormatJSON,
-			Path:       home(".config", "Code", "User", "mcp.json"),
+			Path:       configDir("Code", "User", "mcp.json"),
 			DetectDirs: []func() string{configDir("Code", "User")},
 			DetectBins: []string{"code"},
 			// VS Code es el raro: la clave es `servers` y cada entrada lleva
@@ -249,23 +334,222 @@ func defaultProviders() []Provider {
 			Style:      CommandSplit,
 			EnvKey:     "env",
 			Verified:   false,
-			Note: "VS Code usa `servers` en vez de `mcpServers` y exige `type: \"stdio\"`.\n" +
-				"# Este bloque es para tu configuración de usuario; también puedes ponerlo\n" +
-				"# en .vscode/mcp.json dentro de un proyecto concreto.",
+			Note: "VS Code usa `servers` en vez de `mcpServers` y exige `type: \"stdio\"`. VS Code\n" +
+				"# ya marca este destino como antiguo y recomienda el de GitHub Copilot\n" +
+				"# (~/.copilot/mcp-config.json): usa ese si puedes.",
+		},
+		mcpServersJSON(Provider{
+			Key:        "gemini-cli",
+			Name:       "Gemini CLI",
+			Path:       home(".gemini", "settings.json"),
+			DetectDirs: []func() string{home(".gemini")},
+			DetectBins: []string{"gemini"},
+			Verified:   true,
+		}),
+		mcpServersJSON(Provider{
+			Key:  "antigravity",
+			Name: "Antigravity (app, IDE y CLI)",
+			Path: home(".gemini", "config", "mcp_config.json"),
+			DetectDirs: []func() string{
+				home(".gemini", "antigravity-cli"),
+				home(".gemini", "antigravity"),
+				macApp("Antigravity.app"),
+				macApp("Antigravity IDE.app"),
+			},
+			DetectBins: []string{"agy"},
+			Verified:   true,
+			Note:       "Un solo archivo para Antigravity, Antigravity IDE y su CLI (`agy`).",
+		}),
+		mcpServersJSON(Provider{
+			Key:        "qwen",
+			Name:       "Qwen Code",
+			Path:       home(".qwen", "settings.json"),
+			DetectDirs: []func() string{home(".qwen")},
+			DetectBins: []string{"qwen"},
+			Verified:   true,
+		}),
+		mcpServersJSON(Provider{
+			Key:        "kiro",
+			Name:       "Kiro",
+			Path:       home(".kiro", "settings", "mcp.json"),
+			DetectDirs: []func() string{home(".kiro")},
+			DetectBins: []string{"kiro", "kiro-cli"},
+			Verified:   true,
+		}),
+		mcpServersJSON(Provider{
+			Key:        "omp",
+			Name:       "omp",
+			Path:       home(".omp", "agent", "mcp.json"),
+			DetectDirs: []func() string{home(".omp")},
+			DetectBins: []string{"omp"},
+			Verified:   true,
+			Note: "omp también lee la configuración de Claude Code, Codex, Gemini CLI, OpenCode\n" +
+				"# y Cursor. Si SaveMe ya está en alguno no sale repetido: gana este archivo.",
+		}),
+		mcpServersJSON(Provider{
+			Key:        "pi",
+			Name:       "pi",
+			Path:       home(".pi", "agent", "mcp.json"),
+			DetectDirs: []func() string{home(".pi", "agent")},
+			DetectBins: []string{"pi"},
+			Verified:   true,
+			Note: "El MCP viene integrado en pi desde la 0.99. Si usas una extensión que\n" +
+				"# registra /mcp (como pi-mcp-adapter), esa sustituye a la integrada y este\n" +
+				"# archivo no se lee.",
+		}),
+		{
+			Key:    "kilocode",
+			Name:   "Kilo Code (CLI y extensiones)",
+			Format: FormatJSON,
+			// La CLI escribe en el primero que exista de estos y crea kilo.json si
+			// no hay ninguno; se hace lo mismo.
+			Path: firstExisting(
+				under("KILO_CONFIG_DIR", home(".config", "kilo"), "kilo.jsonc"),
+				under("KILO_CONFIG_DIR", home(".config", "kilo"), "kilo.json"),
+			),
+			DetectDirs: []func() string{home(".config", "kilo"), home(".kilocode")},
+			DetectBins: []string{"kilo"},
+			ServersKey: "mcp",
+			EntryType:  "local",
+			Enabled:    true,
+			Style:      CommandArray,
+			EnvKey:     "environment",
+			Verified:   true,
+			Note: "La CLI y las extensiones de VS Code y JetBrains comparten este archivo. Como\n" +
+				"# en OpenCode, los argumentos van dentro de `command` y el entorno en\n" +
+				"# `environment`. Si el archivo tiene comentarios, se te da el bloque para pegar.",
 		},
 		{
-			Key:        "kilocode",
-			Name:       "Kilo Code",
-			Format:     FormatManual,
-			DetectDirs: []func() string{home(".kilocode")},
-			ServersKey: "mcpServers",
+			Key:  "amp",
+			Name: "Amp",
+			Path: firstExisting(
+				home(".config", "amp", "settings.jsonc"),
+				home(".config", "amp", "settings.json"),
+			),
+			Format:     FormatJSON,
+			DetectDirs: []func() string{home(".config", "amp")},
+			DetectBins: []string{"amp"},
+			ServersKey: "amp.mcpServers",
 			Style:      CommandSplit,
 			EnvKey:     "env",
-			Verified:   false,
-			Note: "Kilo Code es una extensión de VS Code y guarda sus MCP en el almacén\n" +
-				"# interno de la extensión, que cambia entre versiones. Se te da el bloque\n" +
-				"# estándar para que lo pegues donde corresponda.",
+			Verified:   true,
+			Note: "Amp usa la clave `amp.mcpServers` tal cual, con el punto dentro. Si tu\n" +
+				"# archivo tiene comentarios, se te da el bloque para pegar.",
 		},
+		{
+			Key:           "zcode",
+			Name:          "Z Code",
+			Format:        FormatJSON,
+			Path:          home(".zcode", "cli", "config.json"),
+			DetectDirs:    []func() string{home(".zcode"), macApp("ZCode.app")},
+			ServersParent: "mcp",
+			ServersKey:    "servers",
+			Style:         CommandSplit,
+			EnvKey:        "env",
+			Verified:      true,
+			Note: "Los servidores van dentro de `mcp.servers`. Si este archivo tiene alguno,\n" +
+				"# Z Code deja de leer ~/.agents/mcp.json.",
+		},
+		mcpServersJSON(Provider{
+			Key:        "kimi-code",
+			Name:       "Kimi Code",
+			Path:       under("KIMI_CODE_HOME", home(".kimi-code"), "mcp.json"),
+			DetectDirs: []func() string{home(".kimi-code")},
+			Verified:   true,
+			Note: "Es el archivo de Kimi Code CLI. El Kimi CLI antiguo (~/.kimi) está archivado;\n" +
+				"# `kimi migrate` pasa su configuración a este.",
+		}),
+		mcpServersJSON(Provider{
+			Key:        "devin",
+			Name:       "Devin (CLI y Desktop)",
+			Path:       func() string { return filepath.Join(devinHome(), "mcp_config.json") },
+			DetectDirs: []func() string{devinHome, macApp("Devin.app")},
+			DetectBins: []string{"devin"},
+			Verified:   true,
+			Note: "Lo comparten Devin CLI y Devin Desktop (antes Windsurf). Devin en la nube no\n" +
+				"# puede lanzar un programa de tu equipo, así que ahí no aplica.",
+		}),
+		mcpServersJSON(Provider{
+			Key:        "windsurf",
+			Name:       "Windsurf (versiones antiguas)",
+			Path:       home(".codeium", "windsurf", "mcp_config.json"),
+			DetectDirs: []func() string{home(".codeium", "windsurf"), macApp("Windsurf.app")},
+			DetectBins: []string{"windsurf"},
+			Verified:   false,
+			Note: "Windsurf ahora es Devin Desktop, que lee la configuración de «Devin (CLI y\n" +
+				"# Desktop)». Esta ruta solo sirve en instalaciones antiguas; Devin la sigue\n" +
+				"# importando, así que no estorba.",
+		}),
+		{
+			Key:        "hermes",
+			Name:       "Hermes Agent",
+			Format:     FormatCLI,
+			Path:       under("HERMES_HOME", hermesHome, "config.yaml"),
+			DetectDirs: []func() string{hermesHome, macApp("Hermes.app")},
+			DetectBins: []string{"hermes"},
+			ServersKey: "mcp_servers",
+			EnvKey:     "env",
+			// `--args` tiene que ir el último: se traga todo lo que viene detrás.
+			CLIAdd: func(opts Options) []string {
+				argv := []string{"hermes", "mcp", "add", opts.Name, "--command", opts.Command, "--args"}
+				return append(argv, opts.Args...)
+			},
+			CLIRemove: func(opts Options) []string {
+				return []string{"hermes", "mcp", "remove", opts.Name}
+			},
+			CLINoEnv: true,
+			Verified: true,
+			Note: "Hermes guarda su configuración en YAML y se configura con su propio comando.\n" +
+				"# El comando no admite variables de entorno: si hace falta alguna, añádela a\n" +
+				"# mano en mcp_servers.saveme.env de ~/.hermes/config.yaml.",
+		},
+		{
+			Key:            "deepseek",
+			Name:           "DeepSeek Harness",
+			Format:         FormatManual,
+			Path:           under("DSH_HOME", home(".dsh"), "cordis.patch.yml"),
+			DetectDirs:     []func() string{home(".dsh")},
+			DetectBins:     []string{"dsh"},
+			ServersKey:     "mcpServers",
+			Render:         renderDeepSeek,
+			RenderLanguage: "yaml",
+			Verified:       true,
+			Note: "DeepSeek Harness registra cada servidor como una fila de su plugin MCP en\n" +
+				"# cordis.patch.yml. No se escribe solo: ese archivo puede tener otras\n" +
+				"# personalizaciones y la fila hay que fusionarla, no sustituir el archivo.",
+		},
+		delegated(Provider{
+			Key:        "orca",
+			Name:       "Orca",
+			DetectDirs: []func() string{home(".orca"), macApp("Orca.app")},
+			DetectBins: []string{"orca", "orca-ide"},
+			Note: "Orca lanza otros agentes y cada uno carga su propia configuración de MCP:\n" +
+				"# configura SaveMe en los que uses dentro de Orca.",
+		}, "claude-code", "codex", "opencode", "gemini-cli", "cursor", "pi", "omp"),
+		delegated(Provider{
+			Key:        "monocode",
+			Name:       "Mono",
+			DetectDirs: []func() string{macApp("MonoCode.app")},
+			Note: "Mono lanza otros agentes y cada uno carga su propia configuración de MCP:\n" +
+				"# configura SaveMe en los que uses dentro de Mono.",
+		}, "claude-code", "codex", "opencode", "cursor", "pi", "omp", "hermes", "antigravity"),
+		delegated(Provider{
+			Key:        "t3code",
+			Name:       "T3 Code",
+			DetectDirs: []func() string{macApp("T3 Code.app")},
+			DetectBins: []string{"t3"},
+			Note: "T3 Code usa la configuración de los agentes que controla (Codex, Claude\n" +
+				"# Code…): configura SaveMe en esos.",
+		}, "codex", "claude-code", "cursor", "opencode", "antigravity"),
+		delegated(Provider{
+			Key:        "omnigent",
+			Name:       "Omnigent",
+			DetectDirs: []func() string{home(".omnigent")},
+			DetectBins: []string{"omni", "omnigent"},
+			Note: "Omnigent no tiene un registro global de MCP: los servidores se declaran por\n" +
+				"# agente en su YAML (`tools:` con `type: mcp`). Los agentes que envuelve\n" +
+				"# cargan su propia configuración, así que basta con configurar esos.",
+		}, "claude-code", "codex", "opencode", "copilot"),
 		{
 			Key:        "generic",
 			Name:       "Otro agente compatible con MCP",
@@ -278,6 +562,36 @@ func defaultProviders() []Provider {
 				"# revisa su documentación.",
 		},
 	}
+}
+
+// renderDeepSeek arma la fila del plugin MCP de DeepSeek Harness.
+//
+// Los valores van en JSON, que también es YAML válido: así una ruta con espacios
+// o dos puntos no rompe el archivo, y no hace falta una librería de YAML para
+// escribir cinco líneas. `serverName` tiene que casar con [A-Za-z0-9_-]{1,32},
+// que el nombre por defecto cumple.
+func renderDeepSeek(opts Options) string {
+	var b strings.Builder
+	b.WriteString("- insert:\n")
+	fmt.Fprintf(&b, "    - id: mcp-%s\n", opts.Name)
+	b.WriteString("      name: '@deepseek-ai/dsh-mcp-client'\n")
+	b.WriteString("      config:\n")
+	fmt.Fprintf(&b, "        serverName: %s\n", jsonInline(opts.Name))
+	b.WriteString("        transport: stdio\n")
+	fmt.Fprintf(&b, "        command: %s\n", jsonInline(opts.Command))
+	fmt.Fprintf(&b, "        args: %s\n", jsonInline(opts.Args))
+	env := opts.Env
+	if env == nil {
+		env = map[string]string{}
+	}
+	fmt.Fprintf(&b, "        env: %s\n", jsonInline(env))
+	return b.String()
+}
+
+// jsonInline serializa un valor en una línea. Con tipos simples no puede fallar.
+func jsonInline(v any) string {
+	raw, _ := json.Marshal(v)
+	return string(raw)
 }
 
 // Providers devuelve la tabla de clientes soportados.
@@ -371,11 +685,18 @@ func Build(p Provider, opts Options) (Snippet, error) {
 				"si el cliente no lo detecta, revisa su doc o pásale otra ruta con --path.")
 		}
 	}
+	if p.Format == FormatCLI && p.CLINoEnv && len(opts.Env) > 0 {
+		s.Warnings = append(s.Warnings, fmt.Sprintf(
+			"El comando de %s no admite variables de entorno. Añade a mano %s en la "+
+				"entrada «%s» de su configuración.", p.Name, strings.Join(sortedKeys(opts.Env), ", "), opts.Name))
+	}
 
 	switch p.Format {
 	case FormatCLI:
-		s.Writable = false
-		s.Body = buildCLI(p, opts)
+		if p.CLIAdd == nil {
+			return Snippet{}, fmt.Errorf("%s se configura por comando, pero no tiene comando de alta", p.Key)
+		}
+		s.Body = shellJoin(p.CLIAdd(opts))
 		s.Language = "sh"
 	case FormatTOML:
 		s.Writable = true
@@ -384,12 +705,31 @@ func Build(p Provider, opts Options) (Snippet, error) {
 		s.Writable = true
 		s.Body = buildJSON(p, opts)
 	case FormatManual:
-		s.Writable = false
 		s.Body = buildManual(p, opts)
+		if p.Render != nil {
+			s.Language = p.RenderLanguage
+		}
+	case FormatDelegated:
+		s.Body = delegatedMessage(p)
+		s.Language = "text"
 	default:
 		return Snippet{}, fmt.Errorf("formato desconocido: %q", p.Format)
 	}
 	return s, nil
+}
+
+// delegatedMessage explica qué hay que configurar en lugar de un cliente que no
+// tiene configuración de MCP propia.
+func delegatedMessage(p Provider) string {
+	names := make([]string, 0, len(p.Via))
+	for _, key := range p.Via {
+		if via, ok := Find(key); ok {
+			names = append(names, via.Name)
+		}
+	}
+	return fmt.Sprintf("%s no tiene configuración de MCP propia: lanza otros agentes y cada uno "+
+		"carga la suya.\nConfigura SaveMe en los que uses con %s: %s.",
+		p.Name, p.Name, strings.Join(names, ", "))
 }
 
 // serverEntry arma la entrada del servidor con la forma que espera el cliente.
@@ -406,24 +746,47 @@ func serverEntry(p Provider, opts Options) map[string]any {
 	if p.EntryType != "" {
 		entry["type"] = p.EntryType
 	}
-	if p.EnvKey != "" && len(opts.Env) > 0 && !p.EnvInline {
+	if p.EnvKey != "" && len(opts.Env) > 0 {
 		env := map[string]any{}
 		for k, v := range opts.Env {
 			env[k] = v
 		}
 		entry[p.EnvKey] = env
 	}
-	if p.Key == "opencode" {
+	if p.Enabled {
 		entry["enabled"] = true
 	}
 	return entry
 }
 
+// serversLabel nombra la clave de los servidores tal como la verá el usuario en
+// su archivo: `mcpServers`, o `mcp.servers` cuando va anidada.
+func serversLabel(p Provider) string {
+	if p.ServersParent == "" {
+		return p.ServersKey
+	}
+	return p.ServersParent + "." + p.ServersKey
+}
+
+// serversHolder devuelve el objeto que contiene la clave de servidores: el
+// documento entero o, si va anidada, su clave padre. Con create, crea el padre si
+// no existe; sin él, devuelve nil.
+func serversHolder(p Provider, root map[string]any, create bool) map[string]any {
+	if p.ServersParent == "" {
+		return root
+	}
+	parent, _ := root[p.ServersParent].(map[string]any)
+	if parent == nil && create {
+		parent = map[string]any{}
+		root[p.ServersParent] = parent
+	}
+	return parent
+}
+
 func buildJSON(p Provider, opts Options) string {
-	doc := map[string]any{
-		p.ServersKey: map[string]any{
-			opts.Name: serverEntry(p, opts),
-		},
+	doc := map[string]any{}
+	serversHolder(p, doc, true)[p.ServersKey] = map[string]any{
+		opts.Name: serverEntry(p, opts),
 	}
 	if p.Key == "opencode" {
 		doc["$schema"] = "https://opencode.ai/config.json"
@@ -453,24 +816,30 @@ func buildTOML(p Provider, opts Options) string {
 	return b.String()
 }
 
-func buildCLI(p Provider, opts Options) string {
-	parts := []string{"claude", "mcp", "add", "--scope", "user", opts.Name, "--", opts.Command}
-	parts = append(parts, opts.Args...)
-	quoted := make([]string, len(parts))
-	for i, part := range parts {
+// shellJoin junta un comando en una línea que se puede pegar en la terminal.
+func shellJoin(argv []string) string {
+	quoted := make([]string, len(argv))
+	for i, part := range argv {
 		quoted[i] = shellQuote(part)
 	}
-	var b strings.Builder
-	b.WriteString(strings.Join(quoted, " "))
-	for _, k := range sortedKeys(opts.Env) {
-		fmt.Fprintf(&b, " \\\n  -e %s=%s", k, shellQuote(opts.Env[k]))
-	}
-	return b.String()
+	return strings.Join(quoted, " ")
 }
 
-// buildManual da el bloque estándar para los clientes cuyo formato no está
-// confirmado, con su ruta habitual como pista.
+// buildManual da el bloque para los clientes que no se escriben solos, con su
+// ruta habitual como pista: el formato propio del cliente si lo tiene (Render),
+// o el bloque `mcpServers` estándar.
 func buildManual(p Provider, opts Options) string {
+	var b strings.Builder
+	if p.Path != nil {
+		if path := p.Path(); path != "" {
+			fmt.Fprintf(&b, "# archivo habitual de este cliente: %s\n", path)
+		}
+	}
+	if p.Render != nil {
+		b.WriteString(p.Render(opts))
+		return b.String()
+	}
+
 	entry := map[string]any{
 		"command": opts.Command,
 		"args":    opts.Args,
@@ -482,16 +851,81 @@ func buildManual(p Provider, opts Options) string {
 		}
 		entry[p.EnvKey] = env
 	}
-	doc := map[string]any{p.ServersKey: map[string]any{opts.Name: entry}}
-
-	var b strings.Builder
-	if p.Path != nil {
-		if path := p.Path(); path != "" {
-			fmt.Fprintf(&b, "# archivo habitual de este cliente: %s\n", path)
-		}
-	}
-	b.WriteString(renderJSON(doc))
+	b.WriteString(renderJSON(map[string]any{p.ServersKey: map[string]any{opts.Name: entry}}))
 	return b.String()
+}
+
+// CustomDef describe un cliente que SaveMe no conoce, con los datos que da el
+// usuario: dónde está su archivo y qué forma tiene la entrada.
+type CustomDef struct {
+	// Path es el archivo de configuración. Obligatorio y absoluto (se admite `~`).
+	Path string `json:"path"`
+	// ServersKey es la clave que agrupa los servidores. Por defecto `mcpServers`.
+	ServersKey string `json:"servers_key,omitempty"`
+	// EntryType, si no está vacío, se emite como `type` (`stdio`, `local`…).
+	EntryType string `json:"entry_type,omitempty"`
+	// CommandArray pone el ejecutable y sus argumentos juntos en `command`, como
+	// OpenCode, en vez de `command` + `args`.
+	CommandArray bool `json:"command_array,omitempty"`
+	// EnvKey es la clave del entorno. Por defecto `env`.
+	EnvKey string `json:"env_key,omitempty"`
+}
+
+// Custom arma un proveedor a partir de lo que describe el usuario.
+//
+// Es la vía para los clientes que no están en la tabla: no hace falta esperar a
+// una versión nueva de SaveMe para escribir en ellos. El formato se deduce de la
+// extensión —`.toml` es TOML; cualquier otra cosa, JSON— y se escribe con las
+// mismas garantías que los conocidos: copia de seguridad, no se pisa un JSONC y
+// no se toca nada si ya estaba igual.
+func Custom(def CustomDef) (Provider, error) {
+	path := strings.TrimSpace(def.Path)
+	if path == "" {
+		return Provider{}, errors.New("falta el archivo de configuración del cliente")
+	}
+	if path == "~" || strings.HasPrefix(path, "~/") {
+		base, err := os.UserHomeDir()
+		if err != nil {
+			return Provider{}, fmt.Errorf("no pude resolver ~: %w", err)
+		}
+		path = filepath.Join(base, strings.TrimPrefix(path, "~"))
+	}
+	if !filepath.IsAbs(path) {
+		return Provider{}, fmt.Errorf("la ruta tiene que ser absoluta: %s", def.Path)
+	}
+	path = filepath.Clean(path)
+
+	serversKey := strings.TrimSpace(def.ServersKey)
+	if serversKey == "" {
+		serversKey = "mcpServers"
+	}
+	envKey := strings.TrimSpace(def.EnvKey)
+	if envKey == "" {
+		envKey = "env"
+	}
+
+	p := Provider{
+		Key:        "custom",
+		Name:       "Personalizado",
+		Format:     FormatJSON,
+		Path:       func() string { return path },
+		ServersKey: serversKey,
+		EntryType:  strings.TrimSpace(def.EntryType),
+		Style:      CommandSplit,
+		EnvKey:     envKey,
+		// Lo describe el usuario: no hay convención de nadie que confirmar.
+		Verified: true,
+	}
+	if def.CommandArray {
+		p.Style = CommandArray
+	}
+	if strings.EqualFold(filepath.Ext(path), ".toml") {
+		if def.CommandArray {
+			return Provider{}, errors.New("en TOML solo se admite `command` + `args`")
+		}
+		p.Format = FormatTOML
+	}
+	return p, nil
 }
 
 func shellQuote(s string) string {
@@ -773,6 +1207,16 @@ func StatusOf(p Provider, name string) Status {
 	if st.Exists {
 		st.Installed = true
 	}
+	// Un cliente que delega cuenta como configurado si lo está alguno de los
+	// agentes que lanza: es ahí donde vive la entrada que va a usar.
+	if p.Format == FormatDelegated {
+		for _, key := range p.Via {
+			if via, ok := Find(key); ok && StatusOf(via, name).Configured {
+				st.Configured = true
+				break
+			}
+		}
+	}
 	return st
 }
 
@@ -780,12 +1224,14 @@ func StatusOf(p Provider, name string) Status {
 //
 // Es textual a propósito: parsear la configuración de cada cliente exigiría
 // replicar sus reglas de fusión (OpenCode, por ejemplo, combina varios archivos),
-// y para un diagnóstico basta con saber si el nombre aparece.
+// y para un diagnóstico basta con saber si el nombre aparece. Cubre JSON
+// (`"saveme"`), TOML (`[mcp_servers.saveme]`) y YAML (`saveme:`).
 func containsServer(data []byte, name string) bool {
 	text := string(data)
 	return strings.Contains(text, `"`+name+`"`) ||
 		strings.Contains(text, "."+name+"]") ||
-		strings.Contains(text, name+" ")
+		strings.Contains(text, name+" ") ||
+		strings.Contains(text, name+":")
 }
 
 // ProviderReport es lo que se le enseña al usuario en el onboarding.

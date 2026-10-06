@@ -59,7 +59,8 @@ func Apply(p Provider, opts Options) (WriteResult, error) {
 	// escribe son lo mismo por construcción, no por casualidad.
 	opts = WithDefaults(opts)
 
-	if p.Format == FormatCLI {
+	switch p.Format {
+	case FormatCLI:
 		snippet, err := Build(p, opts)
 		if err != nil {
 			return WriteResult{}, err
@@ -67,9 +68,11 @@ func Apply(p Provider, opts Options) (WriteResult, error) {
 		return WriteResult{
 			Action:  ActionManual,
 			Command: snippet.Body,
-			Message: "Claude Code se configura con un comando; ejecútalo tal cual. " +
-				"No se toca ~/.claude.json porque es su archivo de estado interno.",
+			Message: p.Name + " se configura con su propio comando; ejecútalo tal cual. " +
+				"No se edita su archivo a mano para no saltarse sus propias reglas.",
 		}, nil
+	case FormatDelegated:
+		return WriteResult{Action: ActionManual, Message: delegatedMessage(p)}, nil
 	}
 
 	path := opts.Path
@@ -93,14 +96,15 @@ func Apply(p Provider, opts Options) (WriteResult, error) {
 	case FormatTOML:
 		return applyTOML(p, opts, path, existing, fileExists)
 	case FormatManual:
-		// No se escribe a ciegas un formato que no está confirmado: se le da el
-		// bloque al usuario y decide él dónde va.
-		return WriteResult{
-			Path:   path,
-			Action: ActionManual,
-			Message: "No tengo confirmado el formato de configuración de este cliente, " +
-				"así que no lo toco. Copia el bloque y pégalo donde corresponda.",
-		}, nil
+		// No se escribe a ciegas: o el formato no está confirmado, o el archivo
+		// exige fusionar a mano. Se le da el bloque al usuario y decide él.
+		message := "No tengo confirmado el formato de configuración de este cliente, " +
+			"así que no lo toco. Copia el bloque y pégalo donde corresponda."
+		if p.Verified {
+			message = "Este archivo puede tener otras personalizaciones y el bloque hay " +
+				"que fusionarlo con lo que haya, así que no lo toco. Añádelo tú."
+		}
+		return WriteResult{Path: path, Action: ActionManual, Message: message}, nil
 	default:
 		return WriteResult{}, fmt.Errorf("formato no soportado: %q", p.Format)
 	}
@@ -131,7 +135,7 @@ func applyJSON(p Provider, opts Options, path string, existing []byte, fileExist
 			Action: ActionManual,
 			Message: "Tu archivo tiene comentarios (JSONC) y reescribirlo te los borraría, " +
 				"así que no lo toco. Pega el bloque a mano dentro de la clave \"" +
-				p.ServersKey + "\".",
+				serversLabel(p) + "\".",
 		}, nil
 	}
 
@@ -143,7 +147,8 @@ func applyJSON(p Provider, opts Options, path string, existing []byte, fileExist
 		}
 	}
 
-	servers, _ := root[p.ServersKey].(map[string]any)
+	holder := serversHolder(p, root, true)
+	servers, _ := holder[p.ServersKey].(map[string]any)
 	if servers == nil {
 		servers = map[string]any{}
 	}
@@ -167,7 +172,7 @@ func applyJSON(p Provider, opts Options, path string, existing []byte, fileExist
 	}
 
 	servers[opts.Name] = entry
-	root[p.ServersKey] = servers
+	holder[p.ServersKey] = servers
 
 	data, err := json.MarshalIndent(root, "", "  ")
 	if err != nil {

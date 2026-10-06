@@ -82,34 +82,63 @@ toca el archivo.
 | Claude Code ✓ | `claude-code` | `~/.claude.json` | comando `claude mcp add --scope user` | comando |
 | Claude Desktop ✓ | `claude-desktop` | `~/Library/Application Support/Claude/claude_desktop_config.json` | clave `mcpServers` | sí |
 | Cursor ✓ | `cursor` | `~/.cursor/mcp.json` | clave `mcpServers` | sí |
-| Windsurf | `windsurf` | `~/.codeium/windsurf/mcp_config.json` | clave `mcpServers` | sí |
-| Gemini CLI | `gemini-cli` | `~/.gemini/settings.json` | clave `mcpServers` | sí |
-| Qwen Code | `qwen` | `~/.qwen/settings.json` | clave `mcpServers` | sí |
-| Kiro | `kiro` | `~/.kiro/settings/mcp.json` | clave `mcpServers` | sí |
-| VS Code (Copilot) | `vscode-copilot` | `~/.config/Code/User/mcp.json` | clave **`servers`** y `type: "stdio"` | sí |
-| Kilo Code | `kilocode` | almacén interno de la extensión | sin confirmar | no, manual |
+| GitHub Copilot (CLI y VS Code) ✓ | `copilot` | `~/.copilot/mcp-config.json` (o `$COPILOT_HOME`) | clave `mcpServers`, `type: "stdio"` | sí |
+| VS Code, perfil de usuario | `vscode-copilot` | `~/Library/Application Support/Code/User/mcp.json` | clave **`servers`** y `type: "stdio"` | sí |
+| Gemini CLI ✓ | `gemini-cli` | `~/.gemini/settings.json` | clave `mcpServers` | sí |
+| Antigravity (app, IDE y `agy`) ✓ | `antigravity` | `~/.gemini/config/mcp_config.json` | clave `mcpServers` | sí |
+| Qwen Code ✓ | `qwen` | `~/.qwen/settings.json` | clave `mcpServers` | sí |
+| Kiro ✓ | `kiro` | `~/.kiro/settings/mcp.json` | clave `mcpServers` | sí |
+| omp ✓ | `omp` | `~/.omp/agent/mcp.json` | clave `mcpServers` | sí |
+| pi ✓ | `pi` | `~/.pi/agent/mcp.json` | clave `mcpServers` | sí |
+| Kilo Code (CLI y extensiones) ✓ | `kilocode` | `~/.config/kilo/kilo.jsonc` o `kilo.json` | clave `mcp`, `type: "local"`, `command` como **array**, `environment` | sí |
+| Amp ✓ | `amp` | `~/.config/amp/settings.json` (o `.jsonc`) | clave literal **`amp.mcpServers`** | sí |
+| Z Code ✓ | `zcode` | `~/.zcode/cli/config.json` | anidada en **`mcp.servers`** | sí |
+| Kimi Code ✓ | `kimi-code` | `~/.kimi-code/mcp.json` (o `$KIMI_CODE_HOME`) | clave `mcpServers` | sí |
+| Devin (CLI y Desktop) ✓ | `devin` | `~/.config/devin/mcp_config.json` | clave `mcpServers` | sí |
+| Windsurf, versiones antiguas | `windsurf` | `~/.codeium/windsurf/mcp_config.json` | clave `mcpServers` | sí |
+| Hermes Agent ✓ | `hermes` | `~/.hermes/config.yaml` | comando `hermes mcp add` | comando |
+| DeepSeek Harness ✓ | `deepseek` | `~/.dsh/cordis.patch.yml` | fila YAML del plugin `@deepseek-ai/dsh-mcp-client` | no, manual |
+| Orca, Mono, T3 Code, Omnigent ✓ | `orca`, `monocode`, `t3code`, `omnigent` | — | sin configuración propia: usan la de los agentes que lanzan | no aplica |
 | Otro | `generic` | el que le pases con `--path` | clave `mcpServers` | no, manual |
+| Personalizado | `custom` | el que le pases con `--path` | la que describas | sí |
 
-Hay dos distinciones que importan, y las dos se ven en la interfaz:
+Hay tres distinciones que importan, y las tres se ven en la interfaz:
 
-**«Escribe solo».** Los clientes cuyo formato no se puede escribir con confianza
-(extensiones de VS Code cuyo almacén cambia entre versiones) **no se tocan**: se le
-da al usuario el bloque para pegar. Escribir a ciegas en la configuración de alguien
-es peor que pedirle que pegue dos líneas.
+**«Escribe solo».** Hay archivos que no se pueden escribir con confianza y **no se
+tocan**: se le da al usuario el bloque para pegar. Es el caso del YAML de DeepSeek
+Harness, que hay que fusionar con otras personalizaciones del archivo. Escribir a
+ciegas en la configuración de alguien es peor que pedirle que pegue dos líneas.
 
-**«Verificado».** De los que se escriben, solo cinco están confirmados contra su
-documentación oficial durante el desarrollo: OpenCode, Codex, Claude Code, Claude
-Desktop y Cursor. Para Windsurf, Gemini CLI, Qwen Code, Kiro y VS Code la ruta y el
-formato vienen de la convención de cada cliente y **se avisa de ello** antes de
-escribir nada, tanto en la interfaz como en el bloque generado. Se escriben igual
-—porque casi siempre son correctos— pero el aviso está ahí para que un fallo no sea
-silencioso. Si un cliente no detecta el servidor, revisa su documentación y pásale
-la ruta correcta con `--path`.
+**«Verificado».** El ✓ marca los clientes cuya ruta y formato están confirmados
+contra su documentación oficial o su código fuente (revisados en octubre de 2026).
+Quedan dos sin confirmar: la ruta del perfil de usuario de VS Code (la documentación
+da la carpeta del usuario, no el archivo) y la de Windsurf, que ahora es Devin
+Desktop y lee la de Devin. Se escriben igual, pero **se avisa de ello** antes, para
+que un fallo no sea silencioso. Si un cliente no detecta el servidor, revisa su
+documentación y pásale la ruta correcta con `--path`.
 
-El ✓ marca los formatos confirmados contra la documentación oficial del cliente.
+**«Delega».** Orca, Mono, T3 Code y Omnigent no tienen configuración de MCP propia:
+lanzan otros agentes (Claude Code, Codex, pi…) y cada uno carga la suya. Aparecen en
+la lista para que se sepa qué hacer con ellos, y cuentan como configurados en cuanto
+lo está uno de esos agentes. Devin en la nube tampoco aplica: sus servidores corren
+en su entorno y no pueden lanzar un programa de tu equipo.
 
 `~` es tu carpeta personal. En macOS, `~/.config` existe aunque no sea la
-convención de Apple: OpenCode lo usa así a propósito.
+convención de Apple: OpenCode, Kilo, Amp y Devin lo usan así a propósito.
+
+### Un cliente que no está en la lista
+
+En **Ajustes → clientes de IA → cliente personalizado**, o desde la terminal:
+
+```bash
+saveme mcp-config --provider custom --path ~/.mi-agente/mcp.json \
+  [--servers-key servers] [--entry-type stdio] [--command-array] [--env-key env] --write
+```
+
+Describes dónde guarda tu cliente sus servidores y qué forma tiene la entrada, y se
+escribe con las mismas garantías que en los conocidos: copia de seguridad, un JSONC
+no se reescribe y no se toca nada si ya estaba igual. Un `.toml` se escribe como
+TOML; cualquier otro archivo, como JSON. `--remove` lo quita igual.
 
 ### OpenCode
 
@@ -221,10 +250,11 @@ dale las instrucciones:
 saveme guide >> CLAUDE.md     # o AGENTS.md, o el archivo que use tu agente
 ```
 
-El texto explica el flujo de dos fases, la estructura recomendada de un resumen y
-la taxonomía de categorías. También está disponible como prompt MCP
-(`saveme/human-summary`) y como recurso (`saveme://guide`) para los clientes que
-los soporten.
+El texto explica el flujo de dos fases, cómo escribir un resumen que se entienda
+dentro de seis meses —contexto, por qué, cómo funciona, cómo verificarlo, con
+diagramas Mermaid (flujo, secuencia, estados…) cuando ayudan— y la taxonomía de
+categorías. Es el mismo texto que sirve el recurso MCP `saveme://guide`; el prompt
+`saveme/human-summary` lleva el procedimiento y la misma guía de escritura.
 
 ## Comprobar que quedó bien
 
@@ -266,3 +296,19 @@ cada cliente:
 - [Claude Code — Connect to tools via MCP](https://code.claude.com/docs/en/mcp) (los tres ámbitos)
 - [Codex CLI — MCP servers](https://mintlify.wiki/openai/codex/configuration/mcp-servers) (`[mcp_servers.*]` en `~/.codex/config.toml`)
 - [Cursor — MCP](https://cursor.com/help/customization/mcp) (`~/.cursor/mcp.json`)
+- [GitHub Copilot CLI — MCP servers](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers) (`~/.copilot/mcp-config.json`)
+- [VS Code — MCP configuration](https://code.visualstudio.com/docs/agents/reference/mcp-configuration) (`servers`, `type: "stdio"`, destino «Copilot Global»)
+- [Gemini CLI — MCP servers](https://raw.githubusercontent.com/google-gemini/gemini-cli/main/docs/tools/mcp-server.md)
+- [Antigravity — MCP](https://antigravity.google/docs/mcp) (`~/.gemini/config/mcp_config.json`)
+- [Qwen Code — MCP](https://raw.githubusercontent.com/QwenLM/qwen-code/main/docs/users/features/mcp.md)
+- [Kiro — MCP configuration](https://kiro.dev/docs/mcp/configuration/)
+- omp: documentación del propio harness (`mcp-config.md` en can1357/oh-my-pi)
+- [pi — MCP](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/mcp.md)
+- [Kilo — MCP en la CLI](https://kilo.ai/docs/automate/mcp/using-in-cli)
+- [Amp — MCP](https://ampcode.com/docs/markdown/customize/mcp) (`amp.mcpServers`)
+- [Z Code — MCP](https://zcode.z.ai/en/docs/mcp-services) (`mcp.servers`)
+- [Kimi Code — MCP](https://moonshotai.github.io/kimi-code/en/customization/mcp)
+- [Devin CLI — MCP](https://docs.devin.ai/cli/extensibility/mcp/configuration) y [Devin Desktop FAQ](https://docs.devin.ai/desktop/devin-desktop-faq) (Windsurf → Devin Desktop)
+- [Hermes Agent — MCP](https://hermes-agent.nousresearch.com/docs/user-guide/features/mcp)
+- [DeepSeek Harness — MCP](https://deepseek-harness.github.io/deepseek-harness/en/guide/mcp-memory) (`cordis.patch.yml`)
+- Orca ([skills](https://www.onorca.dev/docs/cli/skills)), Mono ([mcp.rs](https://github.com/hardbeat920/monocode/blob/main/src-tauri/src/mcp.rs)), T3 Code ([proveedores](https://github.com/pingdotgg/t3code/blob/main/docs/user/providers-claude.md)) y Omnigent ([tools](https://omnigent.ai/docs/build/tools)): sin configuración de MCP propia

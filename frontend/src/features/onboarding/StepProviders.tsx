@@ -96,6 +96,8 @@ function ProviderRow({
             </div>
           ) : provider.format === 'cli' ? (
             <div className="text-2xs text-muted-foreground">{t('onboarding.providers.cliOnly')}</div>
+          ) : provider.format === 'delegated' ? (
+            <div className="text-2xs text-muted-foreground">{t('onboarding.providers.delegated')}</div>
           ) : (
             <div className="text-2xs text-muted-foreground">{t('onboarding.providers.noPath')}</div>
           )}

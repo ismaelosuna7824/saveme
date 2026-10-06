@@ -25,7 +25,7 @@ import (
 // binario ni —lo que es más fácil de equivocar— la raíz del workspace.
 func runMCPConfig(args []string) int {
 	fs := flag.NewFlagSet("mcp-config", flag.ExitOnError)
-	providerKey := fs.String("provider", "", "cliente: opencode, codex, claude-code, cursor, claude-desktop, windsurf, generic")
+	providerKey := fs.String("provider", "", "cliente (ver --list), o custom para uno que describes tú con --path y las opciones --servers-key, --entry-type, --command-array y --env-key")
 	write := fs.Bool("write", false, "aplicar la configuración al archivo del cliente (hace copia de seguridad)")
 	path := fs.String("path", "", "ruta alternativa del archivo de configuración")
 	root := fs.String("root", "", "raíz del workspace que debe usar el MCP (por defecto, la misma que la app)")
@@ -35,6 +35,10 @@ func runMCPConfig(args []string) int {
 	list := fs.Bool("list", false, "listar los clientes soportados y su estado")
 	remove := fs.Bool("remove", false, "quitar la configuración de SaveMe del cliente (hace copia de seguridad)")
 	install := fs.Bool("install", false, "copiar este binario a la ruta estable que usan los clientes MCP")
+	serversKey := fs.String("servers-key", "", "con --provider custom: clave que agrupa los servidores (por defecto mcpServers)")
+	entryType := fs.String("entry-type", "", "con --provider custom: valor de `type` en la entrada (stdio, local…); vacío para no emitirlo")
+	commandArray := fs.Bool("command-array", false, "con --provider custom: ejecutable y argumentos juntos en `command`, como OpenCode")
+	envKey := fs.String("env-key", "", "con --provider custom: clave del entorno (por defecto env)")
 	_ = fs.Parse(args)
 
 	// Reinstalar el binario no necesita proveedor ni configuración: es la misma
@@ -54,14 +58,37 @@ func runMCPConfig(args []string) int {
 		return listProviders(*name)
 	}
 
-	provider, ok := mcpconfig.Find(*providerKey)
-	if !ok {
-		fmt.Fprintf(os.Stderr, "cliente desconocido: %q\n\n", *providerKey)
-		listProviders(*name)
-		return 2
+	var provider mcpconfig.Provider
+	// Con `custom`, `--path` no es una ruta alternativa: es la definición del
+	// cliente, y el proveedor ya la trae resuelta (con `~` expandido). Pasarla
+	// también en las opciones la usaría tal cual y escribiría en una carpeta
+	// llamada `~` dentro del directorio actual.
+	optionsPath := *path
+	if strings.EqualFold(*providerKey, "custom") {
+		custom, err := mcpconfig.Custom(mcpconfig.CustomDef{
+			Path:         *path,
+			ServersKey:   *serversKey,
+			EntryType:    *entryType,
+			CommandArray: *commandArray,
+			EnvKey:       *envKey,
+		})
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "error:", err)
+			return 2
+		}
+		provider = custom
+		optionsPath = ""
+	} else {
+		found, ok := mcpconfig.Find(*providerKey)
+		if !ok {
+			fmt.Fprintf(os.Stderr, "cliente desconocido: %q\n\n", *providerKey)
+			listProviders(*name)
+			return 2
+		}
+		provider = found
 	}
 
-	opts, err := buildOptions(*command, *root, *name, *path, *noEnv)
+	opts, err := buildOptions(*command, *root, *name, optionsPath, *noEnv)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		return 1
@@ -155,6 +182,10 @@ func printSnippet(s mcpconfig.Snippet) {
 		fmt.Printf("\n\x1b[33maviso:\x1b[0m %s\n", w)
 	}
 	fmt.Printf("\n%s\n", strings.TrimRight(s.Body, "\n"))
+	if s.Provider.Key == "custom" {
+		fmt.Printf("\n\x1b[2maplicar automáticamente: repite el comando con --write\x1b[0m\n\n")
+		return
+	}
 	fmt.Printf("\n\x1b[2maplicar automáticamente: saveme mcp-config --provider %s --write\x1b[0m\n\n", s.Provider.Key)
 }
 
@@ -207,22 +238,30 @@ func listProviders(name string) int {
 		st := mcpconfig.StatusOf(p, name)
 		mark := "\x1b[2m—\x1b[0m"
 		switch {
-		case !st.Exists:
-			mark = "\x1b[2msin archivo\x1b[0m"
 		case st.Configured:
 			mark = "\x1b[32m✓ saveme configurado\x1b[0m"
+		case p.Format == mcpconfig.FormatDelegated:
+			mark = "\x1b[2musa la configuración de los agentes que lanza\x1b[0m"
+		case !st.Exists:
+			mark = "\x1b[2msin archivo\x1b[0m"
 		default:
 			mark = "\x1b[33marchivo existe, sin saveme\x1b[0m"
 		}
 		path := st.Path
-		if path == "" {
+		switch {
+		case p.Format == mcpconfig.FormatDelegated:
+			path = "(sin configuración propia)"
+		case path == "" && p.Format == mcpconfig.FormatCLI:
 			path = "(se configura con un comando)"
+		case path == "":
+			path = "(sin ruta fija: se pega a mano)"
 		}
 		fmt.Printf("  \x1b[1m%-16s\x1b[0m %s\n", p.Key, mark)
 		fmt.Printf("  %-16s %s\n\n", "", path)
 	}
 	fmt.Println("Genera el bloque con:  saveme mcp-config --provider <clave>")
 	fmt.Println("Aplícalo directo con:  saveme mcp-config --provider <clave> --write")
+	fmt.Println("Un cliente que no está: saveme mcp-config --provider custom --path <archivo> [--servers-key …]")
 	fmt.Println("\nPara que funcione sin la app abierta no hay que hacer nada especial:")
 	fmt.Println("el MCP es el mismo binario y habla directo con SQLite y los archivos.")
 	return 0

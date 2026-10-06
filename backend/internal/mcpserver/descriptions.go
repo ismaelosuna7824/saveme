@@ -21,10 +21,23 @@ El usuario tiene la última palabra sobre dónde vive su historial: si quiere ot
 pásala en el override de saveme_summary_confirm. Si no quiere guardarlo, usa
 saveme_summary_cancel.
 
-CÓMO ESCRIBIR EL CUERPO: es markdown para una persona que lo leerá en seis meses, no un
-changelog ni un diff. Explica qué se hizo, POR QUÉ (esto es lo que siempre se olvida) y
-qué habría que saber para retomarlo. Escribe en el idioma en el que te habla el usuario.
-Si el cambio es trivial, un párrafo honesto vale más que una plantilla rellena.
+CÓMO ESCRIBIR EL CUERPO: es DOCUMENTACIÓN en markdown para alguien que lo leerá en seis
+meses sin haber visto esta conversación ni el diff. Tiene que poder entender qué se hizo,
+POR QUÉ (lo que siempre se olvida), cómo funciona y cómo retomarlo. Si el usuario dijo qué
+quiere guardar, eso es el centro del resumen. Estructura habitual: Contexto, Qué se hizo,
+Por qué (con las alternativas descartadas), Cómo funciona, Cómo usarlo y verificarlo, Qué
+falta y riesgos, Referencias; omite las que no aporten. Usa nombres reales (rutas,
+comandos, endpoints) explicados la primera vez.
+
+DIAGRAMAS: SaveMe pinta los bloques mermaid. Cuando haya un flujo, varias piezas que se
+hablan o un ciclo de estados, añade un diagrama sencillo: flowchart para procesos y
+decisiones, sequenceDiagram para quién llama a quién, stateDiagram-v2 para estados,
+erDiagram para modelos de datos. Uno por idea, unos 15 nodos como mucho, con una frase
+que diga qué enseña. Nada de diagramas para cambios triviales.
+
+El detalle va con la importancia del cambio: una errata cabe en un párrafo; un feature,
+una decisión de diseño o un incidente merecen un documento completo. Escribe en el idioma
+del usuario. La guía completa, con ejemplos, está en el recurso saveme://guide.
 
 SOBRE LA CATEGORÍA: si no estás seguro, OMÍTELA. SaveMe la infiere del título y del
 cuerpo, te dice en qué se basó y con qué confianza, y se la propone al usuario con tres
@@ -100,13 +113,16 @@ decisión de arquitectura, un incidente. No lo uses para cambios triviales de un
 para exploraciones que no llegaron a nada.
 
 QUÉ ES UN BUEN RESUMEN
-Markdown legible, en el idioma del usuario, escrito para alguien que lo leerá en seis
-meses. Qué se hizo, por qué, cómo funciona y qué falta. Lo más valioso es el "por qué":
-es lo que se pierde primero y lo que más se agradece después. Nada de changelogs, diffs ni
-listas de archivos.
+Documentación en markdown, en el idioma del usuario, para alguien que lo leerá en seis
+meses sin haber visto esta conversación: contexto, qué se hizo, por qué (lo que se pierde
+primero), cómo funciona, cómo verificarlo y qué falta. Si el usuario dijo qué quiere
+guardar, eso manda. Cuando haya un flujo, componentes que se hablan o estados, añade un
+diagrama mermaid sencillo (flowchart, sequenceDiagram, stateDiagram-v2, erDiagram). El
+detalle va con la importancia del cambio. Nada de changelogs, diffs ni listas de archivos.
 
-Puedes pedir la guía completa con el prompt "saveme/human-summary" o leyendo el recurso
-saveme://guide.
+ANTES DE ESCRIBIR TU PRIMER RESUMEN, lee la guía completa —estructura, cuánto detalle y
+cómo hacer los diagramas, con ejemplos— en el recurso saveme://guide o con el prompt
+"saveme/human-summary".
 `, root)
 }
 
@@ -117,17 +133,17 @@ func promptBody(root string) string {
 
 Sigue este procedimiento:
 
-1. Identifica el cambio del que hay que dejar constancia. Si no está claro, pregúntale al
-   usuario de qué cambio se trata.
+1. Identifica qué hay que dejar documentado. Si el usuario dijo qué quiere guardar, eso es
+   el centro. Si no está claro, pregúntale.
 2. Busca en el historial con saveme_summary_search para no duplicar algo que ya está.
-3. Redacta el resumen en markdown, en el idioma del usuario, con esta estructura:
-   "## Qué se hizo", "## Por qué", "## Cómo funciona", "## Qué falta / riesgos",
-   "## Cómo verificarlo". Omite las secciones que no aporten; no rellenes por rellenar.
+3. Redacta el resumen siguiendo la guía de escritura de abajo.
 4. Llama a saveme_summary_propose sin pasar categoría, salvo que estés seguro de cuál es.
 5. Muéstrale al usuario la ruta propuesta, la razón de la categoría y las alternativas, y
    pregúntale si le parece bien.
 6. Cuando responda, confirma con saveme_summary_confirm (o cancela con
    saveme_summary_cancel si no quiere guardarlo).
 
-No escribas ningún archivo a mano: saveme_summary_confirm es el único camino.`, root)
+No escribas ningún archivo a mano: saveme_summary_confirm es el único camino.
+
+`, root) + writingGuide
 }

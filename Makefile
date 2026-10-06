@@ -114,7 +114,7 @@ install: build-core ## Instala el binario en $(BINDIR) para usarlo como MCP glob
 	@echo "siguiente paso:  saveme doctor"
 
 .PHONY: mcp-setup
-mcp-setup: build-core ## Configura el MCP en tu cliente (PROVIDER=opencode|codex|cursor|...)
+mcp-setup: build-core ## Configura el MCP en tu cliente (PROVIDER=opencode|codex|copilot|pi|...; sin PROVIDER, la lista)
 	@if [ -z "$(PROVIDER)" ]; then \
 		$(BIN) mcp-config --list; \
 	else \

@@ -32,15 +32,25 @@ func Remove(p Provider, opts Options) (WriteResult, error) {
 
 	// Un cliente que se configura por comando no tiene entrada que borrar: el
 	// usuario lo dio de alta en su propia herramienta, así que se le dice con qué
-	// comando darlo de baja en vez de tocar archivos que no son nuestros. El
-	// `add` que genera `buildCLI` tiene su simétrico `remove`.
-	if p.Format == FormatCLI {
-		command := "claude mcp remove --scope user " + opts.Name
+	// comando darlo de baja en vez de tocar archivos que no son nuestros. Cada
+	// `CLIAdd` tiene su simétrico `CLIRemove`.
+	switch p.Format {
+	case FormatCLI:
+		if p.CLIRemove == nil {
+			return WriteResult{}, fmt.Errorf("%s se configura por comando, pero no tiene comando de baja", p.Key)
+		}
+		command := shellJoin(p.CLIRemove(opts))
 		return WriteResult{
 			Action:  ActionManual,
 			Command: command,
 			Message: "Este cliente se configura con un comando, así que no hay archivo " +
 				"que tocar. Quítalo con: " + command,
+		}, nil
+	case FormatDelegated:
+		return WriteResult{
+			Action: ActionAbsent,
+			Message: p.Name + " no tiene configuración propia: quita SaveMe de los agentes " +
+				"que lanza.",
 		}, nil
 	}
 
@@ -89,7 +99,7 @@ func removeJSON(p Provider, opts Options, path string, existing []byte) (WriteRe
 			Action: ActionManual,
 			Message: "Tu archivo tiene comentarios (JSONC) y reescribirlo te los borraría, " +
 				"así que no lo toco. Quita a mano la entrada \"" + opts.Name +
-				"\" de \"" + p.ServersKey + "\".",
+				"\" de \"" + serversLabel(p) + "\".",
 		}, nil
 	}
 
@@ -101,7 +111,8 @@ func removeJSON(p Provider, opts Options, path string, existing []byte) (WriteRe
 		}
 	}
 
-	servers, _ := root[p.ServersKey].(map[string]any)
+	holder := serversHolder(p, root, false)
+	servers, _ := holder[p.ServersKey].(map[string]any)
 	if _, present := servers[opts.Name]; !present {
 		return WriteResult{
 			Path:    path,
@@ -111,12 +122,16 @@ func removeJSON(p Provider, opts Options, path string, existing []byte) (WriteRe
 	}
 
 	delete(servers, opts.Name)
-	// Si el mapa se queda vacío se quita la clave: dejarla con un `{}` dentro es
-	// basura que escribimos nosotros.
+	// Si el mapa se queda vacío se quita la clave, y si su clave padre se queda
+	// vacía, también: dejarlas con un `{}` dentro es basura que escribimos
+	// nosotros.
 	if len(servers) == 0 {
-		delete(root, p.ServersKey)
+		delete(holder, p.ServersKey)
+		if p.ServersParent != "" && len(holder) == 0 {
+			delete(root, p.ServersParent)
+		}
 	} else {
-		root[p.ServersKey] = servers
+		holder[p.ServersKey] = servers
 	}
 
 	// Si el archivo se queda sin nada, es que solo tenía nuestra configuración:

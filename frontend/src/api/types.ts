@@ -426,8 +426,11 @@ export interface SaveSummaryInput {
 // El MCP es el mismo binario que la app (`saveme mcp`). Estos endpoints dejan
 // que la interfaz lo instale y configure los clientes de IA del usuario.
 
-/** Cómo se configura un cliente: archivo JSON/TOML, comando, o a mano. */
-export type MCPProviderFormat = 'json' | 'toml' | 'cli' | 'manual'
+/**
+ * Cómo se configura un cliente: archivo JSON/TOML, comando, a mano, o
+ * `delegated` si no tiene configuración propia y usa la de los agentes que lanza.
+ */
+export type MCPProviderFormat = 'json' | 'toml' | 'cli' | 'manual' | 'delegated'
 
 /** Estado de un cliente de IA respecto al servidor MCP. */
 export interface MCPProvider {
@@ -519,8 +522,27 @@ export interface MCPConfigureResponse {
   results: MCPConfigureResult[]
 }
 
+/**
+ * Un cliente que SaveMe no conoce, descrito por el usuario (`provider: custom`).
+ * El formato sale de la extensión: `.toml` es TOML; el resto, JSON.
+ */
+export interface MCPCustomDef {
+  /** Archivo de configuración del cliente. Absoluto; se admite `~`. */
+  path: string
+  /** Clave que agrupa los servidores. Vacía: `mcpServers`. */
+  servers_key?: string
+  /** Valor de `type` en la entrada (`stdio`, `local`…). Vacío: no se emite. */
+  entry_type?: string
+  /** Ejecutable y argumentos juntos en `command`, como OpenCode. */
+  command_array?: boolean
+  /** Clave del entorno. Vacía: `env`. */
+  env_key?: string
+}
+
 export interface MCPConfigureInput {
   providers: string[]
+  /** Definición del cliente `custom`, si está entre los pedidos. */
+  custom?: MCPCustomDef
 }
 
 /**

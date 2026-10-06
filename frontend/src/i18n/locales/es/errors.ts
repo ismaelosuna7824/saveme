@@ -24,6 +24,7 @@ export const errors = {
   no_providers: 'No pediste configurar ningún cliente.',
   missing_provider: 'Falta decir qué cliente hay que configurar.',
   unknown_provider: 'Ese cliente no está en la lista de los que sé configurar.',
+  invalid_custom: 'La definición del cliente personalizado no es válida.',
   invalid_decision: 'La decisión tiene que ser «accepted», «modified» o «cancelled».',
   no_streaming: 'El servidor no soporta streaming.',
 } as const

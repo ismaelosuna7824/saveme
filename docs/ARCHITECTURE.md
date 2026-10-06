@@ -376,8 +376,13 @@ el reconciliador detecta los archivos nuevos por `mtime` y los indexa.
 | `saveme_summary_read` | `{id}` | `{meta, content}` | no |
 | `saveme_pending` | `{project?}` | `{proposals:[Proposal]}` | no |
 
-Además: prompt MCP `saveme/human-summary` con las instrucciones de redacción, y resource
-`saveme://guide`.
+Además: prompt MCP `saveme/human-summary` con el procedimiento y la guía de escritura, y
+resource `saveme://guide` con la guía completa. La guía vive en markdown embebido
+(`internal/mcpserver/guide.md` y `writing.md`) y es **una sola**: la sirven el resource,
+`GET /api/agents/guide` y `saveme guide`. `writing.md` es la parte de cómo se escribe un
+resumen —qué quería guardar el usuario, cuánto detalle según el cambio, estructura por
+categoría y diagramas Mermaid (flowchart, sequenceDiagram, stateDiagram-v2, erDiagram…)
+con reglas para que ayuden—, y la comparten la guía y el prompt para que digan lo mismo.
 
 ### La garantía de "siempre preguntar"
 

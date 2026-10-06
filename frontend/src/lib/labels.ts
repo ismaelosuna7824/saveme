@@ -39,20 +39,31 @@ const STATUS_KEYS: Record<string, TranslationKey> = {
  * Mismo criterio que las categorías: se traducen por clave para que la interfaz
  * en inglés no enseñe párrafos en español, y el texto del core queda de respaldo
  * para un cliente que esta versión todavía no conozca. Los clientes sin nota
- * (`claude-desktop`, `cursor`) no tienen clave, y no pasa nada: `fallback` será
- * `undefined` y no se pinta nada.
+ * (`claude-desktop`, `cursor`, `gemini-cli`…) no tienen clave, y no pasa nada:
+ * `fallback` será `undefined` y no se pinta nada.
  */
 const PROVIDER_NOTE_KEYS: Record<string, TranslationKey> = {
   codex: 'onboarding.providerNote.codex',
   'claude-code': 'onboarding.providerNote.claude-code',
-  'gemini-cli': 'onboarding.providerNote.gemini-cli',
-  kiro: 'onboarding.providerNote.kiro',
+  copilot: 'onboarding.providerNote.copilot',
   'vscode-copilot': 'onboarding.providerNote.vscode-copilot',
+  antigravity: 'onboarding.providerNote.antigravity',
   opencode: 'onboarding.providerNote.opencode',
-  generic: 'onboarding.providerNote.generic',
-  windsurf: 'onboarding.providerNote.windsurf',
-  qwen: 'onboarding.providerNote.qwen',
+  omp: 'onboarding.providerNote.omp',
+  pi: 'onboarding.providerNote.pi',
   kilocode: 'onboarding.providerNote.kilocode',
+  amp: 'onboarding.providerNote.amp',
+  zcode: 'onboarding.providerNote.zcode',
+  'kimi-code': 'onboarding.providerNote.kimi-code',
+  devin: 'onboarding.providerNote.devin',
+  windsurf: 'onboarding.providerNote.windsurf',
+  hermes: 'onboarding.providerNote.hermes',
+  deepseek: 'onboarding.providerNote.deepseek',
+  orca: 'onboarding.providerNote.orca',
+  monocode: 'onboarding.providerNote.monocode',
+  t3code: 'onboarding.providerNote.t3code',
+  omnigent: 'onboarding.providerNote.omnigent',
+  generic: 'onboarding.providerNote.generic',
 }
 
 /** Nota visible de un cliente MCP, o cadena vacía si no tiene. */

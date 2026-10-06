@@ -285,7 +285,7 @@ func (s *Server) handleProjectCreate(ctx context.Context, _ *mcp.CallToolRequest
 type proposeIn struct {
 	Project string `json:"project" jsonschema:"Proyecto al que pertenece el resumen. Es el nombre de la carpeta de primer nivel, en minúsculas y con guiones, por ejemplo \"saveme-app\". Si el proyecto no existe, SaveMe lo crea al confirmar."`
 	Title   string `json:"title" jsonschema:"Título corto y descriptivo, en el idioma del usuario. Es lo primero que se ve en el historial: que diga QUÉ se hizo, no cómo. Ejemplo: \"Editor markdown con preview sincronizado\"."`
-	Body    string `json:"body" jsonschema:"El resumen en markdown. Escríbelo para una persona que lo leerá en seis meses: qué se hizo, por qué, cómo funciona y qué falta. NO es un changelog ni un diff. Ver las instrucciones del servidor para la estructura recomendada."`
+	Body    string `json:"body" jsonschema:"El resumen en markdown: documentación para alguien que lo leerá en seis meses sin haber visto la conversación. Contexto, qué se hizo, por qué, cómo funciona, cómo verificarlo y qué falta, con diagramas mermaid (flowchart, sequenceDiagram…) cuando haya flujos o piezas que se hablan. NO es un changelog ni un diff. Estructura y ejemplos en el recurso saveme://guide."`
 
 	Category     string   `json:"category,omitempty" jsonschema:"Categoría: feature, fix, chore, refactor, docs, infra, design, research o incident. OMÍTELO si no estás seguro: SaveMe la infiere del título y el cuerpo, y se la propone al usuario junto con alternativas."`
 	Summary      string   `json:"summary,omitempty" jsonschema:"Una sola línea que resuma el cambio, para las listas. Si no la pasas se toma la primera frase del cuerpo."`
@@ -923,7 +923,7 @@ func (s *Server) registerResource() {
 			Contents: []*mcp.ResourceContents{{
 				URI:      "saveme://guide",
 				MIMEType: "text/markdown",
-				Text:     instructions(s.svc.Workspace().Root()),
+				Text:     Guide(s.svc.Workspace().Root()),
 			}},
 		}, nil
 	})
