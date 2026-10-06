@@ -73,7 +73,7 @@ dev: sidecar ## Corre la app completa en modo desarrollo
 	bunx tauri dev
 
 .PHONY: test
-test: ## Pruebas de Go y Rust, tipos, Live Preview, traducciones, CSS, temas, Mermaid, notas, diff, exportación, compartir, notas de versión e icono
+test: ## Pruebas de Go y Rust, tipos, Live Preview, traducciones, CSS, temas, Mermaid, notas, diff, exportación, compartir, imagen de fondo, iconos de proyecto, notas de versión e icono
 	cd backend && go test -race ./...
 	cd src-tauri && cargo test --quiet
 	bun run --cwd frontend typecheck
@@ -86,6 +86,8 @@ test: ## Pruebas de Go y Rust, tipos, Live Preview, traducciones, CSS, temas, Me
 	bun run --cwd frontend verify:diff
 	bun run --cwd frontend verify:export
 	bun run --cwd frontend verify:share
+	bun run --cwd frontend verify:background
+	bun run --cwd frontend verify:sprites
 	bun run --cwd frontend verify:changelog
 	bun scripts/verify-icon.mjs
 	bun scripts/verify-update.mjs

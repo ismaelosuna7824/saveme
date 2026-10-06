@@ -17,6 +17,8 @@
     "verify:diff": "bun run scripts/verify-diff.mjs",
     "verify:export": "bun run scripts/verify-export.mjs",
     "verify:share": "bun run scripts/verify-share.mjs",
+    "verify:background": "bun run scripts/verify-background.mjs",
+    "verify:sprites": "bun run scripts/verify-sprites.mjs",
     "verify:changelog": "bun run scripts/verify-changelog.mjs"
   },
   "dependencies": {

@@ -66,6 +66,16 @@ type Config struct {
 	Editor    EditorPrefs `json:"editor"`
 	Onboarded bool        `json:"onboarded"`
 
+	// Background es la imagen de fondo global, o nil si no hay. La ven todos los
+	// proyectos que no tienen una propia.
+	Background *Background `json:"background,omitempty"`
+	// ProjectBackgrounds son las imágenes propias de cada proyecto, por slug.
+	// Ganan sobre la global en las pantallas de ese proyecto.
+	ProjectBackgrounds map[string]Background `json:"project_backgrounds,omitempty"`
+	// ProjectIcons es el icono elegido para cada proyecto, por slug. Sin entrada,
+	// la interfaz lo deduce del slug.
+	ProjectIcons map[string]ProjectIcon `json:"project_icons,omitempty"`
+
 	// RecentRoots son las últimas carpetas de workspace que se abrieron, la más
 	// reciente primero.
 	//

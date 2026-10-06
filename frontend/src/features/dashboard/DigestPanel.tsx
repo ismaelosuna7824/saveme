@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { CalendarDays } from 'lucide-react'
 
 import { useDigest } from '@/api/queries'
+import { ProjectSprite } from '@/components/common/ProjectSprite'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -87,7 +88,10 @@ export function DigestPanel() {
                 >
                   {entrada.title}
                 </Link>
-                <code className="text-2xs text-muted-foreground">{entrada.project_slug}</code>
+                <code className="flex items-center gap-1 self-center text-2xs text-muted-foreground">
+                  <ProjectSprite slug={entrada.project_slug} className="size-3" />
+                  {entrada.project_slug}
+                </code>
                 <span className="text-2xs text-muted-foreground">
                   {formatRelative(entrada.created_at)}
                 </span>

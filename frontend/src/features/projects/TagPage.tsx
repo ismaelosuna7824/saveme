@@ -27,7 +27,7 @@ export function TagPage({ tag }: TagPageProps) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="shrink-0 space-y-1 px-3 py-2">
+      <div className="backdrop-surface shrink-0 space-y-1 px-3 py-2">
         <SectionHeader
           title={`#${tag}`}
           hint={

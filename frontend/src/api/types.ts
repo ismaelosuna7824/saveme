@@ -288,6 +288,37 @@ export interface EditorPrefs {
   vim_mode: boolean
 }
 
+/** Cómo se redibuja la imagen de fondo. Ver `lib/backdropEffects.ts`. */
+export type BackgroundEffect = 'none' | 'dither' | 'ascii' | 'halftone' | 'scanlines' | 'haze'
+
+/**
+ * Imagen de fondo y su aspecto (`config.background`).
+ *
+ * `image` es el nombre con el que el core guardó la copia (`POST /backgrounds`);
+ * se sirve en `GET /backgrounds/{image}`. Las visibilidades son fracciones de 0
+ * a 1: cuánto se ve la imagen a través del fondo del tema.
+ */
+export interface BackgroundSetting {
+  image: string
+  effect: BackgroundEffect
+  /** `empty`: solo en pantallas sin documento. `all`: en todas. */
+  show_on: 'empty' | 'all'
+  empty_visibility: number
+  document_visibility: number
+  /** Difuminado en píxeles, de 0 a 24. */
+  blur: number
+}
+
+/**
+ * El icono que el usuario eligió para un proyecto (`config.project_icons`). Son
+ * nombres de `lib/projectSprite.ts` (`squid`, `green`); lo que falte, o un nombre
+ * que esta versión no conozca, sale del slug.
+ */
+export interface ProjectIconChoice {
+  sprite?: string
+  color?: string
+}
+
 export interface Config {
   version: number
   root_dir: string
@@ -299,6 +330,12 @@ export interface Config {
   opacity: number
   editor: EditorPrefs
   onboarded: boolean
+  /** Imagen de fondo global, o `null` si no hay. */
+  background: BackgroundSetting | null
+  /** Imágenes propias de cada proyecto, por slug. Ganan sobre la global. */
+  project_backgrounds: Record<string, BackgroundSetting>
+  /** Icono elegido para cada proyecto, por slug. Sin entrada, sale del slug. */
+  project_icons: Record<string, ProjectIconChoice>
   /** Archivo de configuración que el core tiene cargado (`GET /config`). */
   config_path: string
   /**
@@ -330,6 +367,12 @@ export interface ConfigPatch {
   editor?: Partial<EditorPrefs>
   /** Marca el asistente de bienvenida como visto (`PUT /config`). */
   onboarded?: boolean
+  /** Un objeto pone el fondo global, `null` lo quita. */
+  background?: BackgroundSetting | null
+  /** Por proyecto: un objeto pone su fondo, `null` lo quita. Se fusiona. */
+  project_backgrounds?: Record<string, BackgroundSetting | null>
+  /** Por proyecto: un objeto fija el icono, `null` lo devuelve al automático. */
+  project_icons?: Record<string, ProjectIconChoice | null>
 }
 
 export interface Health {

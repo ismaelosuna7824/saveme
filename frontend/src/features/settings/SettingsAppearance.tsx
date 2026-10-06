@@ -12,6 +12,7 @@ import { SectionHeader } from '@/components/common/SectionHeader'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
+import { BackgroundSettings } from '@/features/background/BackgroundSettings'
 import { MODE_HINT_KEY, MODE_LABEL_KEY, PREVIEW_MODES } from '@/features/editor/mode'
 import {
   clampFontSize,
@@ -241,6 +242,8 @@ export function SettingsAppearance() {
           </p>
         </div>
       </section>
+
+      <BackgroundSettings />
 
       <section className="space-y-2">
         <SectionHeader

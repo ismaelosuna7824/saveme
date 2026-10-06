@@ -660,6 +660,82 @@ html[data-translucent='true'] body {
   background-color: transparent;
 }
 
+/*
+ * Imagen de fondo (components/layout/AppBackdrop.tsx).
+ *
+ * Con la imagen a la vista, los paneles del área de contenido pasan a ser algo
+ * translúcidos: si siguieran opacos, con un documento abierto —que es casi todo
+ * panel— la imagen no se vería en ningún sitio. El 72 % deja intuir la imagen sin
+ * restarle contraste al texto, que además ya va sobre el velo del tema.
+ *
+ * Los colores sólidos se copian en `:root` con otro nombre porque una variable no
+ * puede definirse a partir de sí misma. Se resuelven en `<html>`, donde vive el
+ * tema, y bajan heredados ya como color. Los diálogos y menús se pintan fuera del
+ * marco, en `<body>`, así que siguen opacos.
+ */
+:root {
+  --backdrop-panel-solid: var(--color-panel);
+  --backdrop-panel-raised-solid: var(--color-panel-raised);
+  --backdrop-sunken-solid: var(--color-sunken);
+  --backdrop-background-solid: var(--color-background);
+}
+
+/*
+ * El texto que va directamente sobre la imagen —títulos de sección, cabeceras—
+ * no tiene panel detrás, y sobre una foto clara el gris apagado del tema se
+ * pierde. Un halo del color de fondo del tema alrededor de cada letra lo separa
+ * de la imagen sin tapar nada más.
+ */
+[data-backdrop] {
+  --color-panel: color-mix(in oklab, var(--backdrop-panel-solid) 72%, transparent);
+  --color-panel-raised: color-mix(in oklab, var(--backdrop-panel-raised-solid) 72%, transparent);
+  --color-sunken: color-mix(in oklab, var(--backdrop-sunken-solid) 72%, transparent);
+  text-shadow:
+    0 0 1px var(--backdrop-background-solid),
+    0 0 2px var(--backdrop-background-solid);
+}
+
+/*
+ * Las barras del marco (superior, lateral y de estado) se vuelven cristal
+ * esmerilado: la imagen pasa por debajo difuminada y teñida del color del panel.
+ * Así se ve que la imagen es de toda la ventana, y las barras conservan su forma
+ * sin cortarla en bloques opacos. Van algo más opacas que los paneles del
+ * contenido porque llevan la navegación y no pueden competir con la imagen.
+ */
+[data-backdrop] .app-chrome {
+  background-color: color-mix(in oklab, var(--backdrop-panel-solid) 80%, transparent);
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+}
+
+/*
+ * Superficies de lectura: los bloques con texto del área de contenido —cabecera y
+ * pestañas de un proyecto, buscador, lista de resúmenes, la columna del inbox,
+ * los estados vacíos— se vuelven tarjetas de cristal. El texto no queda nunca
+ * directamente sobre la foto, y donde no hay contenido la imagen se ve nítida.
+ * Sin imagen de fondo la clase no hace nada.
+ */
+[data-backdrop] .backdrop-surface {
+  background-color: color-mix(in oklab, var(--backdrop-panel-solid) 76%, transparent);
+  backdrop-filter: blur(14px) saturate(1.15);
+  -webkit-backdrop-filter: blur(14px) saturate(1.15);
+}
+
+/*
+ * El gutter de CodeMirror trae su color fijo desde `cmTheme.ts`, opaco: con la
+ * imagen detrás queda como una franja negra pegada al documento. Aquí sigue a los
+ * paneles. El `!important` es porque CodeMirror inyecta su tema en tiempo de
+ * ejecución, después de esta hoja y con la misma especificidad.
+ */
+[data-backdrop] .cm-gutters {
+  background-color: var(--color-sunken) !important;
+  border-right-color: var(--color-border) !important;
+}
+
+[data-backdrop] .cm-activeLineGutter {
+  background-color: transparent !important;
+}
+
 @layer base {
   *,
   *::before,

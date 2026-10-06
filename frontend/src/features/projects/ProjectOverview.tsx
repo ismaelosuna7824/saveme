@@ -23,7 +23,7 @@ export function ProjectOverview({ slug }: { slug: string }) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="shrink-0 px-3 py-2">
+      <div className="backdrop-surface shrink-0 px-3 py-2">
         <SearchBox
           value={query}
           onChange={setQuery}
@@ -36,7 +36,7 @@ export function ProjectOverview({ slug }: { slug: string }) {
         />
       </div>
 
-      <div className="shrink-0 px-3 pb-2">
+      <div className="backdrop-surface shrink-0 px-3 pb-2">
         <SectionHeader
           title={searching ? t('projects.search.results') : t('projects.recentActivity')}
           hint={

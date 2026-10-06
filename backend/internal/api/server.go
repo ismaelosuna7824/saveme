@@ -72,6 +72,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/stats", s.handleStats)
 	mux.HandleFunc("GET /api/tags", s.handleTags)
 	mux.HandleFunc("GET /api/agents/guide", s.handleGuide)
+	// Imágenes de fondo: subir una la deja disponible; usarla es un PUT /config.
+	mux.HandleFunc("POST /api/backgrounds", s.handleUploadBackground)
+	mux.HandleFunc("GET /api/backgrounds/{name}", s.handleGetBackground)
 
 	mux.HandleFunc("GET /api/projects", s.handleListProjects)
 	mux.HandleFunc("POST /api/projects", s.handleCreateProject)
@@ -186,15 +189,20 @@ func (s *Server) handleGetConfig(w http.ResponseWriter, _ *http.Request) {
 
 func (s *Server) currentConfig() map[string]any {
 	return map[string]any{
-		"version":       s.cfg.Version,
-		"root_dir":      s.svc.Workspace().Root(),
-		"port":          s.cfg.Port,
-		"theme":         s.cfg.Theme,
-		"opacity":       s.cfg.Opacity,
-		"language":      s.cfg.Language,
-		"editor":        s.cfg.Editor,
-		"onboarded":     s.cfg.Onboarded,
-		"root_from_env": s.cfg.RootFromEnv,
+		"version":   s.cfg.Version,
+		"root_dir":  s.svc.Workspace().Root(),
+		"port":      s.cfg.Port,
+		"theme":     s.cfg.Theme,
+		"opacity":   s.cfg.Opacity,
+		"language":  s.cfg.Language,
+		"editor":    s.cfg.Editor,
+		"onboarded": s.cfg.Onboarded,
+		// Siempre presentes, aunque no haya fondo: la interfaz distingue «sin
+		// imagen» (`null`, `{}`) de «todavía no lo sé» sin adivinar.
+		"background":          s.cfg.Background,
+		"project_backgrounds": projectBackgrounds(s.cfg.ProjectBackgrounds),
+		"project_icons":       projectIcons(s.cfg.ProjectIcons),
+		"root_from_env":       s.cfg.RootFromEnv,
 		// `created` avisa de que la raíz no existía y se ha creado vacía en este
 		// arranque. La interfaz lo usa para avisar de que puede que el usuario
 		// haya movido su carpeta, en vez de dar por bueno el workspace vacío.
@@ -229,6 +237,15 @@ func (s *Server) handlePutConfig(w http.ResponseWriter, r *http.Request) {
 			VimMode     *bool   `json:"vim_mode"`
 		} `json:"editor"`
 		Onboard *bool `json:"onboarded"`
+		// Background es la imagen de fondo global: un objeto la pone, `null` la
+		// quita y su ausencia no la toca. Por eso es RawMessage y no un puntero:
+		// un puntero no distingue `null` de «no lo mandé».
+		Background json.RawMessage `json:"background"`
+		// ProjectBackgrounds se fusiona por proyecto con la misma regla.
+		ProjectBackgrounds map[string]json.RawMessage `json:"project_backgrounds"`
+		// ProjectIcons se fusiona por proyecto: un objeto pone el icono, `null`
+		// vuelve al automático.
+		ProjectIcons map[string]*config.ProjectIcon `json:"project_icons"`
 	}
 	if !decodeBody(w, r, &body) {
 		return
@@ -296,6 +313,70 @@ func (s *Server) handlePutConfig(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.Onboard != nil {
 		next.Onboarded = *body.Onboard
+	}
+	if body.Background != nil {
+		background, problem := s.parseBackground(body.Background)
+		if problem != "" {
+			writeErr(w, http.StatusBadRequest, "invalid_background", problem)
+			return
+		}
+		next.Background = background
+	}
+	if len(body.ProjectBackgrounds) > 0 {
+		// Copia del mapa: `next` comparte el de `s.cfg`, y si el guardado falla
+		// la configuración en memoria no puede haber cambiado.
+		projects := make(map[string]config.Background, len(next.ProjectBackgrounds))
+		for slug, background := range next.ProjectBackgrounds {
+			projects[slug] = background
+		}
+		for slug, raw := range body.ProjectBackgrounds {
+			if err := domain.ValidateSlug(slug); err != nil {
+				writeErr(w, http.StatusBadRequest, "invalid_background", err.Error())
+				return
+			}
+			background, problem := s.parseBackground(raw)
+			if problem != "" {
+				writeErr(w, http.StatusBadRequest, "invalid_background", problem)
+				return
+			}
+			if background == nil {
+				delete(projects, slug)
+			} else {
+				projects[slug] = *background
+			}
+		}
+		if len(projects) == 0 {
+			projects = nil
+		}
+		next.ProjectBackgrounds = projects
+	}
+	if len(body.ProjectIcons) > 0 {
+		icons := make(map[string]config.ProjectIcon, len(next.ProjectIcons))
+		for slug, icon := range next.ProjectIcons {
+			icons[slug] = icon
+		}
+		for slug, icon := range body.ProjectIcons {
+			if err := domain.ValidateSlug(slug); err != nil {
+				writeErr(w, http.StatusBadRequest, "invalid_project_icon", err.Error())
+				return
+			}
+			// `null` o los dos campos vacíos son lo mismo: automático. No se guarda
+			// una entrada que no dice nada.
+			if icon == nil || (icon.Sprite == "" && icon.Color == "") {
+				delete(icons, slug)
+				continue
+			}
+			if !config.ValidProjectIcon(*icon) {
+				writeErr(w, http.StatusBadRequest, "invalid_project_icon",
+					"el icono y el color tienen que ser nombres en minúsculas, como \"squid\" o \"green\"")
+				return
+			}
+			icons[slug] = *icon
+		}
+		if len(icons) == 0 {
+			icons = nil
+		}
+		next.ProjectIcons = icons
 	}
 
 	if err := next.Save(); err != nil {

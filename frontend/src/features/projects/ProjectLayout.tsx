@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
 import { Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
-import { Activity, Copy, FolderGit2, TriangleAlert, Trash2 } from 'lucide-react'
+import { Activity, Copy, FolderGit2, ImagePlus, TriangleAlert, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { errorMessage } from '@/api/client'
-import { useDeleteProject } from '@/api/queries'
+import { useConfig, useDeleteProject } from '@/api/queries'
 import { useT } from '@/i18n'
 
 import { useCategories } from '@/api/queries'
@@ -13,13 +13,15 @@ import { useProject } from '@/api/queries'
 import { asCounts } from '@/api/normalize'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ErrorPanel } from '@/components/common/ErrorPanel'
-import { StatusDot } from '@/components/common/StatusDot'
+import { ProjectSprite } from '@/components/common/ProjectSprite'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { categoryLabel } from '@/features/projects/CategoryCounts'
+import { ProjectBackgroundDialog } from '@/features/background/ProjectBackgroundDialog'
 import { ExportProjectButton } from '@/features/projects/ExportProjectButton'
 import { ChangelogButton } from '@/features/projects/ChangelogButton'
+import { ProjectIconDialog } from '@/features/projects/ProjectIconDialog'
 import { NewSummaryDialog } from '@/features/projects/NewSummaryDialog'
 import { copyToClipboard } from '@/lib/hooks'
 import { formatRelative } from '@/lib/format'
@@ -42,6 +44,9 @@ export function ProjectLayout({ slug }: ProjectLayoutProps) {
   const navigate = useNavigate()
   const removeProject = useDeleteProject()
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [backgroundOpen, setBackgroundOpen] = useState(false)
+  const [iconOpen, setIconOpen] = useState(false)
+  const config = useConfig()
   const pathname = useRouterState({ select: (state) => state.location.pathname })
 
   const activeCategory = useMemo(() => {
@@ -137,9 +142,19 @@ export function ProjectLayout({ slug }: ProjectLayoutProps) {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="shrink-0 border-b border-border px-3 py-2">
+      <header className="backdrop-surface shrink-0 border-b border-border px-3 py-2">
         <div className="flex flex-wrap items-center gap-2">
-          <StatusDot tone={project.total > 0 ? 'ok' : 'idle'} />
+          {/* El icono es el botón para cambiarlo: es donde se mira al pensar «quiero
+              otro», y no ocupa un sitio más en la fila de acciones. */}
+          <button
+            type="button"
+            onClick={() => setIconOpen(true)}
+            title={t('projects.icon.action')}
+            aria-label={t('projects.icon.action')}
+            className="-m-1 rounded-sm p-1 transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <ProjectSprite slug={project.slug} dim={project.total === 0} className="size-5" />
+          </button>
           <h1 className="text-sm text-primary">{project.name}</h1>
           <code className="text-2xs text-muted-foreground">{project.slug}</code>
           <span className="text-2xs text-muted-foreground">
@@ -161,6 +176,15 @@ export function ProjectLayout({ slug }: ProjectLayoutProps) {
             </Button>
             <ChangelogButton slug={project.slug} />
             <ExportProjectButton slug={project.slug} />
+            <Button
+              variant={config.data?.project_backgrounds?.[project.slug] ? 'outline' : 'ghost'}
+              size="icon-sm"
+              onClick={() => setBackgroundOpen(true)}
+              title={t('settings.background.project.menu')}
+              aria-label={t('settings.background.project.menu')}
+            >
+              <ImagePlus className="size-3" />
+            </Button>
             <Button
               variant="ghost"
               size="icon-sm"
@@ -199,9 +223,21 @@ export function ProjectLayout({ slug }: ProjectLayoutProps) {
         pending={removeProject.isPending}
         onConfirm={confirmDeleteProject}
       />
+      <ProjectBackgroundDialog
+        project={project.slug}
+        name={project.name}
+        open={backgroundOpen}
+        onOpenChange={setBackgroundOpen}
+      />
+      <ProjectIconDialog
+        project={project.slug}
+        name={project.name}
+        open={iconOpen}
+        onOpenChange={setIconOpen}
+      />
 
       {enPulso ? null : (
-        <div className="shrink-0 px-3 pt-2">
+        <div className="backdrop-surface shrink-0 px-3 pt-2">
           <Tabs value={activeCategory} onValueChange={goToCategory}>
             <TabsList>
               <TabsTrigger value="todas">

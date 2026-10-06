@@ -228,7 +228,9 @@ que los clientes (MCP, UI, CLI) lo encuentren.
 | --- | --- | --- | --- |
 | GET | `/health` | — | `{ok, version, uptime_ms, root_dir, db_path, port}` |
 | GET | `/config` | — | `Config` |
-| PUT | `/config` | `{root_dir?, theme?, editor?, language?}` | `Config` (400 `invalid_language` si `language` no es `"es"`, `"en"` ni `""`) |
+| PUT | `/config` | `{root_dir?, theme?, editor?, language?, opacity?, background?, project_backgrounds?, project_icons?}` | `Config` (400 `invalid_language` si `language` no es `"es"`, `"en"` ni `""`; 400 `invalid_background` si un fondo apunta a una imagen que no es de import o no existe; 400 `invalid_project_icon` si un nombre de icono o color no tiene forma de clave) |
+| POST | `/backgrounds` | la imagen tal cual | `{image}` (201 nueva, 200 si ya estaba; 400 `invalid_image`, 413 `image_too_large`) |
+| GET | `/backgrounds/{image}` | — | la imagen, con `Cache-Control: immutable` (404 si el nombre no tiene la forma del import) |
 | GET | `/categories` | — | `[Category]` |
 | GET | `/stats` | — | `{projects, summaries, by_category{}, pending_proposals}` |
 | GET | `/projects` | — | `[Project]` |
@@ -530,8 +532,9 @@ el MCP**: son de la interfaz, y el agente no las ve ni las escribe.
 | Raíz de resúmenes | `config.root_dir`, default `~/Documents/SaveMe`, override `SAVEME_ROOT` |
 | Índice | `<root_dir>/.saveme/saveme.db` |
 | Daemon | `<root_dir>/.saveme/daemon.json` |
+| Imágenes de fondo | `backgrounds/` junto a `config.json`, con nombre `<16 hex del sha256>.<ext>` |
 
-`config.json`: `{version, root_dir, port, theme, editor: {font_size, wrap, preview_mode, autosave_ms, vim_mode}, language, onboarded}`.
+`config.json`: `{version, root_dir, port, theme, editor: {font_size, wrap, preview_mode, autosave_ms, vim_mode}, language, onboarded, opacity, background, project_backgrounds, project_icons}`.
 
 ### Mover el workspace no pierde nada
 
@@ -781,6 +784,90 @@ detrás de la ventana.
 - Lo que **no** hace: desenfocar el fondo. Eso pide `NSVisualEffectView` (el crate
   `window-vibrancy`), no CSS: con una ventana translúcida, `backdrop-filter` no ve el
   escritorio que hay detrás.
+
+## 9.3.2 Imagen de fondo
+
+Una imagen detrás de toda la ventana, con el mismo modelo que la «imagen de fondo del
+chat» de loopops-ade: efecto, en qué pantallas se ve, dos visibilidades y difuminado. Se
+ajusta en Ajustes → Apariencia; cada proyecto puede tener la suya desde el botón de imagen
+de su cabecera.
+
+- **Modelo.** `config.background` (global, o `null`) y `config.project_backgrounds`
+  (por slug). Cada uno es `{image, effect, show_on, empty_visibility,
+  document_visibility, blur}`. El del proyecto **gana** en las pantallas de ese proyecto
+  (`/p/<slug>/…` y el editor de sus resúmenes); el resto ve el global. `PUT /config`
+  acepta un objeto (se completa con el aspecto por defecto y se acota: efecto desconocido →
+  `none`, visibilidades a 0..1, `blur` a 0..24) o `null` para quitarlo; los de proyecto se
+  fusionan por slug.
+- **«Sin documento» y «con documento»** sustituyen al «chat vacío» y «en una sesión» del
+  ADE: con documento es un resumen abierto (`/s/…`) o una nota (`/notes/<ruta>`); el resto
+  —inbox, proyectos, etiquetas, la lista de notas— es «sin documento». `show_on: empty`
+  quita la imagen en cuanto hay un documento delante.
+- **La imagen se importa en el core.** La interfaz la elige con un `<input type="file">`
+  —no con el diálogo de Tauri, así el webview no necesita permiso para abrir archivos— y la
+  sube con `POST /api/backgrounds`. El core reconoce el formato por los primeros bytes (PNG,
+  JPEG, GIF, WebP, AVIF; hasta 64 MB), la guarda con un nombre derivado del contenido y
+  escribe de forma atómica. Subir la misma imagen dos veces no la duplica. Quitar un fondo
+  solo quita la referencia: el archivo se queda, igual que en el ADE.
+- **Pintado.** `lib/backdropBitmap.ts` la pide con `fetch` —un `<img>` de otro origen
+  dejaría el canvas «sucio» y los efectos que leen píxeles fallarían—, la decodifica una
+  vez reducida a 1920 px y la comparte entre el fondo y las vistas previas.
+  `components/common/BackdropLayer.tsx` la pinta en un canvas con el efecto
+  (`lib/backdropEffects.ts`: tramado de Bayer, ASCII, semitono, líneas, bruma) y encima
+  pone un velo del color de fondo del tema con opacidad `1 - visibilidad`: la imagen se
+  funde hacia el tema, no hacia la transparencia. El difuminado se hornea en el canvas a
+  media resolución. Se repinta solo al cambiar de tamaño, de tema o de aspecto.
+- **Toda la ventana, con cristal.** La imagen va detrás de todo el marco (`AppBackdrop`
+  envuelve barra superior, lateral, contenido y barra de estado): recortada al área central
+  parecía una foto pegada en una caja, con la lateral y las barras como bloques opacos que
+  la cortaban. Con la imagen a la vista, el marco lleva `data-backdrop` y:
+  - las barras (`.app-chrome`) son cristal esmerilado: 80 % del panel con
+    `backdrop-filter: blur(18px)`;
+  - los bloques con texto del contenido (`.backdrop-surface`: cabecera y pestañas de un
+    proyecto, buscador, lista de resúmenes, columna y cabecera del inbox, estados vacíos)
+    son tarjetas de cristal al 76 %, así el texto nunca va directamente sobre la foto y,
+    donde no hay contenido, la imagen se ve nítida;
+  - los paneles (`--color-panel`, `--color-panel-raised`, `--color-sunken`) pasan al 72 %,
+    y el gutter de CodeMirror, que trae su color fijo, sigue a los paneles;
+  - el texto lleva un halo fino del color de fondo del tema.
+  Sin imagen, las clases no hacen nada. Los diálogos y menús se pintan fuera del marco y
+  siguen opacos.
+- **Guardar al soltar.** Los deslizadores cambian un borrador local (vista previa en vivo)
+  y guardan al soltar; si lo guardado ya es igual no se escribe nada.
+- Si la imagen no se puede cargar, se dice con un aviso que ofrece cambiarla o quitarla.
+
+La guardia `verify:background` comprueba qué fondo gana, cuánto se ve en cada pantalla,
+qué cuenta como documento, las cuentas de los efectos y el encuadre.
+
+## 9.3.3 Iconos de proyecto
+
+Cada proyecto lleva un bicho de píxeles al estilo de los marcianitos, en la lateral, la
+cabecera del proyecto, sus fichas del inbox, el resumen de la semana, la paleta de comandos
+y el selector de «otra ubicación».
+
+- **Por defecto sale del slug** (`lib/projectSprite.ts`): FNV-1a de 32 bits; la forma sale
+  de un trozo del hash y el color de otro. El mismo proyecto tiene el mismo icono en todas
+  las pantallas y en todas las máquinas sin guardar nada, y slugs parecidos (`app`, `app-2`)
+  caen lejos. El orden de las listas decide el automático: se añade **al final** para no
+  cambiarle el icono a nadie.
+- **Se puede elegir** pulsando el icono de la cabecera del proyecto (`ProjectIconDialog`):
+  un bicho y un color, cada uno con su opción «automático». Se guarda al momento en
+  `config.project_icons` (`{slug: {sprite, color}}`) por **nombre** (`ghost`, `green`), no
+  por posición, así que añadir dibujos no altera las elecciones. `PUT /config` fusiona por
+  slug; `null` o los dos campos vacíos vuelven al automático. El core solo comprueba la forma
+  del nombre: la lista de dibujos vive en la interfaz, y un nombre que esta versión no conozca
+  se pinta como automático.
+- **Doce dibujos hechos a mano**, no generados: un generador de píxeles da manchas tanto
+  como bichos. Todos simétricos, de 8 a 12 de ancho. Ocho colores en oklch con la misma
+  luminosidad, para que ningún proyecto grite más que otro.
+- **SVG con `crispEdges`** (`components/common/ProjectSprite.tsx`): un `<rect>` por tramo de
+  píxeles encendidos, nítido a cualquier tamaño, centrado en un lienzo cuadrado. Un proyecto
+  sin resúmenes se ve apagado, que es el papel del punto gris que había antes.
+- La guardia `verify:sprites` comprueba que cada dibujo sea rectangular, simétrico y lleno,
+  que no haya dos iguales, que los nombres sean únicos, tengan la forma que exige el core y
+  estén traducidos en los dos idiomas, cómo se combinan elección y automático (forma o color
+  por separado, nombres desconocidos), que el hash sea FNV-1a (si cambiara, todos los
+  proyectos cambiarían de icono al actualizar) y que el reparto use todas las formas y colores.
 
 ## 9.4 Barra de título
 

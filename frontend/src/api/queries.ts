@@ -664,6 +664,16 @@ export function useReindex(): UseMutationResult<ReindexResult, Error, void> {
   })
 }
 
+/**
+ * Sube una imagen de fondo al core, que guarda una copia con un nombre derivado
+ * de su contenido. No cambia la configuración: usarla es un `useUpdateConfig`.
+ */
+export function useUploadBackground(): UseMutationResult<{ image: string }, Error, Blob> {
+  return useMutation({
+    mutationFn: (file: Blob) => api.post<{ image: string }>('/backgrounds', file),
+  })
+}
+
 export function useUpdateConfig(): UseMutationResult<Config, Error, ConfigPatch> {
   const queryClient = useQueryClient()
   return useMutation({

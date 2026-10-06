@@ -62,7 +62,7 @@ export function SummaryList({
   }
 
   return (
-    <div className="divide-y divide-border border-t border-border">
+    <div className="backdrop-surface divide-y divide-border border-t border-border">
       {asArray<SummaryMeta>(result.items).map((summary) => (
         <SummaryRow key={summary.id} summary={summary} showCategory={showCategory} />
       ))}

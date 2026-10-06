@@ -38,7 +38,7 @@ export function InboxPage() {
 
   return (
     <div className="grid h-full grid-cols-[21rem_minmax(0,1fr)]">
-      <section className="min-h-0 space-y-4 overflow-y-auto border-r border-border p-3">
+      <section className="backdrop-surface min-h-0 space-y-4 overflow-y-auto border-r border-border p-3">
         <StatsPanel />
         <DigestPanel />
         <TagsPanel />
@@ -94,6 +94,7 @@ export function InboxPage() {
 
       <section className="min-h-0 space-y-3 overflow-y-auto p-3">
         <SectionHeader
+          className="backdrop-surface -mx-3 -mt-3 px-3 py-2"
           title={showExpired ? t('inbox.pending.expiredTitle') : t('inbox.pending.title')}
           hint={
             pending.length > 0

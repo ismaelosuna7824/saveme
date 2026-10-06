@@ -3,7 +3,7 @@ import { Inbox, FolderGit2, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 
 import { useProjects, useStats } from '@/api/queries'
 import type { Project } from '@/api/types'
-import { StatusDot } from '@/components/common/StatusDot'
+import { ProjectSprite } from '@/components/common/ProjectSprite'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { NotesTree } from '@/features/notes/NotesTree'
@@ -25,7 +25,7 @@ function ProjectLink({ project, active }: { project: Project; active: boolean })
           : 'border-transparent text-muted-foreground hover:bg-accent/60 hover:text-foreground',
       )}
     >
-      <StatusDot tone={project.total > 0 ? 'ok' : 'idle'} />
+      <ProjectSprite slug={project.slug} dim={project.total === 0} className="size-4" />
       <span className="min-w-0 flex-1 truncate text-xs">{project.name}</span>
       <span className="shrink-0 text-2xs text-muted-foreground">{project.total}</span>
     </Link>
@@ -49,7 +49,7 @@ export function ProjectSidebar() {
   // todo porque entonces no habría forma de recuperarlo sin saber el atajo.
   if (sidebarCollapsed) {
     return (
-      <aside className="flex w-9 shrink-0 flex-col items-center border-r border-border bg-panel py-2">
+      <aside className="app-chrome flex w-9 shrink-0 flex-col items-center border-r border-border bg-panel py-2">
         <Button
           variant="ghost"
           size="icon-sm"
@@ -64,7 +64,7 @@ export function ProjectSidebar() {
   }
 
   return (
-    <aside className="flex w-56 shrink-0 flex-col border-r border-border bg-panel">
+    <aside className="app-chrome flex w-56 shrink-0 flex-col border-r border-border bg-panel">
       <nav className="flex flex-col py-1">
         <div className="flex items-center">
           <Link

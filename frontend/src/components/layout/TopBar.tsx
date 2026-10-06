@@ -52,7 +52,7 @@ export function TopBar({ events }: { events: ServerEventsState }) {
     <header
       data-tauri-drag-region
       className={cn(
-        'flex h-9 shrink-0 items-center gap-3 border-b border-border bg-panel',
+        'app-chrome flex h-9 shrink-0 items-center gap-3 border-b border-border bg-panel',
         IS_MACOS ? 'pl-[78px] pr-3' : 'px-3',
       )}
     >

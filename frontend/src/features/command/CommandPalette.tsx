@@ -6,7 +6,6 @@ import {
   Eye,
   FileText,
   FilePlus2,
-  FolderGit2,
   Inbox,
   LayoutList,
   Plug,
@@ -19,6 +18,7 @@ import { asCounts } from '@/api/normalize'
 import { useCategories, useConfig, useProjects, useReindex, useSummaries } from '@/api/queries'
 import type { PreviewMode } from '@/api/types'
 import { useUi } from '@/app/preferences'
+import { ProjectSprite } from '@/components/common/ProjectSprite'
 import { MODE_LABEL_KEY } from '@/features/editor/mode'
 import {
   CommandDialog,
@@ -184,7 +184,7 @@ export function CommandPalette() {
                   run(() => void navigate({ to: '/p/$project', params: { project: project.slug } }))
                 }
               >
-                <FolderGit2 />
+                <ProjectSprite slug={project.slug} dim={project.total === 0} />
                 {project.name}
                 <CommandShortcut>
                   {t('shell.palette.summaryCount', { count: project.total })}

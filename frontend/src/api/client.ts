@@ -108,7 +108,11 @@ export function buildQuery(params: Record<string, QueryValue>): string {
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = 'GET', body, signal } = options
   const headers: Record<string, string> = { Accept: 'application/json' }
-  if (body !== undefined) headers['Content-Type'] = 'application/json'
+  // Un `Blob` (un archivo elegido por el usuario) va tal cual, con su tipo; lo
+  // demás es JSON.
+  const raw = body instanceof Blob
+  if (raw) headers['Content-Type'] = body.type || 'application/octet-stream'
+  else if (body !== undefined) headers['Content-Type'] = 'application/json'
 
   let response: Response
   try {
@@ -116,7 +120,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
       method,
       headers,
       signal,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: raw ? body : body === undefined ? undefined : JSON.stringify(body),
     })
   } catch (cause) {
     if (cause instanceof DOMException && cause.name === 'AbortError') throw cause
@@ -130,11 +134,11 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     )
   }
 
-  const raw = await response.text()
+  const text = await response.text()
   let parsed: unknown = null
-  if (raw.length > 0) {
+  if (text.length > 0) {
     try {
-      parsed = JSON.parse(raw)
+      parsed = JSON.parse(text)
     } catch {
       parsed = null
     }
@@ -147,7 +151,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     throw new ApiError(
       response.status,
       `http_${response.status}`,
-      translateError('http', raw.trim() || `El core respondió ${response.status}`, {
+      translateError('http', text.trim() || `El core respondió ${response.status}`, {
         status: response.status,
       }),
     )

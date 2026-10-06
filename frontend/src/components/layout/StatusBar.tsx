@@ -70,7 +70,7 @@ export function StatusBar() {
   const root = config.data?.root_dir ?? ''
 
   return (
-    <footer className="flex h-6 shrink-0 items-center gap-3 border-t border-border bg-panel px-3 text-2xs text-muted-foreground">
+    <footer className="app-chrome flex h-6 shrink-0 items-center gap-3 border-t border-border bg-panel px-3 text-2xs text-muted-foreground">
       <nav className="flex min-w-0 items-center gap-3" aria-label={t('shell.shortcuts.title')}>
         {atajos.map((atajo) => (
           <span key={atajo.keys} className="flex shrink-0 items-center gap-1">

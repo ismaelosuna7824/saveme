@@ -6,6 +6,7 @@ import { useT } from '@/i18n'
 import { errorMessage } from '@/api/client'
 import { useCategories, useConfirmProposal, useProjects } from '@/api/queries'
 import type { Proposal } from '@/api/types'
+import { ProjectSprite } from '@/components/common/ProjectSprite'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -91,7 +92,10 @@ export function RetargetDialog({ proposal, open, onOpenChange }: RetargetDialogP
               <SelectContent>
                 {(projects.data ?? []).map((project) => (
                   <SelectItem key={project.slug} value={project.slug}>
-                    {project.name}
+                    <span className="flex items-center gap-2">
+                      <ProjectSprite slug={project.slug} />
+                      {project.name}
+                    </span>
                   </SelectItem>
                 ))}
               </SelectContent>

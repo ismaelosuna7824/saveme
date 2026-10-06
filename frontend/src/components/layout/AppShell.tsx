@@ -3,6 +3,7 @@ import { useEffect, type ReactNode } from 'react'
 import { useServerEvents } from '@/api/events'
 import { useConfig } from '@/api/queries'
 import { useUi } from '@/app/preferences'
+import { AppBackdrop } from '@/components/layout/AppBackdrop'
 import { ProjectSidebar } from '@/components/layout/ProjectSidebar'
 import { ShortcutsDialog } from '@/components/layout/ShortcutsDialog'
 import { StatusBar } from '@/components/layout/StatusBar'
@@ -52,14 +53,16 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex h-full flex-col bg-background">
-      <TopBar events={events} />
-      <div className="flex min-h-0 flex-1">
-        <ProjectSidebar />
-        <main className="min-w-0 flex-1 overflow-hidden">{children}</main>
-      </div>
-      {/* Dentro de la columna, no flotando: así el alto del contenido se reparte
-          solo y el `h-full` de los editores sigue significando lo mismo. */}
-      <StatusBar />
+      <AppBackdrop>
+        <TopBar events={events} />
+        <div className="flex min-h-0 flex-1">
+          <ProjectSidebar />
+          <main className="min-w-0 flex-1 overflow-hidden">{children}</main>
+        </div>
+        {/* Dentro de la columna, no flotando: así el alto del contenido se reparte
+            solo y el `h-full` de los editores sigue significando lo mismo. */}
+        <StatusBar />
+      </AppBackdrop>
       <CommandPalette />
       {/* Los dos overlays de la app viven aquí, como hermanos. La paleta de
           comandos no debería ser dueña del diálogo de Ajustes: solo comparte el
