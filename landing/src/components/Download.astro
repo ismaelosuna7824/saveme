@@ -19,7 +19,7 @@ const PLATFORMS: { os: 'macos' | 'windows' | 'linux'; icon: 'apple' | 'windows' 
 
 <section class="section" id="download">
   <div class="container">
-    <div class="section-head">
+    <div class="section-head" data-reveal>
       <span class="kicker">{t.download.kicker}</span>
       <h2 class="section-title">{t.download.title}</h2>
       <p class="section-lead">{t.download.lead}</p>
@@ -27,8 +27,8 @@ const PLATFORMS: { os: 'macos' | 'windows' | 'linux'; icon: 'apple' | 'windows' 
 
     <div class="platforms">
       {
-        PLATFORMS.map(({ os, icon, assets }) => (
-          <article class="panel platform" data-platform={os}>
+        PLATFORMS.map(({ os, icon, assets }, index) => (
+          <article class="panel platform" data-platform={os} data-reveal style={`--i: ${index}`}>
             <div class="platform-head">
               <Icon name={icon} class="platform-icon" />
               <h3>{t.download.platforms[os].name}</h3>

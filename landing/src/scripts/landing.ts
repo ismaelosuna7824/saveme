@@ -16,6 +16,7 @@ import {
   LATEST_RELEASE_URL,
   type LatestRelease,
 } from '../lib/release'
+import { setupMotion } from './motion'
 
 type OS = 'macos' | 'windows' | 'linux'
 
@@ -197,6 +198,7 @@ function setupTracking(): void {
   })
 }
 
+setupMotion()
 const os = detectOS()
 applyOS(os)
 applyRelease()

@@ -10,14 +10,14 @@ const { t } = Astro.props
 
 <section class="section" id="features">
   <div class="container">
-    <div class="section-head">
+    <div class="section-head" data-reveal>
       <span class="kicker">{t.features.kicker}</span>
       <h2 class="section-title">{t.features.title}</h2>
     </div>
     <div class="grid">
       {
-        t.features.items.map((item) => (
-          <article class="feature">
+        t.features.items.map((item, index) => (
+          <article class="feature" data-reveal style={`--i: ${index % 3}`}>
             <h3>
               <span aria-hidden="true">▸</span> {item.title}
             </h3>

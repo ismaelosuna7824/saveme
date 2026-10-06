@@ -17,12 +17,12 @@ const { t, shots } = Astro.props
 
 <section class="section" id="screenshots">
   <div class="container">
-    <div class="section-head">
+    <div class="section-head" data-reveal>
       <span class="kicker">{t.screenshots.kicker}</span>
       <h2 class="section-title">{t.screenshots.title}</h2>
     </div>
 
-    <div class="gallery" data-tabs="screenshots">
+    <div class="gallery" data-tabs="screenshots" data-reveal>
       <div class="tabs" role="tablist" aria-label={t.screenshots.title}>
         {
           shots.map(({ key }, index) => (

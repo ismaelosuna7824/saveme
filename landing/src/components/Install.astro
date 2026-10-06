@@ -17,13 +17,13 @@ const OSES = [
 
 <section class="section" id="install">
   <div class="container">
-    <div class="section-head">
+    <div class="section-head" data-reveal>
       <span class="kicker">{t.install.kicker}</span>
       <h2 class="section-title">{t.install.title}</h2>
       <p class="section-lead">{t.install.lead}</p>
     </div>
 
-    <div data-tabs="install">
+    <div data-tabs="install" data-reveal>
       <div class="tabs" role="tablist" aria-label={t.install.title}>
         {
           OSES.map(({ os, icon }, index) => (

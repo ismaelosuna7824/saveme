@@ -11,7 +11,7 @@ const { t } = Astro.props
 
 <section class="section" id="why">
   <div class="container">
-    <div class="section-head">
+    <div class="section-head" data-reveal>
       <span class="kicker">{t.why.kicker}</span>
       <h2 class="section-title">{t.why.title}</h2>
       <p class="section-lead">{t.why.lead}</p>
@@ -20,7 +20,7 @@ const { t } = Astro.props
     <div class="cards">
       {
         t.why.cards.map((card, index) => (
-          <article class="panel card">
+          <article class="panel card" data-reveal style={`--i: ${index}`}>
             <span class="index">0{index + 1}</span>
             <h3>{card.title}</h3>
             <p>{card.body}</p>
@@ -30,14 +30,14 @@ const { t } = Astro.props
     </div>
 
     <div class="how" id="how">
-      <div class="how-head">
+      <div class="how-head" data-reveal>
         <span class="kicker">{t.how.kicker}</span>
         <h3 class="how-title">{t.how.title}</h3>
       </div>
       <ol class="steps">
         {
           t.how.steps.map((step, index) => (
-            <li class="step">
+            <li class="step" data-reveal style={`--i: ${index}`}>
               <span class="step-number">{index + 1}</span>
               <div>
                 <h4>{step.title}</h4>
@@ -47,14 +47,20 @@ const { t } = Astro.props
           ))
         }
       </ol>
-      <div class="flow" aria-hidden="true">
-        <span class="node">{t.how.flow.agent}</span>
-        <span class="arrow">─ {t.how.flow.propose} ─▶</span>
-        <span class="node">SaveMe</span>
-        <span class="arrow">─ {t.how.flow.ask} ─▶</span>
-        <span class="node you"><Sprite name="robot" color="oklch(0.80 0.15 95)" size={14} /> {t.how.flow.you}</span>
-        <span class="arrow">─ {t.how.flow.confirm} ─▶</span>
-        <span class="node file">.md</span>
+      {
+        /*
+         * El flujo se enciende paso a paso (`--s`), en bucle mientras se ve: es el
+         * resumen de la página en una línea, propuesta → pregunta → confirmación → archivo.
+         */
+      }
+      <div class="flow" aria-hidden="true" data-reveal data-loop>
+        <span class="node" style="--s: 0">{t.how.flow.agent}</span>
+        <span class="arrow" style="--s: 1">─ {t.how.flow.propose} ─▶</span>
+        <span class="node" style="--s: 2">SaveMe</span>
+        <span class="arrow" style="--s: 3">─ {t.how.flow.ask} ─▶</span>
+        <span class="node you" style="--s: 4"><Sprite name="robot" color="oklch(0.80 0.15 95)" size={14} /> {t.how.flow.you}</span>
+        <span class="arrow" style="--s: 5">─ {t.how.flow.confirm} ─▶</span>
+        <span class="node file" style="--s: 6">.md</span>
       </div>
     </div>
   </div>
@@ -167,13 +173,35 @@ const { t } = Astro.props
   }
 
   .node.you {
+    --flow-base: var(--color-primary);
     border-color: var(--color-primary);
     color: var(--color-primary);
   }
 
   .node.file {
+    --flow-base: var(--color-secondary);
+    --flow-hl: var(--color-secondary);
     border-color: var(--color-secondary);
     color: var(--color-secondary);
+  }
+
+  /* Siete pasos de 0,55 s y una pausa antes de volver a empezar. Solo se mueve
+     mientras el flujo está en pantalla (`in-view`, ver scripts/motion.ts). */
+  :global(html.motion) .flow.is-visible > * {
+    animation: 5.6s linear calc(var(--s) * 0.55s + 0.5s) infinite both;
+    animation-play-state: paused;
+  }
+
+  :global(html.motion) .flow.is-visible > .node {
+    animation-name: flow-node;
+  }
+
+  :global(html.motion) .flow.is-visible > .arrow {
+    animation-name: flow-arrow;
+  }
+
+  :global(html.motion) .flow.is-visible.in-view > * {
+    animation-play-state: running;
   }
 
   @media (max-width: 860px) {

@@ -323,3 +323,137 @@ img {
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+/* --- Movimiento ------------------------------------------------------------
+ *
+ * Todo cuelga de `html.motion`, que el <head> solo pone con JavaScript y sin
+ * `prefers-reduced-motion` (ver layouts/Base.astro). Sin esa clase no se esconde
+ * ni se anima nada. Se anima con `animation` y relleno `backwards`, no con
+ * `transition`: así no se pisa con las transiciones de hover de cada componente
+ * y, al terminar, el elemento vuelve a sus estilos de siempre.
+ */
+
+/* Lo que entra al hacer scroll. `--i` escalona los elementos de una misma fila. */
+.motion [data-reveal]:not(.is-visible) {
+  opacity: 0;
+}
+
+.motion [data-reveal].is-visible {
+  animation: rise 640ms cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+  animation-delay: calc(var(--i, 0) * var(--stagger, 80ms));
+}
+
+/* El `// kicker` se escribe como en una terminal. `--chars` lo pone motion.ts. */
+.motion [data-reveal] .kicker {
+  overflow: hidden;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+.motion [data-reveal].is-visible .kicker {
+  animation: type-in calc(var(--chars, 12) * 26ms) steps(var(--chars, 12)) 180ms backwards;
+}
+
+/* Los bichos de píxeles se mueven a saltos de dos fotogramas, como los marcianitos. */
+.motion .invader {
+  animation: invader 1.4s steps(1) infinite;
+}
+
+.motion .invader:nth-child(2) {
+  animation-delay: -0.45s;
+}
+
+.motion .invader:nth-child(3) {
+  animation-delay: -0.9s;
+}
+
+/* Cambiar de pestaña (capturas, guías de instalación) funde el panel nuevo. */
+.motion [role='tabpanel']:not([hidden]) {
+  animation: fade-in 320ms ease-out;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes type-in {
+  from {
+    width: 0;
+  }
+  to {
+    width: calc(var(--chars, 12) * (1ch + 0.04em));
+  }
+}
+
+@keyframes invader {
+  50% {
+    transform: translateX(3px);
+  }
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes rise-far {
+  from {
+    opacity: 0;
+    transform: translateY(48px) scale(0.985);
+  }
+}
+
+/* El brillo de fósforo al encenderse: sube, se pasa un poco y se asienta. */
+@keyframes phosphor {
+  0% {
+    opacity: 0.35;
+    text-shadow: none;
+  }
+  35% {
+    opacity: 1;
+    text-shadow: 0 0 26px rgb(255 180 84 / 0.7);
+  }
+}
+
+@keyframes drift {
+  to {
+    transform: translate3d(4%, 3%, 0) scale(1.06);
+  }
+}
+
+/* Un paso del flujo de «cómo funciona» encendido (Why.astro). */
+@keyframes flow-node {
+  0%,
+  26%,
+  100% {
+    border-color: var(--flow-base, var(--color-border-strong));
+    box-shadow: none;
+  }
+  8%,
+  18% {
+    border-color: var(--flow-hl, var(--color-primary));
+    box-shadow: 0 0 18px -4px var(--flow-hl, var(--color-primary));
+  }
+}
+
+@keyframes flow-arrow {
+  0%,
+  26%,
+  100% {
+    color: var(--color-syntax-comment);
+  }
+  8%,
+  18% {
+    color: var(--color-primary);
+  }
+}

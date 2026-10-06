@@ -44,6 +44,26 @@ const absolute = (path: string) => (Astro.site ? new URL(path, Astro.site).href 
 
     {
       /*
+       * Las animaciones se preparan aquí, antes de pintar, para que lo que entra
+       * al hacer scroll no aparezca y desaparezca. Solo con JavaScript y sin
+       * `prefers-reduced-motion`. Si `scripts/motion.ts` no llega a arrancar
+       * (red lenta, error), se quita la clase: mejor una página quieta que una
+       * con secciones invisibles.
+       */
+    }
+    <script is:inline>
+      ;(function () {
+        var html = document.documentElement
+        if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return
+        html.classList.add('motion')
+        setTimeout(function () {
+          if (!html.classList.contains('motion-run')) html.classList.remove('motion')
+        }, 3000)
+      })()
+    </script>
+
+    {
+      /*
        * Primera visita a la portada en inglés con el navegador en español: se
        * manda a /es/. Solo si la persona no ha elegido idioma a mano; en cuanto
        * usa el selector, su elección manda. Va en línea y en el <head> para que

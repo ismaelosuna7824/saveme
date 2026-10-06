@@ -40,14 +40,15 @@ const CLIENTS = [
 
 <section class="section" id="clients">
   <div class="container">
-    <div class="section-head">
+    <div class="section-head" data-reveal>
       <span class="kicker">{t.clients.kicker}</span>
       <h2 class="section-title">{t.clients.title}</h2>
       <p class="section-lead">{t.clients.lead}</p>
     </div>
-    <ul class="clients">
-      {CLIENTS.map((name) => <li>{name}</li>)}
-      <li class="custom">+ custom</li>
+    {/* Las etiquetas entran en cascada, muy seguidas (`--stagger`). */}
+    <ul class="clients" style="--stagger: 22ms">
+      {CLIENTS.map((name, index) => <li data-reveal style={`--i: ${index}`}>{name}</li>)}
+      <li class="custom" data-reveal style={`--i: ${CLIENTS.length}`}>+ custom</li>
     </ul>
   </div>
 </section>

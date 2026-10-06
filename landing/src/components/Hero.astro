@@ -22,7 +22,7 @@ const label = (os: string) => t.hero.downloadFor.replace('{os}', os)
   <div class="container hero-grid">
     <div class="hero-copy">
       <p class="eyebrow">
-        <Sprite name="squid" color="oklch(0.72 0.16 150)" size={18} />
+        <Sprite name="squid" color="oklch(0.72 0.16 150)" size={18} class="invader" />
         {t.hero.eyebrow}
       </p>
       <h1 set:html={t.hero.titleHtml} />
@@ -62,30 +62,38 @@ const label = (os: string) => t.hero.downloadFor.replace('{os}', os)
       <p class="free">{t.hero.free}</p>
     </div>
 
-    <div class="terminal panel" aria-hidden="true">
+    {
+      /*
+       * Cada línea va en su `.tl` para que scripts/motion.ts pueda escribir la
+       * sesión: los comandos (`data-type`) letra a letra y la salida línea a línea.
+       * Sin animaciones se ve entera, con el cursor quieto en el último prompt.
+       */
+    }
+    <div class="terminal panel" aria-hidden="true" data-terminal>
       <div class="terminal-bar">
         <span></span><span></span><span></span>
         <em>~/Documents/SaveMe</em>
       </div>
-      <pre><code><span class="c">$</span> tree ~/Documents/SaveMe
-<span class="d">saveme-app/</span>
-├── <span class="d">features/</span>
-│   └── 2026-09-14-markdown-editor-with-preview.md
-├── <span class="d">fixes/</span>
-│   └── 2026-09-16-watcher-race.md
-└── <span class="d">design/</span>
-    └── 2026-09-18-index-schema.md
-<span class="d">billing-api/</span>
-└── <span class="d">incidents/</span>
-    └── 2026-10-02-webhook-retries-storm.md
-
-<span class="c">$</span> head -6 fixes/2026-09-16-watcher-race.md
-<span class="k">---</span>
-<span class="p">title:</span> <span class="s">Watcher race on rename</span>
-<span class="p">category:</span> <span class="s">fix</span>
-<span class="p">agent:</span> <span class="s">claude-code</span>
-<span class="p">summary:</span> <span class="s">Debounce + atomic rename, no lost events.</span>
-<span class="k">---</span></code></pre>
+      <pre><code><span class="tl"><span class="c">$</span> <span data-type>tree ~/Documents/SaveMe</span></span>
+<span class="tl"><span class="d">saveme-app/</span></span>
+<span class="tl">├── <span class="d">features/</span></span>
+<span class="tl">│   └── 2026-09-14-markdown-editor-with-preview.md</span>
+<span class="tl">├── <span class="d">fixes/</span></span>
+<span class="tl">│   └── 2026-09-16-watcher-race.md</span>
+<span class="tl">└── <span class="d">design/</span></span>
+<span class="tl">    └── 2026-09-18-index-schema.md</span>
+<span class="tl"><span class="d">billing-api/</span></span>
+<span class="tl">└── <span class="d">incidents/</span></span>
+<span class="tl">    └── 2026-10-02-webhook-retries-storm.md</span>
+<span class="tl"> </span>
+<span class="tl"><span class="c">$</span> <span data-type>head -6 fixes/2026-09-16-watcher-race.md</span></span>
+<span class="tl"><span class="k">---</span></span>
+<span class="tl"><span class="p">title:</span> <span class="s">Watcher race on rename</span></span>
+<span class="tl"><span class="p">category:</span> <span class="s">fix</span></span>
+<span class="tl"><span class="p">agent:</span> <span class="s">claude-code</span></span>
+<span class="tl"><span class="p">summary:</span> <span class="s">Debounce + atomic rename, no lost events.</span></span>
+<span class="tl"><span class="k">---</span></span>
+<span class="tl"><span class="c">$</span> <span class="caret"></span></span></code></pre>
     </div>
   </div>
 
@@ -143,6 +151,11 @@ const label = (os: string) => t.hero.downloadFor.replace('{os}', os)
   h1 {
     font-size: clamp(36px, 5.4vw, 60px);
     letter-spacing: -0.035em;
+  }
+
+  /* El tramo en ámbar brilla un poco, como el fósforo de la pantalla. */
+  h1 :global(em) {
+    text-shadow: 0 0 18px rgb(255 180 84 / 0.18);
   }
 
   .lead {
@@ -236,6 +249,14 @@ const label = (os: string) => t.hero.downloadFor.replace('{os}', os)
     color: var(--color-syntax-string);
   }
 
+  .caret {
+    display: inline-block;
+    width: 0.6em;
+    height: 1.15em;
+    vertical-align: text-bottom;
+    background: var(--color-primary);
+  }
+
   .hero-shot {
     position: relative;
     margin-top: 88px;
@@ -245,5 +266,58 @@ const label = (os: string) => t.hero.downloadFor.replace('{os}', os)
     .hero-grid {
       grid-template-columns: minmax(0, 1fr);
     }
+  }
+
+  /* --- Movimiento: solo con html.motion (ver styles/global.css) ------------ */
+
+  :global(html.motion) .hero::before {
+    animation: drift 24s ease-in-out infinite alternate;
+  }
+
+  :global(html.motion) .hero-copy > * {
+    animation: rise 720ms cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+  }
+
+  :global(html.motion) .hero-copy > :nth-child(2) {
+    animation-delay: 80ms;
+  }
+
+  :global(html.motion) .hero-copy > :nth-child(3) {
+    animation-delay: 160ms;
+  }
+
+  :global(html.motion) .hero-copy > :nth-child(4) {
+    animation-delay: 240ms;
+  }
+
+  :global(html.motion) .hero-copy > :nth-child(n + 5) {
+    animation-delay: 320ms;
+  }
+
+  /* La frase en ámbar «se enciende» una vez, como un CRT al arrancar. */
+  :global(html.motion) h1 :global(em) {
+    animation: phosphor 1.8s ease-out 650ms backwards;
+  }
+
+  :global(html.motion) .terminal {
+    animation: rise 820ms cubic-bezier(0.2, 0.7, 0.2, 1) 200ms backwards;
+  }
+
+  :global(html.motion) .hero-shot {
+    animation: rise-far 1100ms cubic-bezier(0.2, 0.7, 0.2, 1) 450ms backwards;
+  }
+
+  /* Las líneas que todavía no se han escrito guardan su sitio. */
+  :global(html.motion) .tl:not(.on) {
+    visibility: hidden;
+  }
+
+  :global(html.motion) .caret {
+    animation: blink 1.05s steps(1) infinite;
+  }
+
+  /* Mientras se escribe el cursor no parpadea, como en una terminal de verdad. */
+  :global(html.motion) .typing .caret {
+    animation: none;
   }
 </style>
