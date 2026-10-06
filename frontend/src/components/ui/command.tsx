@@ -26,11 +26,10 @@ function CommandDialog({
   return (
     <Dialog {...props}>
       <DialogContent
-        showClose={false}
         className={cn('overflow-hidden p-0 sm:max-w-2xl', className)}
         aria-describedby={undefined}
       >
-        <DialogHeader>
+        <DialogHeader showClose={false}>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         <Command className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1 [&_[cmdk-group-heading]]:text-2xs [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-[0.12em] [&_[cmdk-group-heading]]:text-muted-foreground">

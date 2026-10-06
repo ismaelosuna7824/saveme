@@ -7,9 +7,11 @@ import type { SummaryMeta } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
+  DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -72,10 +74,13 @@ export function EditMetaDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogTitle>{t('editor.meta.title')}</DialogTitle>
-        <DialogDescription>{t('editor.meta.description')}</DialogDescription>
+        <DialogHeader>
+          <DialogTitle>{t('editor.meta.title')}</DialogTitle>
+        </DialogHeader>
 
-        <div className="space-y-3">
+        <DialogBody className="space-y-3">
+          <DialogDescription>{t('editor.meta.description')}</DialogDescription>
+
           <label className="block space-y-1">
             <span className="text-2xs uppercase tracking-[0.14em] text-muted-foreground">
               {t('editor.meta.titleLabel')}
@@ -107,7 +112,7 @@ export function EditMetaDialog({
           {category !== summary.category ? (
             <p className="text-2xs text-muted-foreground">{t('editor.meta.moves')}</p>
           ) : null}
-        </div>
+        </DialogBody>
 
         <DialogFooter>
           <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>

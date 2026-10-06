@@ -24,9 +24,8 @@ function DialogOverlay({
 function DialogContent({
   className,
   children,
-  showClose = true,
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Content> & { showClose?: boolean }) {
+}: React.ComponentProps<typeof DialogPrimitive.Content>) {
   return (
     <DialogPortal>
       <DialogOverlay />
@@ -38,21 +37,52 @@ function DialogContent({
         {...props}
       >
         {children}
-        {showClose ? (
-          <DialogPrimitive.Close
-            className="absolute right-2 top-2 rounded-sm p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            aria-label="Cerrar"
-          >
-            <X className="size-3.5" />
-          </DialogPrimitive.Close>
-        ) : null}
       </DialogPrimitive.Content>
     </DialogPortal>
   )
 }
 
-function DialogHeader({ className, ...props }: React.ComponentProps<'div'>) {
-  return <div className={cn('term-panel-header', className)} {...props} />
+/**
+ * La X de cerrar, para ponerla **dentro** de la fila de cabecera.
+ *
+ * Antes iba en posición absoluta a 8px de la esquina, igual para todos los
+ * diálogos. Como cada cabecera tiene su altura, la X quedaba descentrada respecto
+ * al título —más baja— y en las cabeceras finas pisaba el borde inferior. Dentro
+ * de la fila la centra el propio flex, mida lo que mida la cabecera. El margen
+ * negativo vertical evita que el botón haga crecer una cabecera fina.
+ */
+function DialogCloseButton({ className }: { className?: string }) {
+  return (
+    <DialogPrimitive.Close
+      className={cn(
+        '-my-1 inline-flex shrink-0 items-center justify-center rounded-sm p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+        className,
+      )}
+      aria-label="Cerrar"
+    >
+      <X className="size-3.5" />
+    </DialogPrimitive.Close>
+  )
+}
+
+/**
+ * Cabecera estándar de un diálogo, con la X de cerrar al final de la fila.
+ *
+ * La X lleva `order-1` porque la cabecera pinta un `├` con `::after` empujado a
+ * la derecha: sin el orden, la X quedaría entre el título y esa marca.
+ */
+function DialogHeader({
+  className,
+  children,
+  showClose = true,
+  ...props
+}: React.ComponentProps<'div'> & { showClose?: boolean }) {
+  return (
+    <div className={cn('term-panel-header', className)} {...props}>
+      {children}
+      {showClose ? <DialogCloseButton className="order-1" /> : null}
+    </div>
+  )
 }
 
 function DialogFooter({ className, ...props }: React.ComponentProps<'div'>) {
@@ -96,6 +126,7 @@ export {
   Dialog,
   DialogBody,
   DialogClose,
+  DialogCloseButton,
   DialogContent,
   DialogDescription,
   DialogFooter,

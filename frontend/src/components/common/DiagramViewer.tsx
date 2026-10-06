@@ -9,7 +9,7 @@ import {
 import { Minus, Plus, Scan } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogCloseButton, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { useT } from '@/i18n'
 import {
   closeDiagramViewer,
@@ -246,7 +246,7 @@ function DiagramViewer({ diagram }: { diagram: OpenDiagram }) {
       aria-describedby={undefined}
       onKeyDown={onKeyDown}
     >
-      <div className="flex shrink-0 items-center gap-1 border-b border-border px-3 py-1.5 pr-9">
+      <div className="flex shrink-0 items-center gap-1 border-b border-border px-3 py-1.5">
         <DialogTitle className="mr-2 shrink-0 text-2xs uppercase tracking-[0.14em] text-primary">
           mermaid
         </DialogTitle>
@@ -290,6 +290,7 @@ function DiagramViewer({ diagram }: { diagram: OpenDiagram }) {
         >
           <Scan />
         </Button>
+        <DialogCloseButton className="ml-1" />
       </div>
 
       <div

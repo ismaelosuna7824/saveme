@@ -9,6 +9,7 @@ import { ErrorPanel } from '@/components/common/ErrorPanel'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
+  DialogCloseButton,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -155,7 +156,7 @@ export function OnboardingWizard({ open, onClose }: OnboardingWizardProps) {
       }}
     >
       <DialogContent className="flex max-h-[92vh] w-[calc(100vw-2rem)] flex-col sm:max-w-3xl">
-        <div className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-2 pr-8">
+        <div className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-2 pr-2">
           <DialogTitle className="shrink-0 text-2xs uppercase tracking-[0.14em] text-primary">
             {t('onboarding.wizard.title')}
           </DialogTitle>
@@ -174,6 +175,7 @@ export function OnboardingWizard({ open, onClose }: OnboardingWizardProps) {
               title: stepTitles[step],
             })}
           </span>
+          <DialogCloseButton />
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
