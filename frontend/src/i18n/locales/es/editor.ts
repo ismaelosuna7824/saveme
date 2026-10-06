@@ -64,6 +64,34 @@ export const editor = {
     copyPathFailed: 'No pude copiar la ruta',
   },
   /**
+   * Guardar el resumen como fichero y compartirlo. El documento sale sin
+   * frontmatter y con el título arriba (`features/editor/shareMarkdown.ts`).
+   */
+  share: {
+    download: 'Guardar como markdown…',
+    filterName: 'Markdown',
+    downloaded: 'Resumen guardado',
+    downloadedBrowser: 'Descargado como {file}',
+    downloadFailed: 'No pude guardarlo',
+    action: 'Compartir el resumen',
+    heading: 'compartir',
+    copyMarkdown: 'Copiar markdown',
+    copyMarkdownHint: 'Slack · Teams · Discord',
+    copyText: 'Copiar como texto',
+    copyTextHint: 'sin formato',
+    copied: 'Copiado al portapapeles',
+    copiedSlack: 'Pégalo en Slack, Teams o Discord: entienden el markdown.',
+    copyFailed: 'No pude copiarlo',
+    x: 'Publicar en X',
+    linkedin: 'Publicar en LinkedIn',
+    facebook: 'Publicar en Facebook',
+    facebookCopied: 'Texto copiado',
+    facebookHint: 'Facebook no deja rellenar la publicación: pégalo con ⌘V.',
+    email: 'Enviar por correo',
+    system: 'Más opciones del sistema…',
+    openFailed: 'No pude abrirlo',
+  },
+  /**
    * Conflicto de escritura (409 `hash_mismatch`). El cuerpo va partido en dos
    * porque el código de error se pinta como `<code>` entre las dos mitades.
    */
@@ -97,6 +125,13 @@ export const editor = {
       showSource: 'Ver el código del diagrama',
       hideSource: 'Ocultar el código',
       error: 'El diagrama tiene un error de sintaxis',
+      expand: 'Abrir a pantalla completa',
+      expandHint: 'Doble clic para abrir a pantalla completa',
+      viewerHint: 'arrastra para moverte · pellizca o ⌘/Ctrl + rueda para zoom · 0 encaja · 1 tamaño real',
+      zoomIn: 'Acercar',
+      zoomOut: 'Alejar',
+      fit: 'Encajar en la pantalla',
+      actualSize: 'Tamaño real (100 %)',
     },
     delete: {
       action: 'borrar el resumen',

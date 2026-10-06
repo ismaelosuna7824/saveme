@@ -12,8 +12,10 @@
  *  2. **Que los tokens existan.** El mapa de colores pide variables por nombre;
  *     si una se renombra en `styles.css`, el diagrama se queda con los colores
  *     por defecto de Mermaid y nadie se entera hasta que se ve.
- *  3. **Que las clases del componente estén en el CSS.** Un renombrado deja el
- *     diagrama sin caja y sin estilos, y tampoco falla nada.
+ *  3. **Que las clases de los componentes estén en el CSS.** Un renombrado deja
+ *     el diagrama —o el visor— sin caja y sin estilos, y tampoco falla nada.
+ *  4. **Que el zoom del visor vaya hacia el puntero** y respete los topes: si
+ *     la cuenta se tuerce, el diagrama se escapa de la vista al ampliar.
  *
  * Uso:  bun run verify:mermaid
  */
@@ -22,6 +24,7 @@ import { join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { isDiagramLanguage, mermaidThemeVariables } from '../src/lib/mermaid.ts'
+import { MAX_SCALE, MIN_SCALE, fitView, zoomAt } from '../src/lib/panZoom.ts'
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url))
 const SRC = join(ROOT, 'src')
@@ -87,12 +90,17 @@ if (missing.length > 0) {
 
 // --- 3. El componente y el CSS se conocen ------------------------------------
 
-section('3. Las clases del componente están en el CSS')
-const component = readFileSync(join(SRC, 'components/common/MermaidBlock.tsx'), 'utf8')
-const classes = [...new Set(component.match(/mermaid-block[\w-]*/g) ?? [])]
-check('el componente usa clases mermaid-block', classes.length > 0)
-for (const name of classes) {
-  check(`.${name} está definida en styles.css`, CSS.includes(`.${name}`))
+section('3. Las clases de los componentes están en el CSS')
+for (const [file, prefix] of [
+  ['components/common/MermaidBlock.tsx', 'mermaid-block'],
+  ['components/common/DiagramViewer.tsx', 'mermaid-viewer'],
+]) {
+  const component = readFileSync(join(SRC, file), 'utf8')
+  const classes = [...new Set(component.match(new RegExp(`${prefix}[\\w-]*`, 'g')) ?? [])]
+  check(`${file} usa clases ${prefix}`, classes.length > 0)
+  for (const name of classes) {
+    check(`.${name} está definida en styles.css`, CSS.includes(`.${name}`))
+  }
 }
 
 // --- 4. Sigue siendo perezoso ------------------------------------------------
@@ -127,6 +135,31 @@ check('hay exactamente una carga dinámica', dynamicImports === 1)
 const components = readFileSync(join(SRC, 'components/common/markdownComponents.tsx'), 'utf8')
 check('el renderizador de markdown enruta los diagramas', components.includes('isDiagramLanguage'))
 check('y monta el bloque del diagrama', components.includes('<MermaidBlock'))
+
+// --- 5. Zoom y desplazamiento del visor --------------------------------------
+
+section('5. El visor hace zoom hacia el puntero')
+const close = (a, b) => Math.abs(a - b) < 1e-9
+// Punto del contenido bajo (px, py): lo que el zoom tiene que dejar quieto.
+const under = (view, px, py) => [(px - view.x) / view.scale, (py - view.y) / view.scale]
+
+const start = { scale: 1.5, x: -120, y: 40 }
+const zoomed = zoomAt(start, 2, 300, 200)
+const [beforeX, beforeY] = under(start, 300, 200)
+const [afterX, afterY] = under(zoomed, 300, 200)
+check('lo que había bajo el puntero sigue bajo el puntero', close(beforeX, afterX) && close(beforeY, afterY))
+check('y la escala se multiplica por el factor', close(zoomed.scale, 3))
+
+const atMax = zoomAt({ scale: MAX_SCALE, x: 10, y: 20 }, 2, 300, 200)
+check('en el tope de zoom la escala no pasa del máximo', atMax.scale === MAX_SCALE)
+check('y la vista no se desplaza', atMax.x === 10 && atMax.y === 20)
+check('el zoom de alejar tampoco baja del mínimo', zoomAt({ scale: MIN_SCALE, x: 0, y: 0 }, 0.5, 0, 0).scale === MIN_SCALE)
+
+const wide = fitView({ width: 4000, height: 1000 }, { width: 1048, height: 648 }, 24)
+check('encajar un diagrama ancho lo ajusta al ancho', close(wide.scale, 1000 / 4000))
+check('y lo centra', close(wide.x, 24) && close(wide.y, (648 - 1000 * wide.scale) / 2))
+const tiny = fitView({ width: 50, height: 20 }, { width: 1048, height: 648 }, 24)
+check('encajar uno diminuto no lo amplía sin límite', tiny.scale === 2)
 
 console.log('')
 if (failures > 0) {

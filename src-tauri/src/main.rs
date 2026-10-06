@@ -45,6 +45,11 @@ fn main() {
     // `save_text_file`, que solo sabe guardar un texto en la ruta que el usuario
     // acaba de elegir.
     //
+    // El de abrir enlaces existe para compartir un resumen: abre en el navegador
+    // la ventana de publicar de X o LinkedIn, o el correo, ya rellenos. Su
+    // permiso en `capabilities/default.json` solo admite esas direcciones, no
+    // cualquier URL ni ficheros.
+    //
     // Van bajo `#[cfg(desktop)]` porque no existen en móvil, y se encadena con un
     // `let` que ensombrece al anterior —igual que la barra de título de macOS más
     // abajo— para que en el resto de plataformas estas llamadas simplemente no
@@ -57,7 +62,8 @@ fn main() {
         // Avisar de que ha llegado una propuesta. El inbox es pasivo y las
         // propuestas caducan: sin un aviso del sistema, el trabajo de un agente se
         // pierde por no estar mirando la ventana correcta.
-        .plugin(tauri_plugin_notification::init());
+        .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_opener::init());
 
     builder
         .setup(|app| {

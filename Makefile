@@ -12,8 +12,9 @@ SHELL := /bin/bash
 # v0.1.0»). Sin quitarla aquí, la app enseñaba «v v0.1.0».
 VERSION ?= $(shell (git describe --tags --always --dirty 2>/dev/null || echo 0.1.0-dev) | sed 's/^v//')
 # Dónde se instala el binario con `make install`. /usr/local puede requerir sudo;
-# PREFIX=$HOME/.local no requiere nada.
+# PREFIX=$HOME/.local no requiere nada. BINDIR fija la carpeta exacta.
 PREFIX  ?= /usr/local
+BINDIR  ?= $(PREFIX)/bin
 TRIPLE  ?= $(shell rustc -vV | sed -n 's/^host: //p')
 BIN     := backend/bin/saveme
 SIDECAR := src-tauri/binaries/saveme-$(TRIPLE)
@@ -38,8 +39,9 @@ SIGN = TAURI_SIGNING_PRIVATE_KEY="$$(cat $(SAVEME_KEY) 2>/dev/null)" TAURI_SIGNI
 
 .PHONY: help
 help: ## Muestra esta ayuda
-	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
-		| awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
+	@grep -hE '^[a-zA-Z_\\:-]+:.*?## ' $(MAKEFILE_LIST) \
+		| sed 's/\\:/%COLON%/g' \
+		| awk 'BEGIN{FS=":.*?## "}{gsub(/%COLON%/, ":", $$1); printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
 
 .PHONY: setup
 setup: ## Instala dependencias de Go, Node y Rust
@@ -71,7 +73,7 @@ dev: sidecar ## Corre la app completa en modo desarrollo
 	bunx tauri dev
 
 .PHONY: test
-test: ## Pruebas de Go y Rust, tipos, Live Preview, traducciones, CSS, temas, Mermaid, notas, diff, exportación, notas de versión e icono
+test: ## Pruebas de Go y Rust, tipos, Live Preview, traducciones, CSS, temas, Mermaid, notas, diff, exportación, compartir, notas de versión e icono
 	cd backend && go test -race ./...
 	cd src-tauri && cargo test --quiet
 	bun run --cwd frontend typecheck
@@ -83,6 +85,7 @@ test: ## Pruebas de Go y Rust, tipos, Live Preview, traducciones, CSS, temas, Me
 	bun run --cwd frontend verify:notes
 	bun run --cwd frontend verify:diff
 	bun run --cwd frontend verify:export
+	bun run --cwd frontend verify:share
 	bun run --cwd frontend verify:changelog
 	bun scripts/verify-icon.mjs
 	bun scripts/verify-update.mjs
@@ -96,17 +99,17 @@ test-e2e: ## Verificación end-to-end contra el binario real
 test-all: test test-e2e ## Todo
 
 .PHONY: install
-install: build-core ## Instala el binario en $(PREFIX)/bin para usarlo como MCP global
-	@mkdir -p "$(PREFIX)/bin" 2>/dev/null || { \
-		echo "no puedo escribir en $(PREFIX)/bin"; \
+install: build-core ## Instala el binario en $(BINDIR) para usarlo como MCP global
+	@mkdir -p "$(BINDIR)" 2>/dev/null || { \
+		echo "no puedo escribir en $(BINDIR)"; \
 		echo "prueba con:  PREFIX=$$HOME/.local make install"; \
 		exit 1; }
-	install -m 0755 $(BIN) "$(PREFIX)/bin/saveme"
-	@echo "instalado: $(PREFIX)/bin/saveme"
+	install -m 0755 $(BIN) "$(BINDIR)/saveme"
+	@echo "instalado: $(BINDIR)/saveme"
 	@if command -v saveme >/dev/null 2>&1; then \
 		echo "ya está en tu PATH: los clientes MCP pueden lanzarlo como \`saveme\`"; \
 	else \
-		echo "añade $(PREFIX)/bin a tu PATH para poder escribir sólo \`saveme\`"; \
+		echo "añade $(BINDIR) a tu PATH para poder escribir sólo \`saveme\`"; \
 	fi
 	@echo "siguiente paso:  saveme doctor"
 
@@ -146,6 +149,37 @@ version: ## Muestra la version, o la fija con NEXT=1.2.3
 .PHONY: build-app
 build-app: sidecar ## Empaqueta solo el .app/.exe (sin instalador)
 	$(SIGN) bunx tauri build --bundles app
+
+# Compila el .app y sustituye el de /Applications, para probar un cambio en la
+# app de verdad. Si SaveMe está abierta se para —antes de compilar, para no
+# hacer esperar el build para nada—: cambiar el bundle debajo de un proceso vivo
+# lo deja a medias, y cerrarla sin avisar perdería lo no guardado.
+APP_BUNDLE := src-tauri/target/release/bundle/macos/SaveMe.app
+APP_INSTALLED := /Applications/SaveMe.app
+
+.PHONY: app-closed
+app-closed:
+	@if pgrep -f "$(APP_INSTALLED)/Contents/MacOS/" >/dev/null; then \
+		echo "SaveMe está abierta: ciérrala y vuelve a lanzar make"; \
+		exit 1; fi
+
+.PHONY: install-app
+install-app: app-closed build-app ## macOS: compila el .app e instala el resultado en /Applications
+	rm -rf "$(APP_INSTALLED)"
+	ditto "$(APP_BUNDLE)" "$(APP_INSTALLED)"
+	@echo "instalada: $(APP_INSTALLED)"
+
+# Las dos cosas de una vez: el core y la app. El binario va **donde ya esté el
+# `saveme` del PATH**, porque ese es el que lanzan los clientes MCP: instalarlo
+# en `$(PREFIX)/bin` dejaría el viejo delante y el cambio no se vería. Si no hay
+# ninguno, o se pasa PREFIX/BINDIR a mano, manda lo de `make install`.
+.PHONY: install\:macos
+install\:macos: app-closed ## macOS: instala el core (donde ya esté `saveme`) y la app
+	@bindir="$(BINDIR)"; \
+	if [ "$(origin PREFIX)$(origin BINDIR)" = "filefile" ] && found="$$(command -v saveme)"; then \
+		bindir="$$(dirname "$$found")"; fi; \
+	$(MAKE) --no-print-directory install BINDIR="$$bindir"
+	@$(MAKE) --no-print-directory install-app
 
 .PHONY: build
 build: sidecar ## Empaqueta la aplicación y sus instaladores nativos

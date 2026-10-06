@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Permisos de la ventana principal de SaveMe. El shell no necesita permisos de sistema: lanza el core de Go con std::process::Command desde Rust, no desde la interfaz, así que no hay superficie de ejecución expuesta al webview. Lo que se le abre es el actualizador (comprobar, descargar e instalar), el reinicio posterior, y la ventana de «guardar como» del sistema. No se le da `process:allow-exit`, ni `dialog:default` (que incluiría abrir y mensajes), ni el plugin de ficheros: escribir el documento exportado lo hace el comando `save_text_file`.",
+  "description": "Permisos de la ventana principal de SaveMe. El shell no necesita permisos de sistema: lanza el core de Go con std::process::Command desde Rust, no desde la interfaz, así que no hay superficie de ejecución expuesta al webview. Lo que se le abre es el actualizador (comprobar, descargar e instalar), el reinicio posterior, la ventana de «guardar como» del sistema y abrir en el navegador las direcciones de compartir un resumen (X, LinkedIn, Facebook y el correo; ninguna otra URL ni ningún fichero). No se le da `process:allow-exit`, ni `dialog:default` (que incluiría abrir y mensajes), ni `opener:default` (que abriría cualquier URL y enseñaría ficheros), ni el plugin de ficheros: escribir el documento exportado lo hace el comando `save_text_file`.",
   "windows": [
     "main"
   ],
@@ -11,6 +11,15 @@
     "updater:default",
     "process:allow-restart",
     "dialog:allow-save",
-    "notification:default"
+    "notification:default",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        { "url": "https://x.com/intent/tweet?*" },
+        { "url": "https://www.linkedin.com/feed/?shareActive=true&text=*" },
+        { "url": "https://www.facebook.com/" },
+        { "url": "mailto:?*" }
+      ]
+    }
   ]
 }

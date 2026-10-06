@@ -15,12 +15,15 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ModeSwitch } from '@/features/editor/ModeSwitch'
+import { ShareActions } from '@/features/editor/ShareActions'
 import { useT, type TranslationKey } from '@/i18n'
 import { formatDateTime, shortenPath } from '@/lib/format'
 import { copyToClipboard } from '@/lib/hooks'
 
 export interface EditorToolbarProps {
   meta: SummaryMeta
+  /** Contenido actual del editor: lo que se guarda como `.md` o se comparte. */
+  content: string
   titleDraft: string
   onTitleChange: (value: string) => void
   wordCount: number
@@ -56,6 +59,7 @@ function elapsed(now: number, since: number): { key: TranslationKey; count: numb
 export function EditorToolbar({
   meta,
   titleDraft,
+  content,
   onEditMeta,
   onTitleChange,
   wordCount,
@@ -192,6 +196,13 @@ export function EditorToolbar({
           <StatusDot tone={saving ? 'warn' : dirty ? 'warn' : 'ok'} />
           {saveState}
         </span>
+
+        <ShareActions
+          title={titleDraft.trim().length > 0 ? titleDraft : meta.title}
+          content={content}
+          relPath={meta.rel_path}
+          id={meta.id}
+        />
 
         <Button
           variant="ghost"

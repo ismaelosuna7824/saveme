@@ -32,5 +32,6 @@ strip = true
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
 tauri-plugin-dialog = "2.7.3"
 tauri-plugin-notification = "2.4.0"
+tauri-plugin-opener = "2.5.5"
 tauri-plugin-process = "2.3.1"
 tauri-plugin-updater = "2.11.0"

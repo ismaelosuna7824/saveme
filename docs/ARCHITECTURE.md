@@ -717,11 +717,27 @@ y diffeable**, y la imagen se genera al vuelo.
 - **Un diagrama con errores no rompe la preview**: Mermaid lanza, se captura, y se enseña el
   error junto al código fuente, que es lo que hay que corregir. El bloque se marca además
   como `data-diagram="mermaid"`.
+- **Un diagrama grande se abre en un visor a pantalla completa** (`DiagramViewer.tsx`):
+  arrastre para moverse, zoom hacia el puntero y teclado (`+`/`-`, `0` encaja, `1` tamaño
+  real, flechas). Lo abren dos mundos —el bloque de React y el widget de CodeMirror, que no
+  ve ningún proveedor—, así que el diagrama abierto vive en un módulo (`lib/diagramViewer.ts`)
+  y el visor se monta una vez en la raíz con `useSyncExternalStore`. Tres detalles:
+  - **Se escala cambiando el tamaño del SVG, no con `transform: scale()`**: WebKit
+    rasteriza la capa transformada y el texto se ve borroso justo al ampliarlo para leerlo.
+  - **El pellizco llega distinto según el motor**: Chromium lo manda como `wheel` con
+    `ctrlKey`; WKWebView —la app en macOS— como `gesturechange`. Se escuchan los dos, y la
+    rueda va como listener no pasivo para poder cancelar el zoom de la ventana.
+  - **Dibuja su propia copia al abrir**: Mermaid mete el id del render en los selectores de
+    su `<style>` y en las flechas (`url(#id_…-pointEnd)`); con el mismo SVG dos veces en el
+    documento, las del visor apuntarían a las del bloque.
+
+  La geometría (`lib/panZoom.ts`) es pura y la comprueba `verify:mermaid`.
 - El `securityLevel` es `strict`: el texto de un diagrama viene de un archivo que puede haber
   escrito un agente, y ahí no se inyecta HTML.
 - Se verifica con `bun run --cwd frontend verify:mermaid`, que comprueba lo que no se ve al
   compilar: que sigue siendo perezoso, que los tokens que pide el mapa existen en
-  `styles.css`, que las clases del componente están definidas y que el renderizador de
+  `styles.css`, que las clases de los componentes están definidas, que el zoom del visor deja
+  quieto el punto bajo el puntero y respeta los topes, y que el renderizador de
   markdown enruta los diagramas. La parte de dibujar en sí necesita un navegador: Mermaid
   mide texto y calcula geometría.
 
@@ -893,6 +909,35 @@ eso lo decidió el núcleo, y las dos salidas son la misma lista con distinto vo
 medianoche deja fuera justo lo escrito ese día. Es el error de fechas clásico, y con una sola
 copia solo se puede arreglar en un sitio.
 
+## 9.8 Guardar y compartir un resumen
+
+En la segunda fila de la barra del editor, junto a «copiar la ruta», hay dos botones
+(`features/editor/ShareActions.tsx`): **guardar como markdown** y **compartir**. Los dos
+trabajan con **lo que hay en el editor**, cambios sin guardar incluidos: lo que se comparte
+es lo que el usuario está viendo.
+
+- **El documento sale sin frontmatter** y con el título como `#` de arriba (si el cuerpo ya
+  empieza por un `#`, no se duplica). Es la misma regla que la exportación del proyecto: es
+  para leerlo o pegarlo fuera, no para volver a indexarlo. Lo monta `shareMarkdown.ts`, que
+  es puro y lo prueba `verify:share`.
+- **Guardar** usa la misma ventana de «guardar como» y el mismo `save_text_file` que la
+  exportación y las notas de versión; los tres pasan ahora por `lib/saveText.ts`. El nombre
+  propuesto es el del propio fichero del resumen.
+- **Compartir** depende de lo que admite cada sitio:
+  - Slack, Teams y Discord no tienen una dirección para publicar desde fuera, pero entienden
+    el markdown pegado: se **copia** el markdown.
+  - X, LinkedIn y el correo sí la tienen, y se abren en el navegador **con el texto puesto**,
+    en texto plano (las redes no pintan markdown). X lleva el título y el primer párrafo de
+    prosa, recortado a su límite; LinkedIn el documento hasta sus 3000 caracteres; el correo,
+    entero.
+  - Facebook solo admite enlaces en su dirección de compartir: se copia el texto y se abre
+    para pegarlo.
+  - La hoja de compartir del sistema aparece solo si el webview implementa `navigator.share`.
+- **Abrir esas direcciones lo hace `tauri-plugin-opener`, con el permiso acotado**: en
+  `capabilities/default.json` solo se admiten las cuatro direcciones de compartir, no
+  cualquier URL ni ficheros. `verify:share` comprueba que lo que genera la interfaz casa con
+  ese permiso; si no casara, el clic no haría nada y no habría ningún síntoma.
+
 ## 10. Desarrollo
 
 ```bash
@@ -900,8 +945,10 @@ make setup      # instala deps de go, bun y cargo
 make dev-core   # daemon Go con recarga manual en :7411
 make dev-web    # Vite en :1420
 make dev        # tauri dev (lanza el core como sidecar)
-make test       # todas las suites: go -race, cargo, tsc, preview, i18n, css, temas, mermaid, notas, diff, exportación, notas de versión, icono
+make test       # todas las suites: go -race, cargo, tsc, preview, i18n, css, temas, mermaid, notas, diff, exportación, compartir, notas de versión, icono
 make build      # binario Go + bundle Tauri
+make install-app  # macOS: compila el .app y sustituye el de /Applications
+make install:macos  # macOS: el binario `saveme` (donde ya esté en el PATH) y la app
 make icon       # regenera el icono en todos sus formatos
 make version    # muestra la version; NEXT=0.4.0 la fija en los tres ficheros
 ```

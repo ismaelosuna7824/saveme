@@ -22,6 +22,8 @@ leerlo, editarlo y buscarlo.
 
 ```bash
 make dmg            # macOS: genera el .dmg en src-tauri/target/release/bundle/
+make install-app    # macOS: compila el .app y lo instala en /Applications
+make install:macos  # macOS: lo mismo y además el binario `saveme`, donde ya esté en el PATH
 make msi            # Windows          (o `make nsis` para el .exe)
 make deb            # Linux            (o `make appimage`)
 ```
@@ -104,7 +106,10 @@ Los **diagramas de Mermaid** se dibujan: un cercado ` ```mermaid ` deja de ser c
 a ser una imagen, en los cuatro modos y también en la vista previa del inbox. Se guardan
 como markdown, así que el archivo sigue siendo legible y diffeable. Con el cursor dentro del
 cercado se ve el código —para editarlo—, los colores salen del tema activo, y un diagrama
-con errores no rompe el resto del documento: se enseña el error y la fuente.
+con errores no rompe el resto del documento: se enseña el error y la fuente. Un diagrama
+grande se abre **a pantalla completa** —botón de la esquina o doble clic en la preview—: se
+arrastra para moverse, se hace zoom con el pellizco del trackpad o `⌘/Ctrl` + rueda, y `0`
+lo encaja en la pantalla y `1` lo pone a tamaño real.
 
 El **modo vim** es opcional y vive en Ajustes. Apagado por defecto, porque enciende un modo
 en el que las letras son órdenes y eso no se le impone a nadie. Cuando está encendido, el
@@ -141,6 +146,20 @@ Las dos puertas —la CLI y la interfaz— comparten qué entra y en qué orden 
 núcleo; lo único que cambia es el idioma de los títulos, porque un programa de línea de
 órdenes no tiene idioma de interfaz al que preguntar. Y `--until` incluye el día entero:
 pedir «hasta el 14» y que se quede fuera lo del 14 es el error de fechas clásico.
+
+## Guardar y compartir un resumen
+
+Dentro de un resumen, junto a «copiar la ruta», hay dos botones:
+
+- **Guardar como markdown** — abre el «guardar como» del sistema con el nombre del propio
+  resumen. Sale **sin frontmatter** y con el título arriba: es un documento para mandárselo
+  a alguien, no para volver a indexarlo.
+- **Compartir** — copia el markdown para Slack, Teams o Discord (lo entienden al pegarlo),
+  copia el texto sin formato, o abre X, LinkedIn o el correo **con el texto ya puesto**.
+  Facebook no deja rellenar una publicación desde fuera: se copia el texto y se abre para
+  pegarlo.
+
+Los dos usan lo que hay en el editor en ese momento, cambios sin guardar incluidos.
 
 ## Decisiones
 
@@ -298,6 +317,11 @@ Verificado:
   que son un fichero que sale de la app y se lee fuera de ella: que no se pierda ninguna
   entrada, que la línea de resumen quede indentada como continuación de su punto —sin eso el
   markdown la lee como un párrafo suelto— y que el nombre del fichero se pueda guardar.
+- `bun run --cwd frontend verify:share` — 33 comprobaciones sobre lo que sale al guardar o
+  compartir un resumen: que no se cuele el frontmatter, que el texto plano no se coma
+  contenido (el código en línea conserva sus `_`), que el post de X quepa en su límite y que
+  **cada dirección de compartir case con el permiso del shell**: si no casara, el botón no
+  haría nada.
 - **La app corriendo de verdad**: el shell de Tauri lanza el sidecar, le inyecta
   el puerto, y el log del core muestra la interfaz montando y pidiendo sus datos
   (`/api/config`, `/api/categories`, `/api/projects`, `/api/proposals`,

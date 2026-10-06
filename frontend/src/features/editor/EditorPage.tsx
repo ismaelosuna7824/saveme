@@ -249,6 +249,7 @@ export function EditorPage({ id }: { id: string }) {
     <div className="flex h-full flex-col">
       <EditorToolbar
         meta={doc.meta}
+        content={doc.content}
         titleDraft={titleDraft}
         onTitleChange={changeTitle}
         wordCount={words}

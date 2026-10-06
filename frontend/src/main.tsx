@@ -7,6 +7,7 @@ import { RouterProvider } from '@tanstack/react-router'
 import { UiProvider } from '@/app/preferences'
 import { I18nGate } from '@/i18n/I18nGate'
 import { BootGate } from '@/components/boot/BootGate'
+import { DiagramViewerHost } from '@/components/common/DiagramViewer'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { router } from '@/router'
@@ -37,6 +38,7 @@ createRoot(container).render(
             <BootGate>
               <RouterProvider router={router} />
             </BootGate>
+            <DiagramViewerHost />
           </I18nGate>
           <Toaster />
         </TooltipProvider>

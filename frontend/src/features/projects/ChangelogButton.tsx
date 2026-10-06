@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { FileText } from 'lucide-react'
 
-import { api, errorMessage, IN_TAURI } from '@/api/client'
+import { api, errorMessage } from '@/api/client'
 import { useChangelog } from '@/api/queries'
 import type { Changelog } from '@/api/types'
 import { Button } from '@/components/ui/button'
@@ -19,6 +19,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { buildChangelogMarkdown, changelogFileName } from '@/features/projects/changelogMarkdown'
 import { useT } from '@/i18n'
+import { saveMarkdownFile } from '@/lib/saveText'
 
 /** Fecha de hoy en AAAA-MM-DD, en la zona del usuario. */
 function hoyLocal(): string {
@@ -70,36 +71,13 @@ export function ChangelogButton({ slug }: { slug: string }) {
       const markdown = buildChangelogMarkdown(data, t)
       const nombre = changelogFileName(slug, data.to)
 
-      if (IN_TAURI) {
-        const { save } = await import('@tauri-apps/plugin-dialog')
-        const destino = await save({
-          defaultPath: nombre,
-          filters: [{ name: t('projects.changelog.filterName'), extensions: ['md'] }],
-        })
-        // Cancelar no es un fallo: es el usuario diciendo que no.
-        if (destino === null) return
+      const guardado = await saveMarkdownFile(nombre, markdown, t('projects.changelog.filterName'))
+      // Cancelar no es un fallo: es el usuario diciendo que no.
+      if (guardado === null) return
 
-        const { invoke } = await import('@tauri-apps/api/core')
-        await invoke('save_text_file', { path: destino, contents: markdown })
-
-        toast.success(t('projects.changelog.done'), {
-          description: t('projects.changelog.doneCount', { count: data.count }),
-        })
-      } else {
-        const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' })
-        const url = URL.createObjectURL(blob)
-        const enlace = document.createElement('a')
-        enlace.href = url
-        enlace.download = nombre
-        document.body.append(enlace)
-        enlace.click()
-        enlace.remove()
-        setTimeout(() => URL.revokeObjectURL(url), 1000)
-
-        toast.success(t('projects.changelog.done'), {
-          description: t('projects.changelog.doneCount', { count: data.count }),
-        })
-      }
+      toast.success(t('projects.changelog.done'), {
+        description: t('projects.changelog.doneCount', { count: data.count }),
+      })
       setOpen(false)
     } catch (error) {
       toast.error(t('projects.changelog.failed'), { description: errorMessage(error) })

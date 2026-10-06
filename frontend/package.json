@@ -16,6 +16,7 @@
     "verify:notes": "bun run scripts/verify-notes.mjs",
     "verify:diff": "bun run scripts/verify-diff.mjs",
     "verify:export": "bun run scripts/verify-export.mjs",
+    "verify:share": "bun run scripts/verify-share.mjs",
     "verify:changelog": "bun run scripts/verify-changelog.mjs"
   },
   "dependencies": {
@@ -44,6 +45,7 @@
     "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/plugin-dialog": "^2.7.3",
     "@tauri-apps/plugin-notification": "^2.4.0",
+    "@tauri-apps/plugin-opener": "2.5.3",
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-updater": "^2.11.0",
     "class-variance-authority": "^0.7.1",

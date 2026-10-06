@@ -9,7 +9,13 @@
  */
 import { EditorView, WidgetType } from '@codemirror/view'
 
+import { translate } from '@/i18n'
+import { openDiagramViewer } from '@/lib/diagramViewer'
 import { renderDiagram } from '@/lib/mermaid'
+
+/** Icono `maximize-2` de lucide: aquí no hay React para usar el componente. */
+const EXPAND_ICON =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="m21 3-7 7"/><path d="m3 21 7-7"/><path d="M9 21H3v-6"/></svg>'
 
 /**
  * Casilla de tarea clicable.
@@ -97,7 +103,9 @@ export class BulletWidget extends WidgetType {
  *    widget, que para eso es el único que sabe cuándo está montado.
  *
  * Un diagrama con error no se sustituye: se deja el código a la vista, que es lo
- * que permite arreglarlo.
+ * que permite arreglarlo. Uno dibujado lleva un botón en la esquina que lo abre
+ * en el visor a pantalla completa; el doble clic no sirve aquí, porque el
+ * primer clic ya mete el cursor en el cercado y el widget deja paso al código.
  */
 export class MermaidWidget extends WidgetType {
   constructor(readonly code: string) {
@@ -125,8 +133,19 @@ export class MermaidWidget extends WidgetType {
           wrapper.textContent = this.code
           wrapper.classList.add('cm-lp-mermaid--error')
         } else {
-          wrapper.innerHTML = result.svg
+          const svg = result.svg
+          wrapper.innerHTML = svg
           wrapper.classList.remove('cm-lp-mermaid--error')
+          const expand = document.createElement('button')
+          expand.type = 'button'
+          expand.className = 'cm-lp-mermaid__expand'
+          expand.title = translate('editor.mermaid.expand')
+          expand.setAttribute('aria-label', expand.title)
+          expand.innerHTML = EXPAND_ICON
+          expand.addEventListener('click', () => {
+            openDiagramViewer({ code: this.code, svg })
+          })
+          wrapper.append(expand)
         }
         // El alto cambió: sin esto CodeMirror sigue midiendo el hueco anterior.
         view.requestMeasure()
@@ -160,9 +179,13 @@ export class MermaidWidget extends WidgetType {
     return wrapper
   }
 
-  /** El diagrama no captura eventos: dentro solo hay un SVG, sin nada que pulsar. */
-  override ignoreEvent(): boolean {
-    return false
+  /**
+   * El diagrama en sí no captura eventos: un clic mete el cursor en el cercado
+   * para editarlo. El botón de pantalla completa sí: si CodeMirror viera ese
+   * clic, movería el cursor y el widget desaparecería bajo el puntero.
+   */
+  override ignoreEvent(event: Event): boolean {
+    return event.target instanceof Element && event.target.closest('.cm-lp-mermaid__expand') !== null
   }
 
   /** Alto de reserva mientras Mermaid dibuja, para que el scroll no dé un salto. */

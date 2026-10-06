@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Code2, TriangleAlert } from 'lucide-react'
+import { Code2, Maximize2, TriangleAlert } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { useT } from '@/i18n'
+import { openDiagramViewer } from '@/lib/diagramViewer'
+import { useDocumentTheme } from '@/lib/hooks'
 import { renderDiagram } from '@/lib/mermaid'
 
 interface MermaidBlockProps {
@@ -15,35 +17,6 @@ type State =
   | { status: 'loading' }
   | { status: 'ok'; svg: string }
   | { status: 'error'; error: string }
-
-/**
- * Cambia cuando cambia el tema del documento.
- *
- * Hace falta porque el SVG se genera con los colores **incrustados**: cambiar de
- * tema no recolorea un diagrama ya dibujado, hay que volver a renderizarlo.
- * Mientras no exista SVG esto devuelve una cadena vacía, que como dependencia de
- * `useEffect` se comporta igual.
- */
-function useDocumentTheme(): string {
-  const [theme, setTheme] = useState(
-    () => (typeof document === 'undefined' ? '' : (document.documentElement.dataset['theme'] ?? '')),
-  )
-
-  useEffect(() => {
-    const observer = new MutationObserver(() => {
-      setTheme(document.documentElement.dataset['theme'] ?? '')
-    })
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['data-theme'],
-    })
-    return () => {
-      observer.disconnect()
-    }
-  }, [])
-
-  return theme
-}
 
 /**
  * Diagrama Mermaid.
@@ -59,7 +32,8 @@ function useDocumentTheme(): string {
  *    archivo que puede haber escrito un agente, así que ese modo no es opcional.
  *  - **Se vuelve a renderizar al cambiar de tema**, porque el SVG lleva los
  *    colores dentro. El código fuente siempre está a un clic: un diagrama que no
- *    se puede leer es peor que el texto que lo describe.
+ *    se puede leer es peor que el texto que lo describe. Por eso mismo, uno
+ *    grande se abre en el visor a pantalla completa, con zoom y arrastre.
  */
 export function MermaidBlock({ code, dataLine }: MermaidBlockProps) {
   const t = useT()
@@ -90,10 +64,22 @@ export function MermaidBlock({ code, dataLine }: MermaidBlockProps) {
     <div className="code-block mermaid-block" data-line={dataLine} data-diagram="mermaid">
       <div className="code-block__bar">
         <span>mermaid</span>
+        {state.status === 'ok' ? (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="ml-auto"
+            title={t('editor.mermaid.expand')}
+            aria-label={t('editor.mermaid.expand')}
+            onClick={() => openDiagramViewer({ code, svg: state.svg })}
+          >
+            <Maximize2 className="size-3" />
+          </Button>
+        ) : null}
         <Button
           variant="ghost"
           size="icon-sm"
-          className="ml-auto"
+          className={state.status === 'ok' ? undefined : 'ml-auto'}
           aria-expanded={sourceVisible}
           title={sourceVisible ? t('editor.mermaid.hideSource') : t('editor.mermaid.showSource')}
           aria-label={sourceVisible ? t('editor.mermaid.hideSource') : t('editor.mermaid.showSource')}
@@ -120,6 +106,8 @@ export function MermaidBlock({ code, dataLine }: MermaidBlockProps) {
       {state.status === 'ok' ? (
         <div
           className="mermaid-block__canvas"
+          title={t('editor.mermaid.expandHint')}
+          onDoubleClick={() => openDiagramViewer({ code, svg: state.svg })}
           // Ver la nota del componente: SVG generado por Mermaid, con las
           // etiquetas saneadas por `securityLevel: 'strict'`.
           dangerouslySetInnerHTML={{ __html: state.svg }}
