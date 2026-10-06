@@ -126,6 +126,32 @@ en su entorno y no pueden lanzar un programa de tu equipo.
 `~` es tu carpeta personal. En macOS, `~/.config` existe aunque no sea la
 convención de Apple: OpenCode, Kilo, Amp y Devin lo usan así a propósito.
 
+**En Windows** las rutas de la tabla salen del perfil del usuario: `~` es
+`%USERPROFILE%` y `~/Library/Application Support` es `%APPDATA%`. No dependen del disco
+donde esté instalada la app: los instaladores ponen el ejecutable donde se les diga
+(D:, una carpeta propia) pero la configuración va siempre al perfil.
+
+La excepción son las apps de la Microsoft Store o de winget (paquetes MSIX), como
+Claude Desktop. Windows les redirige a una carpeta privada lo que creen bajo
+`%APPDATA%` y `%LOCALAPPDATA%`, y al abrir un archivo les da primero esa copia:
+
+```text
+%APPDATA%\Claude\claude_desktop_config.json                 ← donde cree escribir
+%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\Claude\claude_desktop_config.json   ← donde está
+```
+
+SaveMe busca el archivo en los sitios donde Windows puede haberlo puesto, para
+cualquier cliente con la configuración en AppData: si algún paquete tiene su copia
+privada, usa esa; si no, la ruta de siempre, que también vale cuando el archivo aún no
+existe (sin copia privada, la app abre la normal). No se busca en todo el disco: una
+copia vieja en el AppData normal también existe y no es la que lee la app. La ruta que
+sale en Ajustes → clientes de IA es la ya resuelta.
+
+Para saber si un cliente está instalado, además de su carpeta y del PATH, en Windows
+se mira la lista de «Aplicaciones instaladas» del registro (la del usuario y las de la
+máquina) y los paquetes de la Store. Así se encuentra una app instalada en otro disco,
+o que todavía no se ha abierto nunca.
+
 ### Un cliente que no está en la lista
 
 En **Ajustes → clientes de IA → cliente personalizado**, o desde la terminal:
@@ -285,6 +311,7 @@ saveme reindex        # y la app lo verá al abrir
 | Las tools están pero no aparecen resúmenes | El MCP y la app apuntan a raíces distintas. `saveme doctor`. |
 | El agente escribe pero la app no lo muestra con la app abierta | La app arrancó con `--no-watch`. Reiníciala sin ese flag. |
 | `--write` no toca el archivo | Tu config tiene comentarios JSONC. Pega el bloque a mano. |
+| Windows: SaveMe dice «configurado» en Claude Desktop y Claude no ve las tools | Claude es de la Store y lee su copia privada del archivo. Las versiones de SaveMe sin la resolución de paquetes escribían en `%APPDATA%\Claude`; actualiza, vuelve a configurarlo desde Ajustes y reinicia Claude. |
 
 ## Fuentes de los formatos
 
@@ -312,3 +339,4 @@ cada cliente:
 - [Hermes Agent — MCP](https://hermes-agent.nousresearch.com/docs/user-guide/features/mcp)
 - [DeepSeek Harness — MCP](https://deepseek-harness.github.io/deepseek-harness/en/guide/mcp-memory) (`cordis.patch.yml`)
 - Orca ([skills](https://www.onorca.dev/docs/cli/skills)), Mono ([mcp.rs](https://github.com/hardbeat920/monocode/blob/main/src-tauri/src/mcp.rs)), T3 Code ([proveedores](https://github.com/pingdotgg/t3code/blob/main/docs/user/providers-claude.md)) y Omnigent ([tools](https://omnigent.ai/docs/build/tools)): sin configuración de MCP propia
+- [Microsoft — Cómo se ejecutan las apps de escritorio empaquetadas](https://learn.microsoft.com/en-us/windows/msix/desktop/desktop-to-uwp-behind-the-scenes) (AppData de una app MSIX: copia privada primero, real después)

@@ -101,6 +101,10 @@ type Provider struct {
 	DetectDirs []func() string
 	// DetectBins son ejecutables cuya presencia en el PATH indica lo mismo.
 	DetectBins []string
+	// DetectApps son nombres con los que la app aparece en «Aplicaciones
+	// instaladas» de Windows o como paquete de la Store. Encuentran la app
+	// esté en el disco que esté y aunque todavía no se haya abierto nunca.
+	DetectApps []string
 	// Verified indica que la ruta y el formato están confirmados contra la
 	// documentación del cliente. Los no verificados no se escriben solos.
 	Verified bool
@@ -226,7 +230,7 @@ func delegated(p Provider, via ...string) Provider {
 // cliente o de su código fuente (revisados en octubre de 2026). Los que siguen
 // con `Verified: false` son los que no se han podido confirmar.
 func defaultProviders() []Provider {
-	return []Provider{
+	return packagedPaths([]Provider{
 		{
 			Key:    "opencode",
 			Name:   "OpenCode",
@@ -295,6 +299,7 @@ func defaultProviders() []Provider {
 			Name:       "Claude Desktop",
 			Path:       configDir("Claude", "claude_desktop_config.json"),
 			DetectDirs: []func() string{configDir("Claude")},
+			DetectApps: []string{"Claude"},
 			Verified:   true,
 		}),
 		mcpServersJSON(Provider{
@@ -303,6 +308,7 @@ func defaultProviders() []Provider {
 			Path:       home(".cursor", "mcp.json"),
 			DetectDirs: []func() string{home(".cursor")},
 			DetectBins: []string{"cursor"},
+			DetectApps: []string{"Cursor"},
 			Verified:   true,
 		}),
 		{
@@ -327,6 +333,7 @@ func defaultProviders() []Provider {
 			Path:       configDir("Code", "User", "mcp.json"),
 			DetectDirs: []func() string{configDir("Code", "User")},
 			DetectBins: []string{"code"},
+			DetectApps: []string{"Microsoft Visual Studio Code"},
 			// VS Code es el raro: la clave es `servers` y cada entrada lleva
 			// `type: "stdio"`.
 			ServersKey: "servers",
@@ -357,6 +364,7 @@ func defaultProviders() []Provider {
 				macApp("Antigravity IDE.app"),
 			},
 			DetectBins: []string{"agy"},
+			DetectApps: []string{"Antigravity", "Google Antigravity"},
 			Verified:   true,
 			Note:       "Un solo archivo para Antigravity, Antigravity IDE y su CLI (`agy`).",
 		}),
@@ -374,6 +382,7 @@ func defaultProviders() []Provider {
 			Path:       home(".kiro", "settings", "mcp.json"),
 			DetectDirs: []func() string{home(".kiro")},
 			DetectBins: []string{"kiro", "kiro-cli"},
+			DetectApps: []string{"Kiro"},
 			Verified:   true,
 		}),
 		mcpServersJSON(Provider{
@@ -442,6 +451,7 @@ func defaultProviders() []Provider {
 			Format:        FormatJSON,
 			Path:          home(".zcode", "cli", "config.json"),
 			DetectDirs:    []func() string{home(".zcode"), macApp("ZCode.app")},
+			DetectApps:    []string{"Z Code", "ZCode"},
 			ServersParent: "mcp",
 			ServersKey:    "servers",
 			Style:         CommandSplit,
@@ -465,6 +475,7 @@ func defaultProviders() []Provider {
 			Path:       func() string { return filepath.Join(devinHome(), "mcp_config.json") },
 			DetectDirs: []func() string{devinHome, macApp("Devin.app")},
 			DetectBins: []string{"devin"},
+			DetectApps: []string{"Devin"},
 			Verified:   true,
 			Note: "Lo comparten Devin CLI y Devin Desktop (antes Windsurf). Devin en la nube no\n" +
 				"# puede lanzar un programa de tu equipo, así que ahí no aplica.",
@@ -475,6 +486,7 @@ func defaultProviders() []Provider {
 			Path:       home(".codeium", "windsurf", "mcp_config.json"),
 			DetectDirs: []func() string{home(".codeium", "windsurf"), macApp("Windsurf.app")},
 			DetectBins: []string{"windsurf"},
+			DetectApps: []string{"Windsurf"},
 			Verified:   false,
 			Note: "Windsurf ahora es Devin Desktop, que lee la configuración de «Devin (CLI y\n" +
 				"# Desktop)». Esta ruta solo sirve en instalaciones antiguas; Devin la sigue\n" +
@@ -523,6 +535,7 @@ func defaultProviders() []Provider {
 			Name:       "Orca",
 			DetectDirs: []func() string{home(".orca"), macApp("Orca.app")},
 			DetectBins: []string{"orca", "orca-ide"},
+			DetectApps: []string{"Orca"},
 			Note: "Orca lanza otros agentes y cada uno carga su propia configuración de MCP:\n" +
 				"# configura SaveMe en los que uses dentro de Orca.",
 		}, "claude-code", "codex", "opencode", "gemini-cli", "cursor", "pi", "omp"),
@@ -538,6 +551,7 @@ func defaultProviders() []Provider {
 			Name:       "T3 Code",
 			DetectDirs: []func() string{macApp("T3 Code.app")},
 			DetectBins: []string{"t3"},
+			DetectApps: []string{"T3 Code"},
 			Note: "T3 Code usa la configuración de los agentes que controla (Codex, Claude\n" +
 				"# Code…): configura SaveMe en esos.",
 		}, "codex", "claude-code", "cursor", "opencode", "antigravity"),
@@ -561,7 +575,7 @@ func defaultProviders() []Provider {
 			Note: "El bloque `mcpServers` es el formato de facto. Si tu cliente usa otro,\n" +
 				"# revisa su documentación.",
 		},
-	}
+	})
 }
 
 // renderDeepSeek arma la fila del plugin MCP de DeepSeek Harness.
@@ -1201,6 +1215,9 @@ func StatusOf(p Provider, name string) Status {
 				break
 			}
 		}
+	}
+	if !st.Installed && len(p.DetectApps) > 0 {
+		st.Installed = appListed(cachedAppNames(), p.DetectApps)
 	}
 	// Tener el archivo de configuración ya cuenta como instalado, aunque la
 	// carpeta no se llame como esperábamos.
