@@ -70,7 +70,7 @@ solo aparece un `.dmg` que arranca en la mitad de los Mac, mira ahí.
 
 ## Cómo está montado, y por qué
 
-Cuatro ficheros, y cada uno tiene una responsabilidad:
+Cuatro ficheros para la app, y cada uno tiene una responsabilidad:
 
 | Fichero | Qué hace |
 |---|---|
@@ -78,6 +78,9 @@ Cuatro ficheros, y cada uno tiene una responsabilidad:
 | `instalables.yml` | La matriz de empaquetado. Reutilizable. |
 | `ci.yml` | Llama a los dos en push y en pull request. No publica nada. |
 | `release.yml` | Llama a los dos y además publica la Release. |
+
+Y uno aparte, `landing.yml`, que publica la página web y solo se lanza a mano
+(ver [La landing](#la-landing)).
 
 Dos decisiones que no son obvias:
 
@@ -251,8 +254,69 @@ el fondo opaco no llega a publicarse.
 ## Permisos
 
 `release.yml` pide `contents: write` porque crea la Release y, en el modo manual,
-empuja un tag. Los otros tres workflows no necesitan más que lectura.
+empuja un tag. Los otros workflows no necesitan más que lectura.
 
 Si el repositorio tiene la política por defecto de Actions en «read-only», hay que
 cambiarla en **Settings → Actions → General → Workflow permissions**, o el
 `GITHUB_TOKEN` no podrá publicar.
+
+---
+
+## La landing
+
+La página web vive en `landing/` (Astro, estática) y se publica en Firebase
+Hosting con `landing.yml`. **Solo a mano**: Actions → **Landing** → **Run
+workflow**. No va atada a las Releases porque no hace falta republicarla con cada
+versión: los botones de descarga vuelven a preguntar a GitHub por la última
+Release al cargar la página. Se publica cuando cambia la propia landing.
+
+El workflow instala con `bun install --frozen-lockfile`, construye con
+`bun run build` (`astro check` incluido: un error de tipos detiene la publicación)
+y sube `landing/dist` al canal `live`. `landing/firebase.json` sirve las dos
+portadas (`/` y `/es/`) y cachea un año los ficheros de `_astro/`, que llevan un
+hash en el nombre.
+
+### Lo que tiene que existir en el repositorio
+
+En **Settings → Secrets and variables → Actions**. Si falta algo obligatorio, el
+primer paso falla diciendo qué.
+
+| Nombre | Tipo | Obligatorio | Qué es |
+|---|---|---|---|
+| `FIREBASE_SERVICE_ACCOUNT` | secreto | sí | El JSON entero de una cuenta de servicio con permiso para publicar en Hosting |
+| `FIREBASE_PROJECT_ID` | variable | sí | El ID del proyecto de Firebase |
+| `SITE_URL` | variable | sí | La URL pública con `https://` (para `canonical`, `hreflang` y Open Graph) |
+| `PUBLIC_FIREBASE_*` (7) | variables | no | La configuración de la app web, para Analytics. Sin ellas se publica igual, sin analytics, y el workflow lo avisa |
+
+Las `PUBLIC_FIREBASE_*` son **variables, no secretos**: acaban en el JavaScript de
+la página y cualquiera puede leerlas. Los nombres son los de `landing/.env.example`.
+
+La cuenta de servicio sí es un secreto: quien tenga su clave puede publicar lo
+que quiera en la web. Es `github-action-1371014362@saveme-6d5f0.iam.gserviceaccount.com`
+(el número es el ID del repositorio, el mismo nombre que le pondría
+`firebase init hosting:github`) y tiene solo tres roles:
+
+| Rol | Para qué |
+|---|---|
+| `roles/firebasehosting.admin` | Subir versiones y publicarlas en el canal `live` |
+| `roles/serviceusage.apiKeysViewer` | La CLI lo consulta al desplegar |
+| `roles/serviceusage.serviceUsageConsumer` | Usar las APIs del proyecto |
+
+El asistente oficial da además Auth admin, Cloud Run viewer y Cloud Functions
+developer, que sirven para URLs de vista previa, rewrites a Cloud Run y backends.
+Una landing estática no usa nada de eso, así que no se dan.
+
+**Cambiar la clave** (si se filtra, o para rotarla): en Google Cloud → IAM →
+Cuentas de servicio → esa cuenta → Claves, crea una nueva en JSON, súbela y borra
+la vieja y el archivo descargado:
+
+```bash
+gh secret set FIREBASE_SERVICE_ACCOUNT -R ismaelosuna7824/saveme < clave.json && rm clave.json
+```
+
+### El dominio
+
+`saveme.dev`, conectado en Firebase → Hosting → **Add custom domain** (registro TXT
+para verificar que es tuyo y registros A para apuntarlo, en el proveedor del DNS;
+Firebase emite el certificado HTTPS solo). `SITE_URL` tiene que ser ese dominio con
+`https://`. La URL por defecto, `saveme-6d5f0.web.app`, sigue sirviendo lo mismo.

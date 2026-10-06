@@ -340,6 +340,11 @@ detected `os`), `repo_click`, `select_language`, `select_tab` and `copy_command`
 The screenshots in `landing/src/assets/screenshots/<lang>/` are real captures of the app,
 taken against demo data; Astro converts them to WebP at build time.
 
+**Publishing** is manual: Actions → **Landing** → **Run workflow** builds it and deploys it
+to Firebase Hosting at [saveme.dev](https://saveme.dev). It isn't tied to app releases,
+since the download links resolve the latest release in the browser anyway. Setup and key
+rotation are in [docs/RELEASING.md](docs/RELEASING.md#la-landing).
+
 ## Data and configuration
 
 | Data | Path |

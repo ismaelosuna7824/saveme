@@ -1,0 +1,86 @@
+# Publicar la landing (landing/) en Firebase Hosting.
+#
+# Solo a mano: Actions → «Landing» → «Run workflow». No va atado a los push ni a
+# las Releases porque la landing no necesita republicarse con cada versión de la
+# app: los enlaces de descarga se resuelven también en el navegador al cargar
+# (src/scripts/landing.ts), así que una página vieja ya apunta a la última
+# Release. Se publica cuando cambia la propia landing.
+#
+# Lo que tiene que existir en el repositorio (Settings → Secrets and variables →
+# Actions) está en docs/RELEASING.md, sección «La landing».
+name: Landing
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Dos publicaciones a la vez acabarían en la que termine última, no en la que se
+# lanzó última. Se encolan.
+concurrency:
+  group: landing
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    name: Construir y publicar
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: landing
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Comprobar la configuración
+        env:
+          FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+          SITE_URL: ${{ vars.SITE_URL }}
+          HAS_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' }}
+          MEASUREMENT_ID: ${{ vars.PUBLIC_FIREBASE_MEASUREMENT_ID }}
+        run: |
+          set -euo pipefail
+          missing=()
+          [ -n "$FIREBASE_PROJECT_ID" ] || missing+=("variable FIREBASE_PROJECT_ID")
+          [ -n "$SITE_URL" ] || missing+=("variable SITE_URL")
+          [ "$HAS_SERVICE_ACCOUNT" = "true" ] || missing+=("secreto FIREBASE_SERVICE_ACCOUNT")
+          if [ ${#missing[@]} -gt 0 ]; then
+            for m in "${missing[@]}"; do echo "::error::Falta la $m (ver docs/RELEASING.md, «La landing»)"; done
+            exit 1
+          fi
+          # Sin las PUBLIC_FIREBASE_* la página se construye igual, solo que sin
+          # analytics. Se avisa para que no pase desapercibido.
+          if [ -z "$MEASUREMENT_ID" ]; then
+            echo "::warning::Sin PUBLIC_FIREBASE_MEASUREMENT_ID: la landing se publica sin analytics"
+          fi
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - name: Instalar dependencias
+        run: bun install --frozen-lockfile
+
+      # `astro check && astro build`: un error de tipos detiene la publicación.
+      - name: Construir
+        env:
+          SITE_URL: ${{ vars.SITE_URL }}
+          PUBLIC_FIREBASE_API_KEY: ${{ vars.PUBLIC_FIREBASE_API_KEY }}
+          PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ vars.PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          PUBLIC_FIREBASE_PROJECT_ID: ${{ vars.PUBLIC_FIREBASE_PROJECT_ID }}
+          PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ vars.PUBLIC_FIREBASE_STORAGE_BUCKET }}
+          PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+          PUBLIC_FIREBASE_APP_ID: ${{ vars.PUBLIC_FIREBASE_APP_ID }}
+          PUBLIC_FIREBASE_MEASUREMENT_ID: ${{ vars.PUBLIC_FIREBASE_MEASUREMENT_ID }}
+          # Para leer la última Release al construir sin chocar con el límite de
+          # la API sin autenticar.
+          GITHUB_TOKEN: ${{ github.token }}
+        run: bun run build
+
+      - name: Publicar en Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: ${{ vars.FIREBASE_PROJECT_ID }}
+          channelId: live
+          entryPoint: landing
