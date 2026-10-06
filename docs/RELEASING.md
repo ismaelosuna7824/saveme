@@ -66,6 +66,25 @@ Mac. Eso obliga a compilar el core de Go **dos veces**, una por arquitectura,
 porque Tauri mete los dos sidecars en el mismo binario con `lipo`. Si alguna vez
 solo aparece un `.dmg` que arranca en la mitad de los Mac, mira ahí.
 
+### La firma en macOS
+
+El `.app` se firma **ad-hoc** (`bundle.macOS.signingIdentity: "-"` en
+`tauri.conf.json`): una firma sin certificado de Apple. No quita el aviso de
+Gatekeeper al abrirla la primera vez, pero sí le da a la app una identidad que
+macOS puede comprobar. Sin firmar el bundle, `codesign` decía «code object is not
+signed at all» y macOS no podía recordar los permisos que el usuario concedía: el
+aviso de acceso a Documentos (el workspace está en `~/Documents/SaveMe`) salía
+**cada vez** que se abría la app.
+
+Con la firma ad-hoc, la identidad es el hash del binario, así que el permiso dura
+hasta la siguiente versión: tras cada actualización se pide **una vez**. Que no
+se pida nunca más exige firmar con un certificado Developer ID (el programa de
+desarrolladores de Apple, de pago) y notarizar, que de paso quitaría también el
+aviso de Gatekeeper.
+
+El texto del aviso sale de `NSDocumentsFolderUsageDescription` en
+`src-tauri/Info.plist`, que Tauri fusiona con el suyo.
+
 ---
 
 ## Cómo está montado, y por qué

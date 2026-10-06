@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Tauri fusiona este archivo con el Info.plist que genera. Solo lleva lo que
+  Tauri no pone por su cuenta.
+
+  NSDocumentsFolderUsageDescription es el texto del aviso de macOS al pedir
+  acceso a Documentos (el workspace por defecto es ~/Documents/SaveMe). Sin él,
+  el aviso solo dice que la app quiere entrar, sin decir para qué.
+-->
+<plist version="1.0">
+<dict>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>SaveMe keeps your summaries and notes as Markdown files in Documents/SaveMe.</string>
+</dict>
+</plist>
