@@ -1087,13 +1087,14 @@ func sameFile(a, b string) (bool, error) {
 // SyncResult cuenta qué pasó al poner al día la copia instalada.
 type SyncResult struct {
 	Path string
-	// Replaced indica que había copia, estaba en otra versión, y se reemplazó.
+	// Replaced indica que había copia, era más vieja, y se reemplazó.
 	Replaced bool
 	// Before es la versión que tenía la copia; vacía si no se pudo leer.
 	Before string
 }
 
-// SyncInstalled deja la copia instalada en la misma versión que este binario.
+// SyncInstalled pone al día la copia instalada si este binario es una versión
+// publicada más nueva que ella (ver `shouldReplace`).
 //
 // Existe porque el actualizador reemplaza el binario de dentro de la app y **no
 // esta copia**, que es la que lanzan los clientes MCP: sin esto, tras cada
@@ -1126,7 +1127,7 @@ func SyncInstalled(currentVersion string) (SyncResult, error) {
 	if err != nil {
 		installed = ""
 	}
-	if installed == currentVersion {
+	if !shouldReplace(currentVersion, installed) {
 		return SyncResult{Path: target, Before: installed}, nil
 	}
 

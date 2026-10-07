@@ -469,7 +469,10 @@ Orden del asistente:
    mueve o borra la aplicación, y falla en silencio.
 
    Esa copia **se pone al día sola**. Al arrancar, el core (`serve`) compara su
-   versión con la de la copia y la reemplaza si no coinciden. Hace falta porque el
+   versión con la de la copia y la reemplaza si la suya es **más nueva** (semver).
+   Nunca hacia atrás —abrir una app vieja no baja la copia— y nunca desde una
+   build local (`0.1.0-dev`, `-dirty`, `-N-g<hash>` de `git describe`): `make dev`
+   no puede dejar a los agentes con una build de desarrollo. Hace falta porque el
    actualizador reemplaza el binario de dentro de la app y **no** esta copia: sin
    esto, tras cada actualización los agentes seguirían lanzando las herramientas
    viejas contra una app nueva, y sin ningún síntoma. Solo se toca **si ya había

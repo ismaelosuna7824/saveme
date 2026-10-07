@@ -1068,20 +1068,76 @@ func TestSyncInstalledPoneAlDiaLaCopia(t *testing.T) {
 		t.Error("no debería haber tocado el fichero")
 	}
 
-	// Con otra versión, se reemplaza.
-	res, err = SyncInstalled("1.0.0")
+	// Una versión publicada más nueva la reemplaza.
+	instalarFalso(t, "1.0.0")
+	antes, _ = os.ReadFile(path)
+	res, err = SyncInstalled("9.9.9")
 	if err != nil {
-		t.Fatalf("con otra versión debería reemplazar sin fallar: %v", err)
+		t.Fatalf("con una versión más nueva debería reemplazar sin fallar: %v", err)
 	}
 	if !res.Replaced {
-		t.Error("con otra versión tenía que reemplazarla")
+		t.Error("con una versión más nueva tenía que reemplazarla")
 	}
-	if res.Before != "9.9.9" {
-		t.Errorf("Before = %q, esperaba 9.9.9", res.Before)
+	if res.Before != "1.0.0" {
+		t.Errorf("Before = %q, esperaba 1.0.0", res.Before)
 	}
 	despues, _ = os.ReadFile(path)
 	if string(despues) == string(antes) {
 		t.Error("el fichero debería haber cambiado")
+	}
+}
+
+// Arrancar el core desde el repositorio (`make dev`) o abrir una app más vieja
+// no puede tocar la copia que lanzan los agentes: pasó que una build
+// `0.1.0-dev` reemplazó la `0.3.2` instalada.
+func TestSyncInstalledNoBajaDeVersionNiInstalaBuildsLocales(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("el ayudante es un script POSIX")
+	}
+	t.Setenv("HOME", t.TempDir())
+
+	path := instalarFalso(t, "0.3.2")
+	antes, _ := os.ReadFile(path)
+	for _, current := range []string{"0.1.0-dev", "0.3.3-dirty", "0.3.3-2-g51f41f1", "51f41f1", "0.3.1"} {
+		res, err := SyncInstalled(current)
+		if err != nil {
+			t.Fatalf("SyncInstalled(%q): %v", current, err)
+		}
+		if res.Replaced {
+			t.Errorf("SyncInstalled(%q) reemplazó la 0.3.2 instalada", current)
+		}
+	}
+	if despues, _ := os.ReadFile(path); string(despues) != string(antes) {
+		t.Error("la copia instalada no debería haber cambiado")
+	}
+}
+
+func TestShouldReplace(t *testing.T) {
+	casos := []struct {
+		current, installed string
+		want               bool
+	}{
+		{"0.3.3", "0.3.2", true},
+		{"0.3.3", "0.3.3", false},
+		{"0.3.2", "0.3.3", false},              // app más vieja que la copia: no se baja
+		{"0.10.0", "0.9.0", true},              // se compara por números, no como texto
+		{"1.0.0", "1.0.0-beta.1", true},        // la versión final va después de su beta
+		{"1.0.0-beta.2", "1.0.0-beta.1", true}, // una prerelease publicada también cuenta
+		{"0.3.3", "0.3.3-dirty", true},         // una build local se cambia por la publicada
+		{"0.3.3", "0.1.0-dev", true},
+		{"0.3.3", "51f41f1", true}, // copia sin versión reconocible
+		{"0.3.3", "", true},        // copia que no respondió
+		{"0.1.0-dev", "0.0.1", false},
+		{"0.3.2-dirty", "0.3.1", false},
+		{"0.3.3-2-g51f41f1", "0.3.2", false},
+		{"0.3.3-2-g51f41f1-dirty", "0.3.2", false},
+		{"51f41f1", "0.3.2", false},
+		{"51f41f1", "", false},
+	}
+	for _, c := range casos {
+		if got := shouldReplace(c.current, c.installed); got != c.want {
+			t.Errorf("shouldReplace(%q, %q) = %v; esperaba %v", c.current, c.installed, got, c.want)
+		}
 	}
 }
 
