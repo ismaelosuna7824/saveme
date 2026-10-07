@@ -145,6 +145,22 @@ export const projects = {
       clearAll: 'clear filters',
     },
   },
+  repo: {
+    none: 'no linked repo',
+    noneHint:
+      'It links itself the first time an agent saves a summary of this project from its repo (passing its working directory).',
+    linkedHint:
+      'The project’s code repository. It is recognised by its remote and first commit, so moving its folder does not break the link.',
+    rootOnly: 'local repo · {sha}',
+    open: 'Open the repo',
+    openFailed: "Couldn't open the repo",
+    unlink: 'unlink the repo',
+    unlinkTitle: 'Unlink the repo from {name}?',
+    unlinkDescription:
+      'No file is touched. The next summary an agent saves from a repo will link it again.',
+    unlinked: 'Repo unlinked',
+    unlinkFailed: "Couldn't unlink it",
+  },
   icon: {
     action: 'change the project icon',
     title: 'project icon',

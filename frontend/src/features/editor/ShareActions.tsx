@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { openUrl } from '@tauri-apps/plugin-opener'
 import { AtSign, ClipboardCopy, ExternalLink, FileDown, Mail, Share2 } from 'lucide-react'
 import { toast } from 'sonner'
 
-import { errorMessage, IN_TAURI } from '@/api/client'
+import { errorMessage } from '@/api/client'
+import { useSecretScan } from '@/api/queries'
+import { SecretWarning } from '@/components/common/SecretWarning'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -23,6 +24,7 @@ import {
 import { useT } from '@/i18n'
 import { copyToClipboard } from '@/lib/hooks'
 import { saveMarkdownFile } from '@/lib/saveText'
+import { openExternal } from '@/lib/openExternal'
 
 export interface ShareActionsProps {
   /** Título actual (el borrador de la barra), que manda sobre el guardado. */
@@ -48,6 +50,10 @@ export interface ShareActionsProps {
 export function ShareActions({ title, content, relPath, id }: ShareActionsProps) {
   const t = useT()
   const [busy, setBusy] = useState(false)
+  // El aviso de credenciales se calcula al abrir el menú, con lo que hay en el
+  // editor: es justo antes de que el texto salga de la app.
+  const [menuOpen, setMenuOpen] = useState(false)
+  const scan = useSecretScan(menuOpen ? content : '', menuOpen)
   const fileName = shareFileName(relPath, id)
 
   const download = async () => {
@@ -71,12 +77,10 @@ export function ShareActions({ title, content, relPath, id }: ShareActionsProps)
     else toast.error(t('editor.share.copyFailed'))
   }
 
-  // Dentro de Tauri el webview no abre ventanas: la URL se la pasa al navegador
-  // del sistema el plugin, que solo admite las direcciones de compartir.
+  // Las direcciones de compartir pasan por el permiso del shell (`openExternal`).
   const open = async (url: string) => {
     try {
-      if (IN_TAURI) await openUrl(url)
-      else window.open(url, '_blank', 'noopener,noreferrer')
+      await openExternal(url)
     } catch (error) {
       toast.error(t('editor.share.openFailed'), { description: errorMessage(error) })
     }
@@ -125,7 +129,7 @@ export function ShareActions({ title, content, relPath, id }: ShareActionsProps)
         <FileDown className="size-3" />
       </Button>
 
-      <DropdownMenu>
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
@@ -136,7 +140,12 @@ export function ShareActions({ title, content, relPath, id }: ShareActionsProps)
             <Share2 className="size-3" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="min-w-[15rem]">
+        <DropdownMenuContent align="end" className="min-w-[15rem] max-w-[24rem]">
+          {scan.data && scan.data.items.length > 0 ? (
+            <div className="p-1">
+              <SecretWarning findings={scan.data.items} hint={t('common.secrets.hintShare')} />
+            </div>
+          ) : null}
           <DropdownMenuItem onSelect={() => void download()}>
             <FileDown />
             {t('editor.share.download')}

@@ -71,35 +71,59 @@ type Project struct {
 	Counts       map[string]int `json:"counts"`
 	Total        int            `json:"total"`
 	LastActivity *time.Time     `json:"last_activity,omitempty"`
+	// Repo es el repositorio de código vinculado, si lo hay. No está en el índice:
+	// sale de `.saveme/repos.json`.
+	Repo *ProjectRepo `json:"repo,omitempty"`
+}
+
+// ProjectRepo es el repositorio de código de un proyecto, reconocido por lo que
+// no cambia al moverlo: su remote y su commit raíz.
+type ProjectRepo struct {
+	Remote     string `json:"remote,omitempty"`
+	RootCommit string `json:"root_commit,omitempty"`
+	// WebURL es la página del repo en GitHub, GitLab o Bitbucket; vacía en otros.
+	WebURL string `json:"web_url,omitempty"`
+	// LastPath es dónde se vio por última vez. Es una pista, no la identidad.
+	LastPath string `json:"last_path,omitempty"`
 }
 
 // SummaryMeta es la fila indexada de un archivo markdown. No incluye el
 // contenido: para eso está el endpoint de detalle, que lee el archivo del disco
 // en vez de confiar en el índice.
 type SummaryMeta struct {
-	ID           string    `json:"id"`
-	ProjectSlug  string    `json:"project_slug"`
-	Category     string    `json:"category"`
-	Title        string    `json:"title"`
-	SummaryLine  string    `json:"summary_line"`
-	RelPath      string    `json:"rel_path"`
-	AbsPath      string    `json:"abs_path"`
-	Status       string    `json:"status"`
-	Author       string    `json:"author"`
-	Agent        string    `json:"agent,omitempty"`
-	CommitSHA    string    `json:"commit_sha,omitempty"`
-	Tags         []string  `json:"tags"`
-	FilesTouched []string  `json:"files_touched"`
-	Related      []string  `json:"related"`
-	WordCount    int       `json:"word_count"`
-	SizeBytes    int64     `json:"size_bytes"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
-	ContentHash  string    `json:"content_hash"`
+	ID           string   `json:"id"`
+	ProjectSlug  string   `json:"project_slug"`
+	Category     string   `json:"category"`
+	Title        string   `json:"title"`
+	SummaryLine  string   `json:"summary_line"`
+	RelPath      string   `json:"rel_path"`
+	AbsPath      string   `json:"abs_path"`
+	Status       string   `json:"status"`
+	Author       string   `json:"author"`
+	Agent        string   `json:"agent,omitempty"`
+	CommitSHA    string   `json:"commit_sha,omitempty"`
+	Tags         []string `json:"tags"`
+	FilesTouched []string `json:"files_touched"`
+	Related      []string `json:"related"`
+	// Supersedes son los resúmenes que este sustituye (ids o rutas, como en el
+	// frontmatter). Siguen siendo historia, pero ya no la verdad vigente.
+	Supersedes  []string  `json:"supersedes"`
+	WordCount   int       `json:"word_count"`
+	SizeBytes   int64     `json:"size_bytes"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	ContentHash string    `json:"content_hash"`
 	// Snippet solo viene en resultados de búsqueda: el trozo de la línea de
 	// resumen o del cuerpo donde aparece lo buscado, con cada coincidencia entre
 	// SnippetOpen y SnippetClose. Vacío si solo casaron el título o las etiquetas.
 	Snippet string `json:"snippet,omitempty"`
+	// SupersededBy es el id del resumen más reciente que sustituye a este. Se
+	// calcula al leer —no está en el archivo de este resumen sino en el del otro—
+	// y viene vacío si sigue vigente.
+	SupersededBy string `json:"superseded_by,omitempty"`
+	// CommitURL es la página web de CommitSHA en el repo vinculado al proyecto,
+	// si está en un alojamiento conocido. Se calcula al leer un resumen.
+	CommitURL string `json:"commit_url,omitempty"`
 }
 
 // Marcadores de coincidencia dentro de SummaryMeta.Snippet. Son caracteres de
@@ -129,6 +153,7 @@ type Frontmatter struct {
 	FilesTouched []string  `yaml:"files_touched,omitempty"`
 	Commit       string    `yaml:"commit,omitempty"`
 	Related      []string  `yaml:"related,omitempty"`
+	Supersedes   []string  `yaml:"supersedes,omitempty"`
 }
 
 // Alternative es un destino concreto que se le ofrece al usuario además de la
@@ -166,6 +191,15 @@ type Proposal struct {
 	// Related son los ids de los resúmenes que esta propuesta enlaza, ya
 	// resueltos. Se escriben en el `related` del frontmatter al confirmar.
 	Related []string `json:"related"`
+	// Supersedes son los ids de los resúmenes que esta propuesta da por
+	// sustituidos, ya resueltos. Se escriben en `supersedes` al confirmar.
+	Supersedes []string `json:"supersedes"`
+	// Secrets son los posibles secretos del título, la línea de resumen o el
+	// cuerpo. Es un aviso para quien decide: no bloquea la confirmación.
+	Secrets []SecretFinding `json:"secrets,omitempty"`
+	// Repo es el repositorio desde el que se propuso, si el agente dijo dónde
+	// trabaja y es un repo git.
+	Repo *ProposalRepo `json:"repo,omitempty"`
 
 	// Auditoría de la resolución. Es lo que permite responder después
 	// "¿esto lo aprobó una persona o lo decidió el agente?".
@@ -206,7 +240,10 @@ type CreateRequest struct {
 	Agent        string   `json:"agent,omitempty"`
 	Commit       string   `json:"commit,omitempty"`
 	Related      []string `json:"related,omitempty"`
-	Author       string   `json:"author,omitempty"`
+	// Supersedes son los resúmenes que este deja sin vigencia: una decisión que
+	// se revirtió, un enfoque que se abandonó. Por id o por ruta, como Related.
+	Supersedes []string `json:"supersedes,omitempty"`
+	Author     string   `json:"author,omitempty"`
 	// Target es el resumen que esta petición **actualiza**, por id o por ruta
 	// relativa. Vacío significa crear uno nuevo, que es el caso de siempre.
 	//
@@ -214,6 +251,21 @@ type CreateRequest struct {
 	// misma funcionalidad acabas con diez entradas casi iguales y ninguna que
 	// cuente la historia completa.
 	Target string `json:"target,omitempty"`
+	// Cwd es el directorio de trabajo del agente. Si está dentro de un repo git
+	// vinculado a un proyecto, `Project` se puede omitir; si el repo no está
+	// vinculado, se vincula al confirmar. Es opcional.
+	Cwd string `json:"cwd,omitempty"`
+}
+
+// ProposalRepo es el repo de código desde el que se hizo una propuesta.
+type ProposalRepo struct {
+	Remote     string `json:"remote,omitempty"`
+	RootCommit string `json:"root_commit,omitempty"`
+	// LinkedProject es el proyecto al que ya está vinculado ese repo, si lo está.
+	LinkedProject string `json:"linked_project,omitempty"`
+	// WillLink dice que al confirmar el repo quedará vinculado al proyecto de la
+	// propuesta, porque ni el repo ni el proyecto tienen vínculo todavía.
+	WillLink bool `json:"will_link,omitempty"`
 }
 
 // Validate comprueba lo mínimo indispensable para poder proponer algo.

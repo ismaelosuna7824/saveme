@@ -51,17 +51,27 @@ type ProposalRecord struct {
 	// Related son los ids de los resúmenes que la propuesta enlaza, ya resueltos.
 	// Vacío significa que no trae ninguno, no que haya que borrar los que haya.
 	Related []string
+	// Supersedes son los ids de los resúmenes que la propuesta da por sustituidos,
+	// ya resueltos. Vacío, como en Related, significa que no dice nada.
+	Supersedes []string
+	// RepoRemote, RepoRootCommit y RepoPath son el repo de código desde el que se
+	// propuso: la identidad para vincularlo al confirmar, y la ruta como la última
+	// vista. Vacíos si el agente no dijo dónde trabaja.
+	RepoRemote     string
+	RepoRootCommit string
+	RepoPath       string
 }
 
 const proposalCols = `token, project_slug, category, title, rel_path, body, summary_line,
 	payload_hash, inference_reason, confidence, evidence_json, alternatives_json,
 	created_at, expires_at, status, COALESCE(decision, ''), COALESCE(resolved_via, ''),
 	resolved_at, COALESCE(override_rel_path, ''), COALESCE(summary_id, ''), COALESCE(agent, ''),
-	tags_json, files_json, COALESCE(commit_sha, ''), target_id, base_hash, related_json`
+	tags_json, files_json, COALESCE(commit_sha, ''), target_id, base_hash, related_json,
+	supersedes_json, repo_remote, repo_root_commit, repo_path`
 
 func scanProposal(sc scanner) (ProposalRecord, error) {
 	var p ProposalRecord
-	var evidenceJSON, alternativesJSON, tagsJSON, filesJSON, relatedJSON string
+	var evidenceJSON, alternativesJSON, tagsJSON, filesJSON, relatedJSON, supersedesJSON string
 	var createdStr, expiresStr string
 	var resolvedAt sql.NullString
 
@@ -71,6 +81,7 @@ func scanProposal(sc scanner) (ProposalRecord, error) {
 		&createdStr, &expiresStr, &p.Status, &p.Decision, &p.ResolvedVia,
 		&resolvedAt, &p.OverrideRelPath, &p.SummaryID, &p.Agent,
 		&tagsJSON, &filesJSON, &p.CommitSHA, &p.TargetID, &p.BaseHash, &relatedJSON,
+		&supersedesJSON, &p.RepoRemote, &p.RepoRootCommit, &p.RepoPath,
 	); err != nil {
 		return p, err
 	}
@@ -85,6 +96,7 @@ func scanProposal(sc scanner) (ProposalRecord, error) {
 	p.Tags = decodeStrings(tagsJSON)
 	p.FilesTouched = decodeStrings(filesJSON)
 	p.Related = decodeStrings(relatedJSON)
+	p.Supersedes = decodeStrings(supersedesJSON)
 	if alternativesJSON != "" {
 		_ = json.Unmarshal([]byte(alternativesJSON), &p.Alternatives)
 	}
@@ -105,13 +117,15 @@ func (s *Store) InsertProposal(ctx context.Context, p ProposalRecord) error {
 			token, project_slug, category, title, rel_path, body, summary_line,
 			payload_hash, inference_reason, confidence, evidence_json, alternatives_json,
 			created_at, expires_at, status, agent, tags_json, files_json, commit_sha,
-			target_id, base_hash, related_json)
-		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+			target_id, base_hash, related_json, supersedes_json,
+			repo_remote, repo_root_commit, repo_path)
+		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		p.Token, p.ProjectSlug, p.Category, p.Title, p.RelPath, p.Body, p.SummaryLine,
 		p.PayloadHash, p.InferenceReason, p.Confidence, string(evidence), string(alternatives),
 		ts(p.CreatedAt), ts(p.ExpiresAt), domain.ProposalPending,
 		nullify(p.Agent), encodeStrings(p.Tags), encodeStrings(p.FilesTouched), nullify(p.CommitSHA),
-		p.TargetID, p.BaseHash, encodeStrings(p.Related),
+		p.TargetID, p.BaseHash, encodeStrings(p.Related), encodeStrings(p.Supersedes),
+		p.RepoRemote, p.RepoRootCommit, p.RepoPath,
 	)
 	if err != nil {
 		return fmt.Errorf("guardar la propuesta %s: %w", p.Token, err)

@@ -120,7 +120,7 @@ chat or the diff.
 
 ```bash
 make test        # Go with -race, Rust, types and every frontend verification
-make test-e2e    # 54 checks against the real binary, in a separate process
+make test-e2e    # 58 checks against the real binary, in a separate process
 make test-ui     # screen transitions in headless Chromium, frame by frame
 ```
 
@@ -144,8 +144,8 @@ you open where you left off.
 
 | Mode | What it does |
 | --- | --- |
-| **live** (default) | Renders the markdown as you type, like Obsidian: headings grow, bold looks bold, task checkboxes can be ticked. The syntax shows up **only on the line with the cursor**, so you can edit it. |
-| source | Raw markdown, no decoration. |
+| **live** (default) | Renders the markdown as you type, like Obsidian: headings grow, bold looks bold, task checkboxes can be ticked. The syntax shows up **only on the line with the cursor**, so you can edit it. The YAML frontmatter is hidden and protected: selecting everything and typing replaces only the body. |
+| source | Raw markdown, no decoration, frontmatter included and editable. |
 | split | Source on the left, rendered document on the right, with block-synced scrolling. |
 | preview | Only the rendered document, full width. |
 
@@ -226,6 +226,52 @@ A whole project can also be **exported to a single markdown** from the project h
 show the journal to someone who doesn't have SaveMe. If a summary couldn't be read, the
 document says so instead of looking complete.
 
+## Version history
+
+Every time a summary is rewritten —the agent updates it, you edit it, or you restore an older
+version— SaveMe first copies what was there to `.saveme/history/<id>/`. The clock button in
+the editor bar opens **previous versions**: each one says what replaced it (an agent update,
+an edit, a restore), and the diff shows what restoring it would change. Restoring goes through
+the same hash check as saving, and what it replaces lands in the history too, so a restore can
+be undone.
+
+Agent updates and restores always leave a version. Edits from the app are grouped: autosave
+writes every second, so only the first save of an editing session (and one every ten minutes
+after that) keeps the text from before. Edits made outside SaveMe (vim, git) leave no version:
+the watcher only sees the new file. Deleting for real —emptying the trash— takes the history of
+those summaries with it.
+
+## Superseded summaries
+
+Decisions get reverted. When a new summary replaces an older one —a design that was
+undone, an approach that was dropped— the agent passes the old one in `supersedes` (or you
+write `supersedes: [id]` in the frontmatter). The old file is not touched: it is still
+history. But from then on it shows up struck through with a **replaced** badge in the lists,
+its editor bar says **replaced by …** in red with a link to the new one, and the MCP tools
+(`saveme_context`, `saveme_summary_search`, `saveme_summary_list`, `saveme_summary_read`)
+return it with `superseded_by`, so an agent about to touch a file doesn't follow the decision
+that no longer holds. Continuing or extending a summary is still `related`.
+
+## Projects and their code repository
+
+When the agent passes its working directory (`cwd`) to `saveme_summary_propose`, SaveMe
+finds the git repo it is in. The first summary saved for a project from a repo **links**
+them (the proposal and the Inbox say so before you approve), and from then on the project
+comes from the repo: the agent no longer has to guess the slug.
+
+The repo is recognised by its `origin` remote and its first commit, **not by its path**.
+Move it, clone it somewhere else or open it in a worktree and it is still the same repo; the
+path is just where it was last seen. A fork has a different remote, so it is a different repo.
+The project header shows the linked repo (a link to GitHub, GitLab or Bitbucket) and lets you
+unlink it; the editor links each summary's `commit` to its page.
+
+**Summaries that may be out of date.** A summary lists the files it touched. SaveMe counts
+the commits that touched them after it was written —from its commit if it has one, otherwise
+from its date plus two hours, because the change is usually committed right after the
+summary—. Three or more and it is flagged: `saveme_context` returns `changed_since` and a note
+for the agent, and the editor shows "N later commits in its files" in amber. Without git, or if
+the repo is no longer where it was last seen, nothing is shown rather than a made-up number.
+
 ## The project pulse
 
 The journal holds much more than a list shows. Each project has its **pulse**, at
@@ -262,8 +308,13 @@ leaving out what was written on the 14th is the classic date bug.
 | --- | --- | --- |
 | Core | One Go binary with `serve` / `mcp` / `reindex` / `guide` / `doctor` / `mcp-config` / `changelog` subcommands | The app and the MCP server **are the same program**: they can't drift apart on business rules. The MCP server doesn't depend on the daemon, so it works with the app closed |
 | Deleting | Deleting archives: the file goes to `.saveme/trash/<stamp>/<original path>`, and the trash can be viewed, restored and emptied from Settings | The expensive mistake is an accidental delete, not used disk space. Restoring **never overwrites** a newer file: it refuses with a 409 and says so |
+| History | Before any rewrite, the previous content goes to `.saveme/history/<id>/`; editor saves are grouped in 10-minute windows | Rewriting in place loses as much as deleting: an agent update that leaves out a section erases it. Grouping only edits with edits keeps the agent's text even if you touch it a minute later |
+| Credentials | Proposals and the share menu warn about likely credentials (cloud and API keys, tokens, private keys, JWTs, URLs with a password, `password = …`); they never block | The agent writing the summary has just read the `.env` and the logs, and the summary gets shared and exported. A warning that fires on every summary saying "token" gets ignored, so the patterns are specific and placeholders don't count |
 | Living journal | The agent can **update** a summary, not only add one: `propose` takes a `target` and confirming rewrites the file in place | A journal that can only append decays: iterating on the same thing leaves you with ten near-identical entries. The proposal stores the file hash when it is made, so if someone touched the file in between nothing is overwritten |
 | Reviewing updates | A proposal that rewrites an existing summary shows the diff before approving | Updating replaces the whole body; approving it by reading only the new text is approving blind |
+| Superseded decisions | A summary can say which ones it **supersedes** (`supersedes` in the frontmatter and in `saveme_summary_propose`); the old one is not touched, it is marked as replaced when read | A design decision that was reverted is still history, but not the current truth. Without the mark, an agent asking what was done in a file got the reverted decision as if it were as valid as the new one |
+| Project ↔ repo | A project is linked to a git repo by its normalised remote and first commit, stored in `.saveme/repos.json`; the path is only a hint | Repos get moved, cloned and opened in worktrees. Identifying them by path would break the link every time; the remote and the root commit don't change |
+| Out-of-date summaries | Count commits that touched a summary's `files_touched` after it, from its commit or its date + 2 h; flag at 3 | Documentation goes stale silently. The grace period exists because the change's own commit usually lands right after the summary |
 | Reversibility | MCP configuration can be undone: `POST /api/mcp/unconfigure` or `mcp-config --remove`, per client | Writing to another program's config file means being able to put it back. Only the `saveme` entry is removed, with a backup, and the binary is never touched |
 | Writing guide | One guide in embedded markdown (`internal/mcpserver/guide.md` + `writing.md`), served by the MCP resource, the API and `saveme guide` | Two copies of the instructions end up saying different things. The writing part is shared by the guide and the prompt |
 | Translucency | A 20%–100% setting that lets you see what is behind the window | It rewrites a single colour token, so it follows the theme. **It costs the Mac App Store**: on macOS it needs a private Apple API. It ships as a DMG, and that is noted in the code |
@@ -304,6 +355,15 @@ where**. It rests on three layers, from strongest to weakest:
 
 Pending proposals show up in the app's **Inbox**, so you can also approve or redirect
 them without going back to the chat.
+
+**Credentials.** The agent writing a summary has usually just seen the `.env`, the logs and
+the request headers. If a proposal looks like it contains a credential —an AWS, Google,
+Stripe, OpenAI or Anthropic key, a GitHub or Slack token, a private key, a JWT, a URL with a
+password, or `password = …`— the agent gets `secret_warnings` and is told to replace it with
+`<REDACTED>` and propose again before asking you; the elicitation dialog and the Inbox card
+show the warning too, and so does the share menu, which checks what is in the editor right
+before the text leaves the app. It never blocks and never repeats the secret: each warning
+says what it looks like, where it is and how it starts (`AKIA…`).
 
 ## Layout
 
@@ -364,6 +424,8 @@ rotation are in [docs/RELEASING.md](docs/RELEASING.md#la-landing).
 | Preferences | `~/Library/Application Support/SaveMe/config.json` |
 | Index | `<root>/.saveme/saveme.db` |
 | Trash | `<root>/.saveme/trash/` (deleting archives, it doesn't destroy) |
+| Previous versions | `<root>/.saveme/history/<id>/` |
+| Project ↔ repo links | `<root>/.saveme/repos.json` |
 | Background images | `backgrounds/` next to `config.json`, named `<16 hex of sha256>.<ext>` |
 | MCP binary | `~/.saveme/bin/saveme` (refreshed on every app update) |
 
@@ -425,9 +487,9 @@ Verified:
 - `go test -race ./...` — domain, store, service, MCP configuration and the MCP server (19
   MCP tests drive a real client against a real server, including the round trip of asking
   the user).
-- `bash scripts/e2e.sh` — 54 checks on the binary: two phases, cross-process visibility,
-  confirmation over HTTP, edit conflicts, SSE, the project pulse, and the "the agent writes
-  with the app off" path.
+- `bash scripts/e2e.sh` — 58 checks on the binary: two phases, cross-process visibility,
+  confirmation over HTTP, edit conflicts, version history and restore, SSE, the project
+  pulse, and the "the agent writes with the app off" path.
 - `node scripts/verify-transitions.mjs` (`make test-ui`) — 19 screen transitions in headless
   Chromium against the real core, sampled every frame: no skeletons, no lost background, no
   dimmed ancestor cutting the glass, no empty editor, no "not found".

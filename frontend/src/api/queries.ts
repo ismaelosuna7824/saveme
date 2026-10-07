@@ -14,6 +14,7 @@ import {
 import { api, buildQuery } from './client'
 import type {
   ActivityMap,
+  Freshness,
   Briefing,
   Changelog,
   Digest,
@@ -38,11 +39,14 @@ import type {
   ReindexResult,
   SaveSummaryInput,
   Stats,
+  SecretFinding,
   SummaryDetail,
   SummaryFilter,
   SummaryList,
   SummaryLinks,
   SummaryMeta,
+  SummaryVersionDetail,
+  SummaryVersionList,
   WriteResult,
   EmptyTrashResult,
   RestoreResult,
@@ -74,6 +78,11 @@ export const queryKeys = {
     // Bajo `summaries` a propósito: cualquier escritura que invalide los
     // resúmenes refresca también quién enlaza a quién.
     links: (id: string) => ['summaries', 'links', id] as const,
+    // También bajo `summaries`: cada guardado puede dejar una versión nueva.
+    versions: (id: string) => ['summaries', 'versions', id] as const,
+    version: (id: string, version: string) => ['summaries', 'versions', id, version] as const,
+    // Bajo `summaries`: un guardado puede cambiar los archivos apuntados.
+    freshness: (id: string) => ['summaries', 'freshness', id] as const,
   },
   proposals: {
     all: ['proposals'] as const,
@@ -237,6 +246,59 @@ export function useSummary(id: string): UseQueryResult<SummaryDetail> {
 
 export function useSummaryLinks(id: string): UseQueryResult<SummaryLinks> {
   return useQuery({ ...summaryLinksQuery(id), enabled: id.length > 0 })
+}
+
+/** Las versiones anteriores de un resumen. Solo se piden con el historial abierto. */
+export function useSummaryVersions(id: string, enabled: boolean): UseQueryResult<SummaryVersionList> {
+  return useQuery({
+    queryKey: queryKeys.summaries.versions(id),
+    queryFn: ({ signal }) =>
+      api.get<SummaryVersionList>(`/summaries/${encodeURIComponent(id)}/versions`, signal),
+    enabled: enabled && id.length > 0,
+  })
+}
+
+/** Una versión entera junto a lo que hay ahora en disco, para enseñar el diff. */
+export function useSummaryVersion(id: string, version: string | null): UseQueryResult<SummaryVersionDetail> {
+  return useQuery({
+    queryKey: queryKeys.summaries.version(id, version ?? ''),
+    queryFn: ({ signal }) =>
+      api.get<SummaryVersionDetail>(
+        `/summaries/${encodeURIComponent(id)}/versions/${encodeURIComponent(version ?? '')}`,
+        signal,
+      ),
+    enabled: version !== null && id.length > 0,
+    // Lo de "ahora" cambia con cada guardado: no se sirve de caché.
+    staleTime: 0,
+  })
+}
+
+/**
+ * Posibles credenciales en un texto. Lo usa el menú de compartir con lo que hay
+ * en el editor, guardado o no; solo se pide con el menú abierto.
+ */
+export function useSecretScan(text: string, enabled: boolean): UseQueryResult<{ items: SecretFinding[] }> {
+  return useQuery({
+    queryKey: ['secrets', text],
+    queryFn: () => api.post<{ items: SecretFinding[] }>('/secrets/scan', { text }),
+    enabled,
+    staleTime: Infinity,
+  })
+}
+
+/**
+ * Cuántos commits tocaron los archivos de un resumen después de escribirlo. Lo
+ * calcula el core con git sobre el repo vinculado al proyecto; no se repite a
+ * cada momento porque cada consulta ejecuta git.
+ */
+export function useFreshness(id: string): UseQueryResult<Freshness> {
+  return useQuery({
+    queryKey: queryKeys.summaries.freshness(id),
+    queryFn: ({ signal }) =>
+      api.get<Freshness>(`/summaries/${encodeURIComponent(id)}/freshness`, signal),
+    enabled: id.length > 0,
+    staleTime: 60_000,
+  })
 }
 
 export function useProposals(
@@ -653,6 +715,42 @@ export function useDeleteSummary(): UseMutationResult<
       void queryClient.invalidateQueries({ queryKey: queryKeys.categories })
       void queryClient.invalidateQueries({ queryKey: queryKeys.stats })
       void queryClient.invalidateQueries({ queryKey: queryKeys.trash })
+    },
+  })
+}
+
+/**
+ * Vuelve a poner una versión anterior. Lleva `base_hash` como el guardado del
+ * editor: si el archivo cambió desde que se cargó, el core responde 409 y no pisa
+ * nada. Lo que había antes de restaurar queda a su vez en el historial.
+ */
+export function useRestoreVersion(): UseMutationResult<
+  { meta: SummaryMeta },
+  Error,
+  { id: string; version: string; base_hash: string }
+> {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, version, base_hash }) =>
+      api.post<{ meta: SummaryMeta }>(
+        `/summaries/${encodeURIComponent(id)}/versions/${encodeURIComponent(version)}/restore`,
+        { base_hash },
+      ),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.summaries.all })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.projects })
+    },
+  })
+}
+
+/** Quita el vínculo de un proyecto con su repo de código. No toca ningún archivo. */
+export function useUnlinkRepo(): UseMutationResult<{ ok: boolean }, Error, string> {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (slug: string) => api.del<{ ok: boolean }>(`/projects/${slug}/repo`),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.projects })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.summaries.all })
     },
   })
 }

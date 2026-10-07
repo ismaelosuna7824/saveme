@@ -22,6 +22,7 @@ import { toggleTaskAtLine } from '@/features/editor/toggleTask'
 import { useMarkdownEditor } from '@/features/editor/useMarkdownEditor'
 import { useScrollSync } from '@/features/editor/useScrollSync'
 import { useSummarySave } from '@/features/editor/useSummarySave'
+import { VersionsDialog } from '@/features/editor/VersionsDialog'
 import { useT } from '@/i18n'
 import { countWords } from '@/lib/format'
 
@@ -54,6 +55,7 @@ export function EditorPage({ id }: { id: string }) {
   // El diálogo de metadatos vive aquí y no en la barra: la barra es presentación y
   // no tiene por qué saber qué diálogos existen.
   const [metaOpen, setMetaOpen] = useState(false)
+  const [versionsOpen, setVersionsOpen] = useState(false)
 
   // El modo vive en la config del core, así que la elección sobrevive al
   // reinicio. `previewOverride` solo cubre el instante entre que el usuario
@@ -107,6 +109,7 @@ export function EditorPage({ id }: { id: string }) {
     wrap,
     fontSize,
     livePreviewEnabled: mode === 'live',
+    hideFrontmatter: mode === 'live',
     onDocChange: setContent,
   })
   const editorView = editor.view
@@ -186,8 +189,11 @@ export function EditorPage({ id }: { id: string }) {
       const text = editorView.state.doc.toString()
       const updated = setFrontmatterField(text, 'title', value)
       if (updated === text) return
+      // `filter: false`: el título vive en el frontmatter, que en modo live está
+      // protegido contra ediciones del teclado pero no contra esta.
       editorView.dispatch({
         changes: { from: 0, to: editorView.state.doc.length, insert: updated },
+        filter: false,
       })
     },
     [editorView],
@@ -207,6 +213,10 @@ export function EditorPage({ id }: { id: string }) {
 
       if (event.key !== 'Escape') return
       if (saver.conflictOpen) return
+      // Un diálogo abierto (historial, metadatos) ya usó el Escape para cerrarse:
+      // Radix lo marca con `preventDefault`. Volver además al proyecto cerraría el
+      // diálogo y el editor de golpe.
+      if (event.defaultPrevented) return
       event.preventDefault()
       goBack()
     }
@@ -266,9 +276,20 @@ export function EditorPage({ id }: { id: string }) {
         onBack={goBack}
         onDeleted={() => goBackTo(doc.meta)}
         onEditMeta={() => setMetaOpen(true)}
+        onShowVersions={() => setVersionsOpen(true)}
       />
 
       <EditMetaDialog summary={doc.meta} open={metaOpen} onOpenChange={setMetaOpen} />
+      <VersionsDialog
+        summaryId={doc.meta.id}
+        baseHash={doc.baseHash}
+        dirty={dirty}
+        open={versionsOpen}
+        onOpenChange={setVersionsOpen}
+        onRestored={() => {
+          void reloadFromDisk()
+        }}
+      />
 
       <SplitPane
         visible={mode === 'preview' ? 'right' : mode === 'split' ? 'both' : 'left'}

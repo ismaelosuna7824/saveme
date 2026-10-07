@@ -236,17 +236,18 @@ var ErrNotFound = errors.New("no encontrado")
 // sin que nadie lo notara: perdía el orden por relevancia y los fragmentos.
 const summaryCols = `s.id, s.project_slug, s.category, s.title, s.summary_line, s.rel_path,
 	s.content_hash, s.status, s.author, COALESCE(s.agent, ''), COALESCE(s.commit_sha, ''),
-	s.tags_json, s.files_json, s.related_json, s.word_count, s.size_bytes, s.created_at, s.updated_at`
+	s.tags_json, s.files_json, s.related_json, s.supersedes_json, s.word_count, s.size_bytes,
+	s.created_at, s.updated_at`
 
 // scanSummary lee una fila de summaryCols. `extra` recibe las columnas que la
 // consulta pida detrás de ellas (los fragmentos de la búsqueda, por ejemplo).
 func (s *Store) scanSummary(sc scanner, extra ...any) (domain.SummaryMeta, error) {
 	var m domain.SummaryMeta
-	var tagsJSON, filesJSON, relatedJSON, createdStr, updatedStr string
+	var tagsJSON, filesJSON, relatedJSON, supersedesJSON, createdStr, updatedStr string
 	dest := []any{
 		&m.ID, &m.ProjectSlug, &m.Category, &m.Title, &m.SummaryLine, &m.RelPath,
 		&m.ContentHash, &m.Status, &m.Author, &m.Agent, &m.CommitSHA,
-		&tagsJSON, &filesJSON, &relatedJSON, &m.WordCount, &m.SizeBytes,
+		&tagsJSON, &filesJSON, &relatedJSON, &supersedesJSON, &m.WordCount, &m.SizeBytes,
 		&createdStr, &updatedStr,
 	}
 	if err := sc.Scan(append(dest, extra...)...); err != nil {
@@ -255,6 +256,7 @@ func (s *Store) scanSummary(sc scanner, extra ...any) (domain.SummaryMeta, error
 	m.Tags = decodeStrings(tagsJSON)
 	m.FilesTouched = decodeStrings(filesJSON)
 	m.Related = decodeStrings(relatedJSON)
+	m.Supersedes = decodeStrings(supersedesJSON)
 	m.CreatedAt = parseTS(createdStr)
 	m.UpdatedAt = parseTS(updatedStr)
 	m.AbsPath = s.absPath(m.RelPath)
@@ -274,8 +276,8 @@ func (s *Store) UpsertSummary(ctx context.Context, m domain.SummaryMeta, body st
 		INSERT INTO summaries(
 			id, project_slug, category, title, summary_line, rel_path, content_hash,
 			status, author, agent, commit_sha, tags_json, files_json, related_json,
-			word_count, size_bytes, created_at, updated_at)
-		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+			supersedes_json, word_count, size_bytes, created_at, updated_at)
+		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 		ON CONFLICT(id) DO UPDATE SET
 			project_slug = excluded.project_slug,
 			category     = excluded.category,
@@ -290,12 +292,14 @@ func (s *Store) UpsertSummary(ctx context.Context, m domain.SummaryMeta, body st
 			tags_json    = excluded.tags_json,
 			files_json   = excluded.files_json,
 			related_json = excluded.related_json,
+			supersedes_json = excluded.supersedes_json,
 			word_count   = excluded.word_count,
 			size_bytes   = excluded.size_bytes,
 			updated_at   = excluded.updated_at`,
 		m.ID, m.ProjectSlug, m.Category, m.Title, m.SummaryLine, m.RelPath, m.ContentHash,
 		m.Status, m.Author, nullify(m.Agent), nullify(m.CommitSHA),
 		encodeStrings(m.Tags), encodeStrings(m.FilesTouched), encodeStrings(m.Related),
+		encodeStrings(m.Supersedes),
 		m.WordCount, m.SizeBytes, ts(m.CreatedAt), ts(m.UpdatedAt),
 	); err != nil {
 		return fmt.Errorf("indexar el resumen %s: %w", m.ID, err)
@@ -388,6 +392,55 @@ func (s *Store) Backlinks(ctx context.Context, id, relPath string) ([]domain.Sum
 			return nil, err
 		}
 		out = append(out, m)
+	}
+	return out, rows.Err()
+}
+
+// Superseders devuelve los resúmenes que sustituyen a `id` (por id o por ruta,
+// como `Backlinks`), los más recientes primero.
+func (s *Store) Superseders(ctx context.Context, id, relPath string) ([]domain.SummaryMeta, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT `+summaryCols+` FROM summaries s
+		WHERE s.id <> ? AND EXISTS (
+			SELECT 1 FROM json_each(s.supersedes_json) WHERE value IN (?, ?))
+		ORDER BY s.created_at DESC`, id, id, relPath)
+	if err != nil {
+		return nil, fmt.Errorf("buscar quién sustituye a %s: %w", id, err)
+	}
+	defer rows.Close()
+
+	out := []domain.SummaryMeta{}
+	for rows.Next() {
+		m, err := s.scanSummary(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, m)
+	}
+	return out, rows.Err()
+}
+
+// SupersededIndex devuelve, para cada id o ruta que algún resumen sustituye, el
+// id del sustituto más reciente.
+//
+// Es una consulta para todo el listado y no una por fila: marcar quinientos
+// resultados de una búsqueda costaría quinientos recorridos del JSON.
+func (s *Store) SupersededIndex(ctx context.Context) (map[string]string, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT j.value, s.id FROM summaries s, json_each(s.supersedes_json) j
+		ORDER BY s.created_at ASC`)
+	if err != nil {
+		return nil, fmt.Errorf("leer qué resúmenes están sustituidos: %w", err)
+	}
+	defer rows.Close()
+
+	out := map[string]string{}
+	for rows.Next() {
+		var ref, by string
+		if err := rows.Scan(&ref, &by); err != nil {
+			return nil, err
+		}
+		// En orden de creación ascendente: el último que se escribe es el más
+		// reciente, que es el que vale.
+		out[ref] = by
 	}
 	return out, rows.Err()
 }

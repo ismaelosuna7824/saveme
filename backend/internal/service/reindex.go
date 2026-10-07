@@ -194,7 +194,7 @@ func (s *Service) indexDiscoveredFile(ctx context.Context, entry workspace.FileE
 	author := "human"
 	agent := ""
 	commit := ""
-	var tags, filesTouched, related []string
+	var tags, filesTouched, related, supersedes []string
 	createdAt := entry.ModTime.UTC()
 
 	if fm := doc.Frontmatter; fm != nil && strings.TrimSpace(fm.ID) != "" {
@@ -216,6 +216,7 @@ func (s *Service) indexDiscoveredFile(ctx context.Context, entry workspace.FileE
 		tags = store.TagList(fm.Tags)
 		filesTouched = fm.FilesTouched
 		related = fm.Related
+		supersedes = fm.Supersedes
 		if !fm.CreatedAt.IsZero() {
 			createdAt = fm.CreatedAt
 		}
@@ -245,6 +246,7 @@ func (s *Service) indexDiscoveredFile(ctx context.Context, entry workspace.FileE
 		Tags:         tags,
 		FilesTouched: filesTouched,
 		Related:      related,
+		Supersedes:   supersedes,
 		WordCount:    domain.WordCount(doc.Body),
 		SizeBytes:    entry.Size,
 		CreatedAt:    createdAt,

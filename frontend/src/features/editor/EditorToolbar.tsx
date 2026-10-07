@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowLeft, Copy, Paperclip, Save, Trash2, Tag } from 'lucide-react'
+import { ArrowLeft, Copy, History, Paperclip, Save, Trash2, Tag } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { errorMessage } from '@/api/client'
@@ -14,6 +14,7 @@ import { StatusDot } from '@/components/common/StatusDot'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { CodeChanges } from '@/features/editor/CodeChanges'
 import { ModeSwitch } from '@/features/editor/ModeSwitch'
 import { ShareActions } from '@/features/editor/ShareActions'
 import { SummaryLinksRow } from '@/features/editor/SummaryLinksRow'
@@ -40,6 +41,8 @@ export interface EditorToolbarProps {
   onDeleted?: () => void
   /** Abre el diálogo para corregir categoría y título. */
   onEditMeta?: () => void
+  /** Abre el historial de versiones. */
+  onShowVersions?: () => void
 }
 
 /**
@@ -73,6 +76,7 @@ export function EditorToolbar({
   onSave,
   onBack,
   onDeleted,
+  onShowVersions,
 }: EditorToolbarProps) {
   const t = useT()
   const remove = useDeleteSummary()
@@ -193,6 +197,8 @@ export function EditorToolbar({
           </span>
         ) : null}
 
+        <CodeChanges meta={meta} />
+
         <span className="ml-auto flex shrink-0 items-center gap-1.5" aria-live="polite">
           <StatusDot tone={saving ? 'warn' : dirty ? 'warn' : 'ok'} />
           {saveState}
@@ -214,6 +220,18 @@ export function EditorToolbar({
         >
           <Copy className="size-3" />
         </Button>
+
+        {onShowVersions !== undefined ? (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={onShowVersions}
+            title={t('editor.versions.action')}
+            aria-label={t('editor.versions.action')}
+          >
+            <History className="size-3" />
+          </Button>
+        ) : null}
 
         <Button
           variant="ghost"

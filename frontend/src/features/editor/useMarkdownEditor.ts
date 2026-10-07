@@ -25,6 +25,7 @@ import {
 } from '@codemirror/view'
 
 import { savemeEditorTheme, savemeHighlighting } from '@/features/editor/cmTheme'
+import { hiddenFrontmatter } from '@/features/editor/frontmatterBlock'
 import { livePreview } from '@/features/editor/livePreview/livePreview'
 
 /**
@@ -66,6 +67,11 @@ export interface UseMarkdownEditorArgs {
   fontSize: number
   /** `true` en modo `live`: el editor renderiza el markdown en línea. */
   livePreviewEnabled: boolean
+  /**
+   * `true` oculta y protege el frontmatter. Lo usa el editor de resúmenes en modo
+   * live; el de notas no, porque una nota no tiene otro modo donde editarlo.
+   */
+  hideFrontmatter?: boolean
   /** `true` activa las teclas modales de vim. Apagado por defecto. */
   vimMode?: boolean
   onDocChange: (doc: string) => void
@@ -101,6 +107,7 @@ export function useMarkdownEditor({
   wrap,
   fontSize,
   livePreviewEnabled,
+  hideFrontmatter = false,
   vimMode = false,
   onDocChange,
 }: UseMarkdownEditorArgs): MarkdownEditorHandle {
@@ -112,6 +119,9 @@ export function useMarkdownEditor({
   const themeCompartment = useRef(new Compartment())
   const livePreviewCompartment = useRef(new Compartment())
   const vimCompartment = useRef(new Compartment())
+  const frontmatterCompartment = useRef(new Compartment())
+  const hideFrontmatterRef = useRef(hideFrontmatter)
+  hideFrontmatterRef.current = hideFrontmatter
   const initialDocRef = useRef(initialDoc)
   const adoptedVersionRef = useRef(adoptVersion)
 
@@ -166,6 +176,7 @@ export function useMarkdownEditor({
           // quitarlos al pasar a `source` sin recrear el editor: así no se
           // pierde ni el cursor ni el scroll.
           livePreviewCompartment.current.of(livePreviewEnabled ? livePreview() : []),
+          frontmatterCompartment.current.of(hideFrontmatterRef.current ? hiddenFrontmatter() : []),
           themeCompartment.current.of(savemeEditorTheme(fontSize)),
           wrapCompartment.current.of(wrap ? EditorView.lineWrapping : []),
           keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, ...foldKeymap, indentWithTab]),
@@ -218,11 +229,22 @@ export function useMarkdownEditor({
   useEffect(() => {
     const instance = viewRef.current
     if (instance === null) return
+    instance.dispatch({
+      effects: frontmatterCompartment.current.reconfigure(hideFrontmatter ? hiddenFrontmatter() : []),
+    })
+  }, [hideFrontmatter])
+
+  useEffect(() => {
+    const instance = viewRef.current
+    if (instance === null) return
     if (adoptedVersionRef.current === adoptVersion) return
     adoptedVersionRef.current = adoptVersion
     if (instance.state.doc.toString() === docToAdopt) return
+    // `filter: false`: adoptar el archivo del disco reemplaza también el
+    // frontmatter, que en modo live está protegido contra ediciones.
     instance.dispatch({
       changes: { from: 0, to: instance.state.doc.length, insert: docToAdopt },
+      filter: false,
     })
   }, [adoptVersion, docToAdopt])
 

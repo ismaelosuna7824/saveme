@@ -67,4 +67,32 @@ export const common = {
   tags: {
     filterBy: 'See everything tagged #{tag}',
   },
+  superseded: {
+    badge: 'replaced',
+    title: 'A later summary replaces it: this is no longer the current version',
+  },
+  secrets: {
+    title: 'This looks like it has credentials',
+    where: '{kind} in {field}, line {line} ({hint})',
+    hintProposal: 'Check it before approving: a summary gets shared and exported.',
+    hintShare: 'Check it before sharing.',
+    field: {
+      title: 'the title',
+      summary: 'the summary line',
+      body: 'the text',
+    },
+    kind: {
+      private_key: 'private key',
+      aws_access_key: 'AWS key',
+      github_token: 'GitHub token',
+      slack_token: 'Slack token',
+      stripe_key: 'Stripe key',
+      google_api_key: 'Google key',
+      anthropic_key: 'Anthropic key',
+      openai_key: 'OpenAI key',
+      jwt: 'JWT',
+      url_credentials: 'username and password in a URL',
+      assignment: 'password or key',
+    },
+  },
 } as const

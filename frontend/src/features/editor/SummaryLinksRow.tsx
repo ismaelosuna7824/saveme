@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { CornerDownRight, CornerUpLeft } from 'lucide-react'
+import { CornerDownRight, CornerUpLeft, History, ShieldOff } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import { useSummaryLinks } from '@/api/queries'
@@ -12,7 +12,7 @@ interface SummaryLinksRowProps {
 
 /**
  * Fila de la barra del editor con los resúmenes enlazados: los que este nombra
- * en su `related` y los que lo nombran a él.
+ * en su `related` y los que lo nombran a él, y los que sustituye o lo sustituyen.
  *
  * Los datos los precarga el loader de `/s/$id`, así que la fila aparece con el
  * editor y no después. Si no hay enlaces en ningún sentido no se pinta nada: una
@@ -23,13 +23,34 @@ export function SummaryLinksRow({ id }: SummaryLinksRowProps) {
   const links = useSummaryLinks(id).data
   const related = links?.related ?? []
   const backlinks = links?.backlinks ?? []
-  if (related.length === 0 && backlinks.length === 0) return null
+  const supersedes = links?.supersedes ?? []
+  const supersededBy = links?.superseded_by ?? []
+  if (related.length + backlinks.length + supersedes.length + supersededBy.length === 0) return null
 
   return (
     <nav
       aria-label={t('editor.links.label')}
       className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 pb-1.5 text-2xs text-muted-foreground"
     >
+      {/* Primero y en otro color: leer una decisión sin saber que ya no vale es
+          justo el error que esta marca existe para evitar. */}
+      {supersededBy.length > 0 ? (
+        <span className="flex w-full min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-destructive">
+          <ShieldOff className="size-3 shrink-0" />
+          <span>{t('editor.links.supersededBy')}:</span>
+          {supersededBy.map((meta) => (
+            <SummaryLink key={meta.id} meta={meta} />
+          ))}
+          <span className="text-muted-foreground">{t('editor.links.supersededHint')}</span>
+        </span>
+      ) : null}
+      {supersedes.length > 0 ? (
+        <LinkGroup icon={<History className="size-3 shrink-0" />} label={t('editor.links.supersedes')}>
+          {supersedes.map((meta) => (
+            <SummaryLink key={meta.id} meta={meta} />
+          ))}
+        </LinkGroup>
+      ) : null}
       {related.length > 0 ? (
         <LinkGroup icon={<CornerDownRight className="size-3 shrink-0" />} label={t('editor.links.related')}>
           {related.map((meta) => (

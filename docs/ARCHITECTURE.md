@@ -32,7 +32,10 @@ sobreescribe con la variable de entorno `SAVEME_ROOT`.
 <root_dir>/
 ├── .saveme/
 │   ├── saveme.db                 # índice SQLite (reconstruible, borrar es seguro)
-│   └── root.json                 # marcador de raíz + versión de esquema
+│   ├── root.json                 # marcador de raíz + versión de esquema
+│   ├── trash/<sello>/<ruta>      # lo borrado, con su ruta original
+│   ├── history/<id>/<sello>.<motivo>.md  # versiones anteriores de cada resumen
+│   └── repos.json                # proyecto ↔ repo de código (remote + commit raíz)
 ├── saveme/                       # un directorio por proyecto (slug)
 │   ├── features/
 │   │   ├── 2026-02-14-editor-markdown-con-preview.md
@@ -123,6 +126,7 @@ files_touched:
   - frontend/src/features/editor/Editor.tsx
 commit: null
 related: []
+supersedes: []          # opcional: resúmenes que este deja sin vigencia
 ---
 ```
 
@@ -143,6 +147,18 @@ related: []
   otra tabla. `GET /summaries/{id}/links` devuelve las dos direcciones ya resueltas a
   `SummaryMeta` en una sola petición, y el loader de `/s/$id` la precarga junto al detalle
   para que la fila «relacionados / lo citan» del editor llegue sin parpadeo.
+- `supersedes` son los resúmenes que este deja **sin vigencia**: una decisión que se
+  revierte, un enfoque que se abandona, un diseño que se reemplaza. Sigue el mismo camino
+  que `related` —`supersedes` en `saveme_summary_propose`, resuelto a ids al proponer,
+  `proposals.supersedes_json` y `summaries.supersedes_json` (migración 005), conservado al
+  actualizar si la propuesta no lo trae— y **no toca el resumen sustituido**: el enlace
+  vive en el nuevo, y que a uno lo sustituyan se calcula al leer. `SummaryMeta.superseded_by`
+  lleva el id del sustituto más reciente; `List`, `Read` y `ReadRaw` lo rellenan con una
+  sola consulta (`SupersededIndex`) para todo el listado, así que llega a la API, a la
+  búsqueda, a `saveme_context`, `saveme_summary_list` y `saveme_summary_read`. Sin esto, un
+  agente que pregunta qué se hizo en un archivo recibía la decisión revertida como si
+  valiera igual que la nueva. En la app, el sustituido sale tachado con «sustituido» en las
+  listas y con «sustituido por …» en rojo en la barra del editor.
 
 ## 5. Esquema SQLite
 
@@ -172,6 +188,7 @@ CREATE TABLE summaries (
   tags_json TEXT NOT NULL DEFAULT '[]',
   files_json TEXT NOT NULL DEFAULT '[]',
   related_json TEXT NOT NULL DEFAULT '[]',
+  supersedes_json TEXT NOT NULL DEFAULT '[]',
   word_count INTEGER NOT NULL DEFAULT 0,
   size_bytes INTEGER NOT NULL DEFAULT 0,
   mtime_ns INTEGER NOT NULL DEFAULT 0,
@@ -265,16 +282,22 @@ que los clientes (MCP, UI, CLI) lo encuentren.
 | GET | `/projects` | — | `[Project]` |
 | POST | `/projects` | `{name, slug?}` | `Project` (201, 409 si existe) |
 | GET | `/projects/{slug}` | — | `Project` (misma forma que en el listado, con `counts` y `total`) |
+| DELETE | `/projects/{slug}/repo` | — | `{ok}` — quita el vínculo del proyecto con su repo de código. No toca archivos. 404 si no tenía |
 | GET | `/projects/{slug}/export` | — | `ProjectExport` — el proyecto entero con los cuerpos, para montar un solo documento |
 | GET | `/projects/{slug}/briefing` | query: `days` (30 por defecto) | `Briefing` — «¿dónde lo dejamos?» |
 | GET | `/projects/{slug}/activity` | query: `days` (365 por defecto) | `ActivityMap` — un día por entrada, vacíos incluidos |
 | GET | `/projects/{slug}/changelog` | query: `since, until` (AAAA-MM-DD; vacíos = últimos 30 días) | `Changelog` — datos, no markdown. 400 `invalid_date` |
 | GET | `/summaries` | query: `project,category,q,tag,status,from,to,limit,offset,sort` (`sort` ∈ `recent`\|`created`\|`oldest`\|`title`; vacío = relevancia al buscar, fecha al listar; `from`/`to` = días AAAA-MM-DD de creación en hora local, los dos incluidos) | `{items:[SummaryMeta], total, limit, offset}` — con `q`, cada item puede traer `snippet`. 400 `invalid_date` |
-| GET | `/summaries/{id}` | — | `{meta: SummaryMeta, content: string}` |
-| PUT | `/summaries/{id}` | `{content, base_hash?}` | `{meta}` — 409 `hash_mismatch` si `base_hash` no coincide |
+| GET | `/summaries/{id}` | — | `{meta: SummaryMeta, content: string}` — `content` es el **archivo entero, frontmatter incluido**: es lo que carga el editor y lo que vuelve en el `PUT`. Si fuera solo el cuerpo, el primer autoguardado borraría el frontmatter del disco (pasó hasta la 0.4.0) |
+| PUT | `/summaries/{id}` | `{content, base_hash?}` | `{meta}` — escribe `content` tal cual; 409 `hash_mismatch` si `base_hash` no coincide |
 | DELETE | `/summaries/{id}` | query: `hard=true\|false` | `{ok, archived_path?}` |
 | GET | `/summaries/{id}/raw` | — | `text/markdown` |
-| GET | `/summaries/{id}/links` | — | `{related: [SummaryMeta], backlinks: [SummaryMeta]}` |
+| GET | `/summaries/{id}/links` | — | `{related, backlinks, supersedes, superseded_by}` — cuatro listas de `SummaryMeta`: lo que enlaza, quién lo enlaza, lo que deja sin vigencia y quién lo deja sin vigencia a él (el más reciente primero) |
+| GET | `/summaries/{id}/versions` | — | `{items: [{version, replaced_at, reason, size}]}` — versiones anteriores, la más reciente primero. `reason` ∈ `agent`\|`edit`\|`restore`: qué la reemplazó |
+| GET | `/summaries/{id}/versions/{version}` | — | `{version, replaced_at, reason, size, content, current}` — la versión entera y el archivo de ahora, los dos con frontmatter, para compararlos. 400 `invalid` si `version` no tiene la forma `<sello>.<motivo>` |
+| POST | `/summaries/{id}/versions/{version}/restore` | `{base_hash}` | `{meta}` — la vuelve a poner por el mismo camino que `PUT`; 409 `hash_mismatch` si el archivo cambió |
+| GET | `/summaries/{id}/freshness` | — | `{available, reason?, count, stale, latest: [{sha, subject, when}], since?}` — commits que tocaron sus `files_touched` después de escribirlo, en el repo vinculado. `available: false` con `reason` (`no_files`, `no_repo`, `repo_moved`, `no_git`, `superseded`, `git_failed`) no es un error |
+| POST | `/secrets/scan` | `{text}` | `{items: [SecretFinding]}` — posibles credenciales en un texto; lo usa el menú de compartir con lo que hay en el editor |
 | GET | `/proposals` | query: `status=pending` | `[Proposal]` |
 | GET | `/proposals/{token}` | — | `Proposal` |
 | POST | `/proposals/{token}/confirm` | `{decision, override?}` | `{summary, meta}` |
@@ -323,18 +346,24 @@ Tipos:
 ```ts
 type Category = { key: string; folder: string; label: string; description: string }
 type Project = { slug: string; name: string; path: string; created_at: string; updated_at: string;
-                 counts: Record<string, number>; total: number; last_activity: string | null }
+                 counts: Record<string, number>; total: number; last_activity: string | null,
+                 repo?: { remote?, root_commit?, web_url?, last_path? } /* de .saveme/repos.json */ }
 type SummaryMeta = { id, project_slug, category, title, summary_line, rel_path, abs_path,
                      status, author, agent, commit_sha, tags: string[], files_touched: string[],
-                     related: string[], word_count, size_bytes, created_at, updated_at, content_hash,
-                     snippet? /* solo al buscar */ }
+                     related: string[], supersedes: string[], word_count, size_bytes, created_at,
+                     updated_at, content_hash, snippet? /* solo al buscar */,
+                     superseded_by? /* id del sustituto más reciente; calculado al leer */,
+                     commit_url? /* página del commit en el repo vinculado; calculado al leer */ }
 type Proposal = { token, project_slug, category, title, rel_path, abs_path, filename,
                   created_at, expires_at, status,
                   inference: {category, reason, confidence, evidence: string[]},
                   alternatives: {category, folder, label, rel_path}[],
                   preview, body_bytes, agent?, tags: string[], files_touched: string[],
                   related: string[],
+                  secrets?: SecretFinding[],  /* solo avisa; no bloquea la confirmación */
+                  repo?: { remote?, root_commit?, linked_project?, will_link? },
                   decision?, resolved_via?, resolved_at?, summary_id? }
+type SecretFinding = { kind, field /* title|summary|body */, line, hint /* principio enmascarado */ }
 ```
 
 SSE emite `event: <type>` con `data: <json>`; tipos: `summary.created`, `summary.updated`,
@@ -415,11 +444,12 @@ el reconciliador detecta los archivos nuevos por `mtime` y los indexa.
 | --- | --- | --- | --- |
 | `saveme_project_list` | — | `{projects:[Project]}` | no |
 | `saveme_project_create` | `{name, slug?}` | `{project}` | sí (crea carpetas) |
-| `saveme_summary_propose` | `{project, title, body, category?, tags?, files_touched?, summary?, agent?, commit?, **target?**, **related?**}` | `{token, proposal, expires_at, alternatives, related, next_step}` | **no** |
+| `saveme_summary_propose` | `{project?, cwd?, title, body, category?, tags?, files_touched?, summary?, agent?, commit?, **target?**, **related?**, **supersedes?**}` — `project` se puede omitir si `cwd` está en un repo ya vinculado | `{token, proposal, expires_at, alternatives, related, supersedes, secret_warnings?, repo?, next_step}` | **no** |
 | `saveme_summary_confirm` | `{token, decision, override?, elicit?}` | `{summary, meta, written_path}` | **sí** |
 | `saveme_summary_cancel` | `{token, reason?}` | `{ok}` | no |
-| `saveme_summary_search` | `{query, project?, category?, limit?}` | `{items:[SummaryMeta + snippet?], total}` | no |
-| `saveme_summary_list` | `{project?, category?, limit?}` | `{items:[SummaryMeta]}` | no |
+| `saveme_summary_search` | `{query, project?, category?, limit?}` | `{items:[SummaryMeta + snippet? + superseded_by?], total}` | no |
+| `saveme_context` | `{files, limit?, cwd?}` | `{items:[SummaryMeta + superseded_by? + changed_since?], total, note?}` — lo que se hizo en esos archivos; con `cwd`, cuántos commits los tocaron después de cada resumen | no |
+| `saveme_summary_list` | `{project?, category?, limit?}` | `{items:[SummaryMeta + superseded_by?]}` | no |
 | `saveme_summary_read` | `{id}` | `{meta, content}` | no |
 | `saveme_pending` | `{project?}` | `{proposals:[Proposal]}` | no |
 
@@ -482,6 +512,55 @@ deja de ver nada en cuanto un reindexado pone el índice al día, y el watcher l
 Toda propuesta confirmada o cancelada queda auditada en la tabla `proposals`, y la UI muestra
 las pendientes en un **Inbox** donde el humano también puede aprobarlas o redirigirlas sin
 tocar el chat del agente.
+
+### Aviso de credenciales
+
+El agente que redacta un resumen acaba de ver el `.env`, los logs y las cabeceras, y lo que
+escribe sale de la app: se comparte, se exporta, se pega en Slack. `domain.ScanSecrets`
+busca formatos concretos de credencial —clave privada PEM, claves de AWS, Google, Stripe,
+OpenAI y Anthropic, tokens de GitHub y Slack, JWT, URL con usuario y contraseña— y una
+regla genérica `clave = valor` (`password`, `token`, `api_key`…) que exige un valor con
+pinta de secreto y descarta marcadores (`<…>`, `${…}`, `process.env`, `xxx`, `changeme`…).
+
+- **Solo avisa.** No bloquea ni reescribe: la persona decide sabiéndolo.
+- **Nunca repite el secreto.** Cada hallazgo lleva tipo, campo, línea y el principio del
+  valor enmascarado (`AKIA…`), porque el aviso viaja al agente, al inbox y al log.
+- **Dónde aparece:** en `secrets` de cada `Proposal` (se calcula al leerla, no se guarda);
+  en `secret_warnings` de `saveme_summary_propose`, con un `next_step` que le pide al agente
+  quitarlas y volver a proponer antes de preguntar; al principio del mensaje de elicitation;
+  en la tarjeta del inbox, y en el menú de compartir, que escanea lo que hay en el editor
+  con `POST /secrets/scan`.
+- Prefiere callar a gritar: un aviso que salta en todo resumen que dice «token» se aprende a
+  ignorar. Las pruebas (`domain/secrets_test.go`) fijan tanto lo que tiene que encontrar como
+  la prosa técnica que no.
+
+### Historial de versiones
+
+Reescribir en su sitio pierde lo mismo que borrar: si el agente se deja una sección al
+actualizar, esa sección desaparece. Por eso, **antes de reemplazar el contenido de un
+resumen**, `saveLocked` copia lo que había a `.saveme/history/<id>/<sello>.<motivo>.md`. Si
+la copia falla, no se escribe.
+
+| Quién reescribe | Motivo | Cuándo se guarda versión |
+| --- | --- | --- |
+| `confirm` con `target` | `agent` | Siempre |
+| Restaurar una versión | `restore` | Siempre: restaurar también se deshace |
+| El editor (`PUT /summaries/{id}`) | `edit` | Solo si la última versión no es una edición de hace menos de 10 minutos (`EditVersionWindow`) |
+
+La ventana existe porque el editor guarda solo cada ~1 s: una versión por guardado
+enterraría las que importan bajo estados a mitad de frase. Con ella, la primera edición de
+una sesión guarda lo de antes de empezar. Que solo agrupe ediciones con ediciones es lo que
+impide perder el texto del agente si el usuario lo retoca al minuto.
+
+- La carpeta es el id del frontmatter; un id que no sea `[A-Za-z0-9_-]` se resume con
+  SHA-256, así que un id hostil no compone una ruta. La versión que llega por la URL tiene
+  que tener exactamente la forma `<AAAAMMDD-hhmmss.mmm>.<motivo>`.
+- Como la papelera, vive en disco y no en el índice: borrar el índice no se la lleva.
+- Archivar un resumen conserva su historial (restaurarlo lo recupera entero). Borrarlo de
+  verdad (`hard=true`) o vaciar la papelera borra también las versiones de esos ids, salvo
+  que el id siga vivo en el índice.
+- Lo que se edita **fuera** de SaveMe (vim, git) no deja versión: el watcher solo ve el
+  archivo nuevo, no el de antes.
 
 ## 7.1 Onboarding y auto-configuración
 
@@ -572,6 +651,65 @@ el MCP**: son de la interfaz, y el agente no las ve ni las escribe.
   frontmatter**: una nota es markdown libre, sin id, sin categoría y sin hash de conflicto.
   Por eso no reutiliza `useEditorDocument`, solo las piezas de edición.
 
+## 7.3 Proyecto ↔ repo de código
+
+Un proyecto de SaveMe habla de un repo, y el agente trabaja dentro de ese repo. Unirlos da
+tres cosas: el proyecto sale del directorio del agente (sin adivinar el slug, que es donde
+nacen los proyectos duplicados por una errata), cada commit enlaza a su página, y se puede
+saber qué cambió en el código desde que se escribió un resumen (§7.4).
+
+**La identidad del repo no es su ruta.** Un repo se mueve, se clona en otra carpeta o se
+abre en varios worktrees a la vez. `internal/gitrepo` lo reconoce por:
+
+| Señal | Cómo | Cuándo no basta |
+| --- | --- | --- |
+| Remote `origin`, normalizado | `git@github.com:Dueño/Repo.git`, `https://github.com/dueño/repo` y `ssh://…` dan `github.com/dueño/repo` | Repos sin remote |
+| Commit raíz | `git rev-list --max-parents=0 HEAD`; si hay varios, el menor | Repos sin commits; un fork comparte raíz con su original |
+
+Manda el remote: dos repos con remote distinto son distintos aunque compartan raíz (forks).
+La raíz solo decide cuando a alguno le falta remote. La ruta llega **en cada llamada** —`cwd`
+en `saveme_summary_propose` y `saveme_context`— y en `.saveme/repos.json` solo se guarda como
+`last_path`, la última vista, que se actualiza sola cuando el agente aparece desde otro sitio.
+
+- **El vínculo se crea al confirmar**: la primera propuesta de un proyecto hecha desde un repo
+  sin vincular lo vincula (`repo.will_link` en la propuesta, aviso en el inbox y en el
+  `next_step`). Nunca pisa un vínculo existente. Si el repo ya es de otro proyecto, la
+  propuesta lo dice para que la persona decida. Se quita con `DELETE /projects/{slug}/repo`
+  o desde la cabecera del proyecto; archivar el proyecto también lo quita.
+- **Vive en el workspace, no en el índice** (`.saveme/repos.json`, escrito con temporal y
+  `rename`): el índice se puede borrar y reconstruir desde los `.md`, y el vínculo no se
+  deduce de ellos. La propuesta guarda la identidad (`proposals.repo_*`, migración 006) para
+  vincular exactamente lo que se le enseñó al usuario.
+- **Sin git no pasa nada**: `cwd` es opcional; fuera de un repo, sin git o con un repo sin
+  remote ni commits, todo funciona como antes. En macOS, `/usr/bin/git` sin las Command Line
+  Tools abre un diálogo del sistema, así que `gitrepo.Available` exige `xcode-select -p`
+  antes de ejecutarlo. Cada llamada a git tiene un tope de 5 s.
+- `commit_url` en `SummaryMeta` y `web_url` en el proyecto solo se rellenan para GitHub,
+  GitLab y Bitbucket; el shell solo deja abrir esas direcciones (`opener:allow-open-url`).
+
+## 7.4 Resúmenes desactualizados
+
+Un resumen apunta los archivos que tocó (`files_touched`). Si siguieron cambiando después,
+lo que cuenta puede haber dejado de ser verdad. `service.freshnessIn` cuenta con
+`git rev-list --count` los commits que los tocaron:
+
+- **Desde el commit del resumen** (`commit_sha`) si existe en el repo: exacto.
+- **Si no, desde su fecha más 2 h** (`FreshnessGrace`): el agente suele escribir el resumen
+  *antes* de hacer el commit del cambio, y sin margen todo resumen nacería «desactualizado».
+- `stale` es `count >= 3` (`StaleThreshold`): uno o dos commits suelen ser retoques; tres ya
+  son trabajo nuevo sobre lo mismo. Un resumen ya sustituido (`superseded_by`) no se mira.
+
+Dónde se ve:
+
+- **`saveme_context` con `cwd`**: cada resultado trae `changed_since`, y `note` avisa si
+  alguno está `stale`. Solo se calcula para los resúmenes del proyecto vinculado a ese repo:
+  los archivos de otro proyecto no son rutas de este.
+- **En el editor**: «N commits posteriores en sus archivos», en ámbar si es `stale`, con los
+  últimos en el `title`. La app no tiene `cwd`: usa `last_path` del vínculo y solo si ahí
+  sigue estando **el mismo** repo; si no, `repo_moved` y no enseña nada —contar commits de
+  otra carpeta sería inventarse la respuesta—. Se pone al día en cuanto un agente vuelve a
+  llamar desde la ruta nueva.
+
 ## 8. Configuración y rutas de datos
 
 | Dato | Ruta |
@@ -580,6 +718,8 @@ el MCP**: son de la interfaz, y el agente no las ve ni las escribe.
 | Raíz de resúmenes | `config.root_dir`, default `~/Documents/SaveMe`, override `SAVEME_ROOT` |
 | Índice | `<root_dir>/.saveme/saveme.db` |
 | Daemon | `<root_dir>/.saveme/daemon.json` |
+| Versiones anteriores | `<root_dir>/.saveme/history/<id>/` |
+| Proyecto ↔ repo | `<root_dir>/.saveme/repos.json` |
 | Imágenes de fondo | `backgrounds/` junto a `config.json`, con nombre `<16 hex del sha256>.<ext>` |
 
 `config.json`: `{version, root_dir, port, theme, editor: {font_size, wrap, preview_mode, autosave_ms, vim_mode}, language, onboarded, opacity, background, project_backgrounds, project_icons}`.

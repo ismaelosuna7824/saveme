@@ -72,4 +72,34 @@ export const common = {
   tags: {
     filterBy: 'Ver todo lo que lleva #{tag}',
   },
+  /** Marca de un resumen que otro posterior deja sin vigencia. */
+  superseded: {
+    badge: 'sustituido',
+    title: 'Un resumen posterior lo sustituye: ya no es la versión vigente',
+  },
+  /** Aviso de posibles credenciales (`components/common/SecretWarning.tsx`). */
+  secrets: {
+    title: 'Parece que hay credenciales',
+    where: '{kind} en {field}, línea {line} ({hint})',
+    hintProposal: 'Revísalo antes de aprobar: un resumen se comparte y se exporta.',
+    hintShare: 'Revísalo antes de compartirlo.',
+    field: {
+      title: 'el título',
+      summary: 'la línea de resumen',
+      body: 'el texto',
+    },
+    kind: {
+      private_key: 'clave privada',
+      aws_access_key: 'clave de AWS',
+      github_token: 'token de GitHub',
+      slack_token: 'token de Slack',
+      stripe_key: 'clave de Stripe',
+      google_api_key: 'clave de Google',
+      anthropic_key: 'clave de Anthropic',
+      openai_key: 'clave de OpenAI',
+      jwt: 'JWT',
+      url_credentials: 'usuario y contraseña en una URL',
+      assignment: 'contraseña o clave',
+    },
+  },
 } as const

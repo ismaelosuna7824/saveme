@@ -151,6 +151,23 @@ export const projects = {
       clearAll: 'quitar filtros',
     },
   },
+  /** El repo de código vinculado al proyecto (`ProjectRepoBadge`). */
+  repo: {
+    none: 'sin repo vinculado',
+    noneHint:
+      'Se vincula solo la primera vez que un agente guarda un resumen de este proyecto desde su repo (pasando su directorio de trabajo).',
+    linkedHint:
+      'Repo de código del proyecto. Se reconoce por su remote y su primer commit, así que moverlo de carpeta no rompe el vínculo.',
+    rootOnly: 'repo local · {sha}',
+    open: 'Abrir el repo',
+    openFailed: 'No pude abrir el repo',
+    unlink: 'desvincular el repo',
+    unlinkTitle: '¿desvincular el repo de {name}?',
+    unlinkDescription:
+      'No se toca ningún archivo. El próximo resumen que un agente guarde desde un repo volverá a vincularlo.',
+    unlinked: 'Repo desvinculado',
+    unlinkFailed: 'No pude desvincularlo',
+  },
   /** El icono de píxeles de un proyecto (`ProjectIconDialog`). */
   icon: {
     action: 'cambiar el icono del proyecto',

@@ -147,6 +147,16 @@ func (w *Workspace) EmptyTrash() (int, error) {
 	return len(entries), nil
 }
 
+// ReadTrash lee un archivo de la papelera. Sirve para saber qué se va a destruir
+// antes de vaciarla, y pasa por la misma validación que restaurar.
+func (w *Workspace) ReadTrash(trashRel string) ([]byte, error) {
+	if _, err := w.validateTrashPath(trashRel); err != nil {
+		return nil, err
+	}
+	clean := filepath.ToSlash(filepath.Clean(strings.TrimSpace(trashRel)))
+	return os.ReadFile(filepath.Join(w.root, filepath.FromSlash(clean)))
+}
+
 // validateTrashPath comprueba que la ruta que llega apunta a un archivo de la
 // papelera y devuelve la ruta original que hay dentro.
 //

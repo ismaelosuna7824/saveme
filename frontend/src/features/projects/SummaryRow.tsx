@@ -30,7 +30,20 @@ export function SummaryRow({ summary, showCategory = false }: SummaryRowProps) {
     >
       <div className="flex flex-wrap items-baseline gap-2">
         <FileText className="size-3 shrink-0 self-center text-muted-foreground" />
-        <span className="min-w-0 flex-1 truncate text-xs text-foreground">{summary.title}</span>
+        <span
+          className={
+            summary.superseded_by
+              ? 'min-w-0 flex-1 truncate text-xs text-muted-foreground line-through'
+              : 'min-w-0 flex-1 truncate text-xs text-foreground'
+          }
+        >
+          {summary.title}
+        </span>
+        {summary.superseded_by ? (
+          <Badge variant="muted" title={t('common.superseded.title')}>
+            {t('common.superseded.badge')}
+          </Badge>
+        ) : null}
         {showCategory ? <CategoryBadge category={summary.category} /> : null}
         <StatusBadge status={summary.status} />
         <span

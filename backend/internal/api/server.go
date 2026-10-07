@@ -85,6 +85,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/projects/{slug}/activity", s.handleActivity)
 	mux.HandleFunc("GET /api/projects/{slug}/changelog", s.handleChangelog)
 	mux.HandleFunc("DELETE /api/projects/{slug}", s.handleDeleteProject)
+	// Quitar el vínculo del proyecto con su repo de código. No toca archivos.
+	mux.HandleFunc("DELETE /api/projects/{slug}/repo", s.handleUnlinkRepo)
 
 	mux.HandleFunc("GET /api/summaries", s.handleListSummaries)
 	// Escribir un resumen desde la interfaz. Va aparte del PUT, que edita uno que
@@ -112,6 +114,15 @@ func (s *Server) Handler() http.Handler {
 	// Relacionados y enlaces inversos ya resueltos a metadata, en una sola
 	// petición: el editor los pinta con su título sin pedir uno por enlace.
 	mux.HandleFunc("GET /api/summaries/{id}/links", s.handleSummaryLinks)
+	// Historial: lo que había antes de cada reescritura, para verlo y restaurarlo.
+	mux.HandleFunc("GET /api/summaries/{id}/versions", s.handleSummaryVersions)
+	mux.HandleFunc("GET /api/summaries/{id}/versions/{version}", s.handleSummaryVersion)
+	mux.HandleFunc("POST /api/summaries/{id}/versions/{version}/restore", s.handleRestoreVersion)
+	// Cuántos commits tocaron los archivos del resumen después de escribirlo.
+	mux.HandleFunc("GET /api/summaries/{id}/freshness", s.handleFreshness)
+	// Avisa de posibles credenciales en un texto: lo usa la interfaz antes de
+	// compartir un resumen, con lo que haya en el editor aunque no esté guardado.
+	mux.HandleFunc("POST /api/secrets/scan", s.handleScanSecrets)
 
 	// Lo hecho en un rango de fechas, cruzando todos los proyectos.
 	mux.HandleFunc("GET /api/digest", s.handleDigest)
@@ -463,6 +474,26 @@ func (s *Server) handleDeleteProject(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
+func (s *Server) handleUnlinkRepo(w http.ResponseWriter, r *http.Request) {
+	if err := s.svc.UnlinkRepo(r.Context(), r.PathValue("slug")); err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+// handleFreshness dice cuánto cambió el código de un resumen desde que se
+// escribió. Que no se pueda calcular no es un error: llega `available: false`
+// con el motivo, y la interfaz decide si enseña algo.
+func (s *Server) handleFreshness(w http.ResponseWriter, r *http.Request) {
+	f, err := s.svc.Freshness(r.Context(), r.PathValue("id"))
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, f)
+}
+
 // --- resúmenes ---------------------------------------------------------------
 
 func (s *Server) handleListSummaries(w http.ResponseWriter, r *http.Request) {
@@ -505,13 +536,19 @@ func (s *Server) handleListSummaries(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handleGetSummary devuelve el archivo **entero**, frontmatter incluido.
+//
+// Es lo que carga el editor, y el editor guarda lo que tiene: si aquí llegara
+// solo el cuerpo, el primer autoguardado escribiría el archivo sin frontmatter y
+// el resumen perdería id, título, categoría, etiquetas y enlaces. El editor oculta
+// y protege el bloque YAML en modo live; en modo fuente se ve y se edita.
 func (s *Server) handleGetSummary(w http.ResponseWriter, r *http.Request) {
-	meta, body, err := s.svc.Read(r.Context(), r.PathValue("id"))
+	meta, raw, err := s.svc.ReadRaw(r.Context(), r.PathValue("id"))
 	if err != nil {
 		s.writeServiceError(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"meta": meta, "content": body})
+	writeJSON(w, http.StatusOK, map[string]any{"meta": meta, "content": raw})
 }
 
 func (s *Server) handleRawSummary(w http.ResponseWriter, r *http.Request) {
@@ -549,9 +586,14 @@ func (s *Server) handleSaveSummary(w http.ResponseWriter, r *http.Request) {
 		s.writeServiceError(w, r, err)
 		return
 	}
+	writeSaveResult(w, res)
+}
+
+// writeSaveResult responde un guardado: 409 con el contenido del disco si hubo
+// conflicto, para que el cliente pueda ofrecer "recargar" sin una segunda
+// petición ni perder lo que escribió.
+func writeSaveResult(w http.ResponseWriter, res *service.SaveResult) {
 	if res.Mismatch {
-		// 409 con el contenido actual del disco: el cliente puede ofrecer
-		// "recargar" sin una segunda petición ni perder lo que escribió.
 		writeJSON(w, http.StatusConflict, map[string]any{
 			"error": map[string]any{
 				"code":    "hash_mismatch",
@@ -562,6 +604,56 @@ func (s *Server) handleSaveSummary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"meta": res.Meta})
+}
+
+func (s *Server) handleSummaryVersions(w http.ResponseWriter, r *http.Request) {
+	versions, err := s.svc.Versions(r.Context(), r.PathValue("id"))
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": versions})
+}
+
+func (s *Server) handleSummaryVersion(w http.ResponseWriter, r *http.Request) {
+	entry, content, current, err := s.svc.VersionContent(r.Context(), r.PathValue("id"), r.PathValue("version"))
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"version": entry.Version, "replaced_at": entry.ReplacedAt, "reason": entry.Reason,
+		"size": entry.Size, "content": content, "current": current,
+	})
+}
+
+func (s *Server) handleRestoreVersion(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		BaseHash string `json:"base_hash"`
+	}
+	if !decodeBody(w, r, &body) {
+		return
+	}
+	res, err := s.svc.RestoreVersion(r.Context(), r.PathValue("id"), r.PathValue("version"), body.BaseHash)
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+	writeSaveResult(w, res)
+}
+
+func (s *Server) handleScanSecrets(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Text string `json:"text"`
+	}
+	if !decodeBody(w, r, &body) {
+		return
+	}
+	items := domain.ScanSecrets([2]string{"body", body.Text})
+	if items == nil {
+		items = []domain.SecretFinding{}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 
 func (s *Server) handleDeleteSummary(w http.ResponseWriter, r *http.Request) {
@@ -666,6 +758,7 @@ func (s *Server) handleCreateSummary(w http.ResponseWriter, r *http.Request) {
 		Tags         []string `json:"tags"`
 		FilesTouched []string `json:"files_touched"`
 		Related      []string `json:"related"`
+		Supersedes   []string `json:"supersedes"`
 	}
 	if !decodeBody(w, r, &body) {
 		return
@@ -680,6 +773,7 @@ func (s *Server) handleCreateSummary(w http.ResponseWriter, r *http.Request) {
 		Tags:         body.Tags,
 		FilesTouched: body.FilesTouched,
 		Related:      body.Related,
+		Supersedes:   body.Supersedes,
 		// El autor y el agente distinguen lo que escribió una persona de lo que
 		// escribió una máquina, que es lo que permite filtrarlo después.
 		Author: "humano",

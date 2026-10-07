@@ -39,6 +39,15 @@ El detalle va con la importancia del cambio: una errata cabe en un párrafo; un 
 una decisión de diseño o un incidente merecen un documento completo. Escribe en el idioma
 del usuario. La guía completa, con ejemplos, está en el recurso saveme://guide.
 
+SIN CREDENCIALES: un resumen se comparte y se exporta. No copies claves, tokens,
+contraseñas ni URLs con usuario y contraseña; escribe <REDACTED> en su lugar. Si la
+respuesta trae secret_warnings, quítalas y vuelve a proponer antes de preguntar.
+
+PASA SIEMPRE cwd (tu directorio de trabajo). Si es un repo git ya vinculado a un proyecto,
+el proyecto sale de ahí y puedes omitir project; si no está vinculado, queda vinculado al
+confirmar. El repo se reconoce por su remote y su primer commit: moverlo de carpeta no
+rompe nada.
+
 SOBRE LA CATEGORÍA: si no estás seguro, OMÍTELA. SaveMe la infiere del título y del
 cuerpo, te dice en qué se basó y con qué confianza, y se la propone al usuario con tres
 alternativas concretas. Poner una categoría a la fuerza solo empeora la sugerencia.
@@ -49,6 +58,10 @@ de esto.
 Si lo que escribes continúa, depende o explica OTRO resumen sin ser el mismo tema, pasa
 su id en related (hasta 10). No reescribe nada: en la app quedan enlazados en los dos
 sentidos. Si un id no existe, la propuesta falla y te dice cuál.
+
+Si lo que escribes DEJA SIN VIGENCIA otro resumen —revierte una decisión, abandona un
+enfoque, reemplaza un diseño—, pasa su id en supersedes. No se reescribe ni se borra:
+queda marcado como sustituido y quien lo consulte verá que manda el tuyo.
 
 SI YA HAY UN RESUMEN DE ESTO, ACTUALÍZALO EN VEZ DE CREAR OTRO
 Un diario que solo sabe añadir se degrada: iterando una semana sobre la misma

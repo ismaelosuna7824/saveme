@@ -71,6 +71,22 @@ export const editor = {
     label: 'Resúmenes enlazados',
     related: 'relacionados',
     backlinks: 'lo citan',
+    supersedes: 'sustituye a',
+    supersededBy: 'sustituido por',
+    supersededHint: 'Ya no es la versión vigente: manda el resumen que lo sustituye.',
+  },
+  /**
+   * El commit del resumen y lo que cambió después en sus archivos
+   * (`features/editor/CodeChanges.tsx`).
+   */
+  code: {
+    commit: 'commit {sha}',
+    openCommit: 'Abrir el commit',
+    openFailed: 'No pude abrir el commit',
+    changed_one: '{count} commit posterior en sus archivos',
+    changed_other: '{count} commits posteriores en sus archivos',
+    changedHint: 'Commits que tocaron los archivos de este resumen después de escribirlo.',
+    staleHint: 'Son bastantes: lo que cuenta puede estar desactualizado. Revísalo con el código delante.',
   },
   /**
    * Guardar el resumen como fichero y compartirlo. El documento sale sin
@@ -128,6 +144,28 @@ export const editor = {
     reloaded: 'Traído del disco',
     overwritten: 'Sobrescrito con tu versión',
     fetchFailed: 'No pude leer el archivo para sobrescribir',
+  },
+  /** Historial de versiones de un resumen (`features/editor/VersionsDialog.tsx`). */
+  versions: {
+    action: 'versiones anteriores',
+    title: 'versiones anteriores',
+    description:
+      'Lo que había en el archivo antes de cada cambio: cada actualización del agente, cada sesión de edición y cada restauración. El diff enseña qué cambiaría al restaurar.',
+    empty: 'Este resumen todavía no se ha reescrito: no hay versiones anteriores.',
+    loading: 'leyendo la versión…',
+    loadFailed: 'No pude leer el historial',
+    againstNow: 'respecto a lo que hay ahora',
+    same: 'igual que ahora',
+    dirtyHint: 'Hay cambios sin guardar: espera a que se guarden para restaurar.',
+    restore: 'restaurar esta versión',
+    restored: 'Versión restaurada. Lo que había antes también quedó en el historial.',
+    restoreChanged: 'El archivo cambió mientras mirabas. Vuelve a abrir el historial.',
+    restoreFailed: 'No pude restaurarla',
+    reason: {
+      agent: 'antes de que el agente lo actualizara',
+      edit: 'antes de una edición',
+      restore: 'antes de restaurar otra versión',
+    },
   },
     mermaid: {
       rendering: 'dibujando el diagrama…',

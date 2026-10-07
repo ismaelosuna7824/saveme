@@ -1,17 +1,19 @@
 import { useMemo, useState } from 'react'
+import { Link } from '@tanstack/react-router'
 import { toast } from 'sonner'
-import { Check, Clock, FolderInput, GitCompare, Paperclip, Trash2, User } from 'lucide-react'
+import { Check, Clock, FolderInput, GitBranch, GitCompare, History, Paperclip, Trash2, User } from 'lucide-react'
 
 import { useT } from '@/i18n'
 
 import { errorMessage } from '@/api/client'
 import { asArray, asStringArray } from '@/api/normalize'
-import { useCancelProposal, useConfirmProposal } from '@/api/queries'
-import type { Proposal, ProposalAlternative } from '@/api/types'
+import { useCancelProposal, useConfirmProposal, useSummary } from '@/api/queries'
+import type { Proposal, ProposalAlternative, SecretFinding } from '@/api/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { CategoryBadge } from '@/components/common/CategoryBadge'
 import { Markdown } from '@/components/common/Markdown'
+import { SecretWarning } from '@/components/common/SecretWarning'
 import { formatBytes, formatConfidence, formatDateTime, shortenPath } from '@/lib/format'
 import { categoryLabel } from '@/features/projects/CategoryCounts'
 import { RetargetDialog } from '@/features/inbox/RetargetDialog'
@@ -36,6 +38,23 @@ function ConfidenceMeter({ confidence }: { confidence: number }) {
 }
 
 /**
+ * Un resumen que la propuesta deja sin vigencia, por su título. La propuesta
+ * solo trae el id; el título es lo que la persona reconoce al decidir.
+ */
+function SupersededLink({ id }: { id: string }) {
+  const title = useSummary(id).data?.meta.title
+  return (
+    <Link
+      to="/s/$id"
+      params={{ id }}
+      className="max-w-64 truncate text-secondary underline-offset-2 hover:text-primary hover:underline"
+    >
+      {title ?? id}
+    </Link>
+  )
+}
+
+/**
  * Tarjeta de confirmación pendiente.
  *
  * Es el punto donde un humano aprueba lo que propuso un agente sin volver al
@@ -56,6 +75,10 @@ export function ProposalCard({ proposal }: { proposal: Proposal }) {
   const tags = asStringArray(proposal.tags)
   const filesTouched = asStringArray(proposal.files_touched)
   const evidence = asStringArray(proposal.inference?.evidence)
+  const secrets = asArray<SecretFinding>(proposal.secrets)
+  const supersedes = asStringArray(proposal.supersedes)
+  const repo = proposal.repo
+  const repoName = repo?.remote ?? repo?.root_commit?.slice(0, 7) ?? ''
 
   const remaining = useMemo(() => minutesLeft(proposal.expires_at), [proposal.expires_at])
   const expired = remaining !== null && remaining <= 0
@@ -135,6 +158,10 @@ export function ProposalCard({ proposal }: { proposal: Proposal }) {
           </span>
         </div>
 
+        {/* Arriba de todo lo demás: si hay una credencial, es lo primero que hay
+            que saber antes de aprobar nada. */}
+        <SecretWarning findings={secrets} hint={t('common.secrets.hintProposal')} />
+
         <div className="border-l-2 border-primary/50 bg-primary/5 px-2 py-1.5">
           <div className="flex items-center gap-2">
             <span className="text-2xs uppercase tracking-[0.12em] text-muted-foreground">
@@ -172,6 +199,31 @@ export function ProposalCard({ proposal }: { proposal: Proposal }) {
               </Button>
             ))}
           </div>
+        ) : null}
+
+        {/* Que esto deje sin vigencia otro resumen es parte de lo que se aprueba:
+            desde que se confirme, ese otro se marca como sustituido. */}
+        {supersedes.length > 0 ? (
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-2xs text-muted-foreground">
+            <History className="size-3 shrink-0" />
+            <span className="uppercase tracking-[0.12em]">{t('inbox.supersedes')}</span>
+            {supersedes.map((id) => (
+              <SupersededLink key={id} id={id} />
+            ))}
+          </div>
+        ) : null}
+
+        {/* El vínculo con el repo se crea al aprobar: tiene que verse antes. */}
+        {repo?.will_link ? (
+          <p className="flex items-center gap-1.5 text-2xs text-muted-foreground">
+            <GitBranch className="size-3 shrink-0" />
+            {t('inbox.repo.willLink', { repo: repoName })}
+          </p>
+        ) : repo?.linked_project && repo.linked_project !== proposal.project_slug ? (
+          <p className="flex items-center gap-1.5 text-2xs text-warning">
+            <GitBranch className="size-3 shrink-0" />
+            {t('inbox.repo.otherProject', { repo: repoName, project: repo.linked_project })}
+          </p>
         ) : null}
 
         {/* Dos formas de mirar lo mismo: el resumen tal como quedaría, o qué

@@ -57,6 +57,9 @@ type Service struct {
 	// UPDATE condicional de SQLite), pero serializar aquí evita además que dos
 	// escrituras simultáneas compitan por el mismo nombre de archivo.
 	mu sync.Mutex
+	// reposMu serializa la lectura y escritura de `.saveme/repos.json` dentro
+	// del proceso; entre procesos, el rename atómico evita archivos a medias.
+	reposMu sync.Mutex
 }
 
 // New construye el servicio.
@@ -122,18 +125,29 @@ func (s *Service) EnsureProject(ctx context.Context, name, slug string) (domain.
 	return s.st.GetProject(ctx, slug)
 }
 
-// ListProjects devuelve todos los proyectos conocidos.
+// ListProjects devuelve todos los proyectos conocidos, con su repo si lo tienen.
 func (s *Service) ListProjects(ctx context.Context) ([]domain.Project, error) {
-	return s.st.ListProjects(ctx)
+	projects, err := s.st.ListProjects(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return s.attachRepos(projects)
 }
 
-// GetProject devuelve un proyecto por slug.
+// GetProject devuelve un proyecto por slug, con su repo si lo tiene.
 func (s *Service) GetProject(ctx context.Context, slug string) (domain.Project, error) {
 	p, err := s.st.GetProject(ctx, slug)
 	if errors.Is(err, store.ErrNotFound) {
 		return p, fmt.Errorf("%w: el proyecto %q no existe", ErrNotFound, slug)
 	}
-	return p, err
+	if err != nil {
+		return p, err
+	}
+	withRepo, err := s.attachRepos([]domain.Project{p})
+	if err != nil {
+		return p, err
+	}
+	return withRepo[0], nil
 }
 
 // DeleteProject archiva un proyecto: mueve su carpeta a la papelera del
@@ -146,7 +160,10 @@ func (s *Service) DeleteProject(ctx context.Context, slug string) error {
 	if _, err := s.ws.Delete(slug, false); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("archivar el proyecto %s: %w", slug, err)
 	}
-	return s.st.DeleteProject(ctx, slug)
+	if err := s.st.DeleteProject(ctx, slug); err != nil {
+		return err
+	}
+	return s.forgetProjectRepo(slug)
 }
 
 // --- propuesta ---------------------------------------------------------------
@@ -169,7 +186,18 @@ type Prepare struct {
 // Es el primer paso de la garantía "siempre preguntar": el único camino para
 // escribir pasa por aquí, y aquí no se toca el disco.
 func (s *Service) Propose(ctx context.Context, req domain.CreateRequest) (*Prepare, error) {
+	// Si el agente dice dónde trabaja y ese repo ya es de un proyecto, el proyecto
+	// sale de ahí: es más fiable que el slug que escriba el agente, que es donde
+	// nacen los proyectos duplicados por una errata.
+	repo := s.detectRepo(ctx, strings.TrimSpace(req.Cwd))
+	if repo != nil && repo.link != nil && strings.TrimSpace(req.Project) == "" {
+		req.Project = repo.link.Project
+	}
 	if err := req.Validate(); err != nil {
+		if strings.TrimSpace(req.Project) == "" && repo != nil {
+			return nil, fmt.Errorf("%w: %v. Este repo todavía no está vinculado a ningún proyecto: "+
+				"pasa project y, al confirmar, quedará vinculado", ErrInvalid, err)
+		}
 		return nil, fmt.Errorf("%w: %v", ErrInvalid, err)
 	}
 
@@ -234,6 +262,16 @@ func (s *Service) Propose(ctx context.Context, req domain.CreateRequest) (*Prepa
 	related, err := s.resolveRelated(ctx, req.Related, selfID)
 	if err != nil {
 		return nil, err
+	}
+	// Los sustituidos, por lo mismo: lo que se le enseña al usuario es lo que se
+	// escribe, y una referencia rota se rechaza mientras se puede corregir.
+	supersedes, err := s.resolveRefs(ctx, req.Supersedes, selfID, "sustituido")
+	if err != nil {
+		return nil, err
+	}
+	if len(supersedes) > MaxRelated {
+		return nil, fmt.Errorf("%w: un resumen sustituye como mucho a %d (pasaste %d); "+
+			"quédate con los que de verdad dejan de valer por este", ErrInvalid, MaxRelated, len(supersedes))
 	}
 
 	var relPath string
@@ -335,6 +373,12 @@ func (s *Service) Propose(ctx context.Context, req domain.CreateRequest) (*Prepa
 		TargetID:        targetID,
 		BaseHash:        baseHash,
 		Related:         related,
+		Supersedes:      supersedes,
+	}
+	if repo != nil {
+		rec.RepoRemote = repo.id.Remote
+		rec.RepoRootCommit = repo.id.RootCommit
+		rec.RepoPath = repo.id.Toplevel
 	}
 	if err := s.st.InsertProposal(ctx, rec); err != nil {
 		return nil, err
@@ -378,10 +422,17 @@ func (s *Service) toProposal(_ context.Context, rec store.ProposalRecord) (*doma
 		Tags:         rec.Tags,
 		FilesTouched: rec.FilesTouched,
 		Related:      rec.Related,
-		Decision:     rec.Decision,
-		ResolvedVia:  rec.ResolvedVia,
-		ResolvedAt:   rec.ResolvedAt,
-		SummaryID:    rec.SummaryID,
+		Supersedes:   rec.Supersedes,
+		Secrets: domain.ScanSecrets(
+			[2]string{"title", rec.Title},
+			[2]string{"summary", rec.SummaryLine},
+			[2]string{"body", rec.Body},
+		),
+		Repo:        s.proposalRepo(rec),
+		Decision:    rec.Decision,
+		ResolvedVia: rec.ResolvedVia,
+		ResolvedAt:  rec.ResolvedAt,
+		SummaryID:   rec.SummaryID,
 	}, nil
 }
 
@@ -394,6 +445,22 @@ const MaxRelated = 10
 // relativas, igual que `target`) en ids de resúmenes que existen, sin repetir y
 // sin el propio resumen que se actualiza, que enlazarse a sí mismo no dice nada.
 func (s *Service) resolveRelated(ctx context.Context, raw []string, selfID string) ([]string, error) {
+	out, err := s.resolveRefs(ctx, raw, selfID, "relacionado")
+	if err != nil {
+		return nil, err
+	}
+	if len(out) > MaxRelated {
+		return nil, fmt.Errorf("%w: enlaza como mucho %d resúmenes relacionados (pasaste %d); "+
+			"quédate con los que de verdad continúa, de los que depende o los que explica",
+			ErrInvalid, MaxRelated, len(out))
+	}
+	return out, nil
+}
+
+// resolveRefs convierte referencias a resúmenes (ids o rutas relativas) en ids
+// que existen, sin repetir y sin `selfID`. `noun` dice qué clase de referencia
+// es en el error, para que el agente sepa cuál de sus listas está mal.
+func (s *Service) resolveRefs(ctx context.Context, raw []string, selfID, noun string) ([]string, error) {
 	out := make([]string, 0, len(raw))
 	seen := make(map[string]bool, len(raw))
 	for _, entry := range raw {
@@ -407,8 +474,8 @@ func (s *Service) resolveRelated(ctx context.Context, raw []string, selfID strin
 		}
 		if errors.Is(err, store.ErrNotFound) || (err == nil && meta.ID == "") {
 			return nil, fmt.Errorf(
-				"%w: no encuentro el resumen relacionado %q; búscalo con saveme_summary_search "+
-					"y pasa su id o su ruta relativa", ErrNotFound, entry)
+				"%w: no encuentro el resumen %s %q; búscalo con saveme_summary_search "+
+					"y pasa su id o su ruta relativa", ErrNotFound, noun, entry)
 		}
 		if err != nil {
 			return nil, err
@@ -418,11 +485,6 @@ func (s *Service) resolveRelated(ctx context.Context, raw []string, selfID strin
 		}
 		seen[meta.ID] = true
 		out = append(out, meta.ID)
-	}
-	if len(out) > MaxRelated {
-		return nil, fmt.Errorf("%w: enlaza como mucho %d resúmenes relacionados (pasaste %d); "+
-			"quédate con los que de verdad continúa, de los que depende o los que explica",
-			ErrInvalid, MaxRelated, len(out))
 	}
 	return out, nil
 }
@@ -660,6 +722,7 @@ func (s *Service) Confirm(ctx context.Context, token string, d Decision) (*Write
 		FilesTouched: rec.FilesTouched,
 		Commit:       rec.CommitSHA,
 		Related:      rec.Related,
+		Supersedes:   rec.Supersedes,
 	}
 	content, err := markdown.Render(fm, rec.Body)
 	if err != nil {
@@ -713,6 +776,8 @@ func (s *Service) Confirm(ctx context.Context, token string, d Decision) (*Write
 	_, _ = s.st.AppendEvent(ctx, store.EventProposalDone, map[string]any{
 		"token": token, "status": domain.ProposalConfirmed, "via": d.Via, "summary_id": summaryID,
 	})
+
+	s.linkAfterConfirm(rec, meta.ProjectSlug)
 
 	return &WriteResult{
 		Meta:           meta,
@@ -769,6 +834,7 @@ func (s *Service) indexFile(
 		Tags:         fm.Tags,
 		FilesTouched: fm.FilesTouched,
 		Related:      fm.Related,
+		Supersedes:   fm.Supersedes,
 		WordCount:    domain.WordCount(body),
 		SizeBytes:    size,
 		CreatedAt:    fm.CreatedAt,
@@ -927,6 +993,10 @@ func (s *Service) Read(ctx context.Context, id string) (domain.SummaryMeta, stri
 		return meta, "", fmt.Errorf("leer %s: %w", meta.RelPath, err)
 	}
 	doc := markdown.Parse(data)
+	if err := s.markOneSuperseded(ctx, &meta); err != nil {
+		return meta, "", err
+	}
+	s.withCommitURL(&meta)
 	return meta, doc.Body, nil
 }
 
@@ -939,11 +1009,20 @@ type SummaryLinks struct {
 	Related []domain.SummaryMeta `json:"related"`
 	// Backlinks son los resúmenes que enlazan a este.
 	Backlinks []domain.SummaryMeta `json:"backlinks"`
+	// Supersedes son los resúmenes que este deja sin vigencia, en el orden del
+	// frontmatter.
+	Supersedes []domain.SummaryMeta `json:"supersedes"`
+	// SupersededBy son los que dejan sin vigencia a este, el más reciente primero.
+	SupersededBy []domain.SummaryMeta `json:"superseded_by"`
 }
 
-// Links devuelve los relacionados y los enlaces inversos de un resumen.
+// Links devuelve los enlaces de un resumen en los dos sentidos: relacionados y
+// sustituidos, los que nombra él y los que lo nombran a él.
 func (s *Service) Links(ctx context.Context, id string) (SummaryLinks, error) {
-	links := SummaryLinks{Related: []domain.SummaryMeta{}, Backlinks: []domain.SummaryMeta{}}
+	links := SummaryLinks{
+		Related: []domain.SummaryMeta{}, Backlinks: []domain.SummaryMeta{},
+		Supersedes: []domain.SummaryMeta{}, SupersededBy: []domain.SummaryMeta{},
+	}
 	meta, err := s.st.GetSummary(ctx, id)
 	if errors.Is(err, store.ErrNotFound) {
 		return links, fmt.Errorf("%w: el resumen %q no existe", ErrNotFound, id)
@@ -952,8 +1031,28 @@ func (s *Service) Links(ctx context.Context, id string) (SummaryLinks, error) {
 		return links, err
 	}
 
-	seen := map[string]bool{meta.ID: true}
-	for _, ref := range meta.Related {
+	if links.Related, err = s.refsToMetas(ctx, meta.Related, meta.ID); err != nil {
+		return links, err
+	}
+	if links.Supersedes, err = s.refsToMetas(ctx, meta.Supersedes, meta.ID); err != nil {
+		return links, err
+	}
+	if links.Backlinks, err = s.st.Backlinks(ctx, meta.ID, meta.RelPath); err != nil {
+		return links, err
+	}
+	if links.SupersededBy, err = s.st.Superseders(ctx, meta.ID, meta.RelPath); err != nil {
+		return links, err
+	}
+	return links, nil
+}
+
+// refsToMetas resuelve referencias del frontmatter (ids o rutas) a su metadata,
+// en orden, sin repetir y sin `selfID`. Las que ya no existen se omiten: un
+// enlace roto no tiene título que enseñar.
+func (s *Service) refsToMetas(ctx context.Context, refs []string, selfID string) ([]domain.SummaryMeta, error) {
+	out := []domain.SummaryMeta{}
+	seen := map[string]bool{selfID: true}
+	for _, ref := range refs {
 		// El frontmatter se puede editar a mano, y ahí lo natural es escribir la
 		// ruta: se acepta igual que al proponer.
 		other, err := s.st.GetSummary(ctx, ref)
@@ -964,20 +1063,15 @@ func (s *Service) Links(ctx context.Context, id string) (SummaryLinks, error) {
 			continue
 		}
 		if err != nil {
-			return links, err
+			return nil, err
 		}
 		if seen[other.ID] {
 			continue
 		}
 		seen[other.ID] = true
-		links.Related = append(links.Related, other)
+		out = append(out, other)
 	}
-
-	links.Backlinks, err = s.st.Backlinks(ctx, meta.ID, meta.RelPath)
-	if err != nil {
-		return links, err
-	}
-	return links, nil
+	return out, nil
 }
 
 // ReadRaw devuelve el archivo completo, frontmatter incluido. Es lo que carga
@@ -995,6 +1089,10 @@ func (s *Service) ReadRaw(ctx context.Context, id string) (domain.SummaryMeta, s
 	if err != nil {
 		return meta, "", fmt.Errorf("leer %s: %w", meta.RelPath, err)
 	}
+	if err := s.markOneSuperseded(ctx, &meta); err != nil {
+		return meta, "", err
+	}
+	s.withCommitURL(&meta)
 	return meta, string(data), nil
 }
 
@@ -1017,7 +1115,7 @@ type SaveResult struct {
 func (s *Service) Save(ctx context.Context, id, content, baseHash string) (*SaveResult, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.saveLocked(ctx, id, content, baseHash)
+	return s.saveLocked(ctx, id, content, baseHash, workspace.VersionEdit)
 }
 
 // saveLocked es el cuerpo de `Save` para quien **ya tiene el mutex**.
@@ -1025,7 +1123,10 @@ func (s *Service) Save(ctx context.Context, id, content, baseHash string) (*Save
 // Mismo motivo que `reindexFileLocked`: `sync.Mutex` no es reentrante, así que
 // `Confirm` —que bloquea para reclamar el token— no puede llamar a `Save` sin
 // quedarse colgado con la app entera detrás.
-func (s *Service) saveLocked(ctx context.Context, id, content, baseHash string) (*SaveResult, error) {
+//
+// `reason` dice quién reemplaza el contenido, y decide cómo se guarda la versión
+// anterior en el historial (ver `keepVersion`).
+func (s *Service) saveLocked(ctx context.Context, id, content, baseHash string, reason workspace.VersionReason) (*SaveResult, error) {
 	meta, err := s.st.GetSummary(ctx, id)
 	if errors.Is(err, store.ErrNotFound) {
 		return nil, fmt.Errorf("%w: el resumen %q no existe", ErrNotFound, id)
@@ -1051,6 +1152,15 @@ func (s *Service) saveLocked(ctx context.Context, id, content, baseHash string) 
 		}
 	}
 
+	// Antes de reemplazar, lo que había va al historial. Si no se puede guardar,
+	// no se escribe: reescribir sin copia es exactamente la pérdida que el
+	// historial existe para evitar.
+	if string(current) != content {
+		if err := s.keepVersion(meta.ID, current, reason); err != nil {
+			return nil, err
+		}
+	}
+
 	if err := s.ws.WriteAtomic(meta.RelPath, []byte(content), true); err != nil {
 		return nil, err
 	}
@@ -1063,6 +1173,7 @@ func (s *Service) saveLocked(ctx context.Context, id, content, baseHash string) 
 	tags := meta.Tags
 	filesTouched := meta.FilesTouched
 	related := meta.Related
+	supersedes := meta.Supersedes
 	agent := meta.Agent
 	commit := meta.CommitSHA
 	createdAt := meta.CreatedAt
@@ -1092,6 +1203,9 @@ func (s *Service) saveLocked(ctx context.Context, id, content, baseHash string) 
 		if fm.Related != nil {
 			related = fm.Related
 		}
+		if fm.Supersedes != nil {
+			supersedes = fm.Supersedes
+		}
 		if fm.Agent != "" {
 			agent = fm.Agent
 		}
@@ -1112,7 +1226,7 @@ func (s *Service) saveLocked(ctx context.Context, id, content, baseHash string) 
 		ID: meta.ID, Title: title, Category: categoryKey, Project: meta.ProjectSlug,
 		CreatedAt: createdAt, UpdatedAt: time.Now().UTC(), Author: meta.Author,
 		Agent: agent, Status: status, Summary: summaryLine, Tags: tags,
-		FilesTouched: filesTouched, Commit: commit, Related: related,
+		FilesTouched: filesTouched, Commit: commit, Related: related, Supersedes: supersedes,
 	}
 	newMeta, err := s.indexFile(ctx, meta.RelPath, []byte(content),
 		meta.ID, meta.ProjectSlug, categoryKey, title, fm, doc.Body)
@@ -1124,6 +1238,9 @@ func (s *Service) saveLocked(ctx context.Context, id, content, baseHash string) 
 		"id": newMeta.ID, "project_slug": newMeta.ProjectSlug,
 		"category": newMeta.Category, "title": newMeta.Title, "rel_path": newMeta.RelPath,
 	})
+	// Lo que devuelve un guardado es lo que el editor pasa a enseñar: tiene que
+	// traer lo mismo que la lectura, o el enlace al commit desaparecería al guardar.
+	s.withCommitURL(&newMeta)
 	return &SaveResult{Meta: newMeta}, nil
 }
 
@@ -1158,6 +1275,11 @@ func (s *Service) Restore(ctx context.Context, trashRel string) (string, error) 
 }
 
 // EmptyTrash borra la papelera de verdad y dice cuántos archivos se llevó.
+//
+// Se lleva también el historial de los resúmenes que estaban en ella: vaciar la
+// papelera es pedir que eso deje de existir, y sus versiones son el mismo texto.
+// Si el mismo id sigue vivo en el índice (se restauró una copia, o hay otro
+// archivo con ese id), su historial se queda.
 func (s *Service) EmptyTrash(ctx context.Context) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -1165,7 +1287,39 @@ func (s *Service) EmptyTrash(ctx context.Context) (int, error) {
 	if err := ctx.Err(); err != nil {
 		return 0, err
 	}
-	return s.ws.EmptyTrash()
+	entries, err := s.ws.Trash()
+	if err != nil {
+		return 0, err
+	}
+	ids := make(map[string]bool, len(entries))
+	for _, e := range entries {
+		data, err := s.ws.ReadTrash(e.TrashRel)
+		if err != nil {
+			continue
+		}
+		id := ""
+		if fm := markdown.Parse(data).Frontmatter; fm != nil {
+			id = strings.TrimSpace(fm.ID)
+		}
+		if id == "" {
+			id = derivedID(e.RelPath)
+		}
+		ids[id] = true
+	}
+
+	removed, err := s.ws.EmptyTrash()
+	if err != nil {
+		return 0, err
+	}
+	for id := range ids {
+		if _, err := s.st.GetSummary(ctx, id); err == nil {
+			continue
+		}
+		if err := s.ws.DeleteHistory(id); err != nil {
+			return removed, err
+		}
+	}
+	return removed, nil
 }
 
 // Delete archiva (o borra definitivamente) un resumen.
@@ -1190,18 +1344,35 @@ func (s *Service) Delete(ctx context.Context, id string, hard bool) (string, err
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return "", err
 	}
+	// Un borrado duro no deja nada de donde restaurar, y eso incluye sus versiones.
+	if hard {
+		if err := s.ws.DeleteHistory(meta.ID); err != nil {
+			return "", err
+		}
+	}
 	_, _ = s.st.AppendEvent(ctx, store.EventSummaryDeleted, map[string]any{
 		"id": id, "rel_path": meta.RelPath, "hard": hard,
 	})
 	return archived, nil
 }
 
-// List devuelve resúmenes según un filtro.
+// List devuelve resúmenes según un filtro, con los sustituidos marcados.
 func (s *Service) List(ctx context.Context, f store.SummaryFilter) ([]domain.SummaryMeta, int, error) {
+	var items []domain.SummaryMeta
+	var total int
+	var err error
 	if strings.TrimSpace(f.Query) != "" {
-		return s.st.Search(ctx, f)
+		items, total, err = s.st.Search(ctx, f)
+	} else {
+		items, total, err = s.st.ListSummaries(ctx, f)
 	}
-	return s.st.ListSummaries(ctx, f)
+	if err != nil {
+		return nil, 0, err
+	}
+	if err := s.markSuperseded(ctx, items); err != nil {
+		return nil, 0, err
+	}
+	return items, total, nil
 }
 
 // Stats devuelve los totales globales.
@@ -1332,6 +1503,7 @@ func (s *Service) applyUpdate(
 		FilesTouched: rec.FilesTouched,
 		Commit:       rec.CommitSHA,
 		Related:      rec.Related,
+		Supersedes:   rec.Supersedes,
 	}
 	// Lo que la propuesta no trae se conserva de lo que ya había: el autor
 	// original y los enlaces a otros resúmenes son del usuario, no de este cambio.
@@ -1344,6 +1516,9 @@ func (s *Service) applyUpdate(
 		if len(rec.Related) == 0 {
 			fm.Related = previous.Frontmatter.Related
 		}
+		if len(rec.Supersedes) == 0 {
+			fm.Supersedes = previous.Frontmatter.Supersedes
+		}
 	}
 
 	content, err := markdown.Render(fm, rec.Body)
@@ -1354,7 +1529,7 @@ func (s *Service) applyUpdate(
 
 	// `saveLocked` y no `Save`: aquí ya tenemos el mutex del servicio, y `Save` lo
 	// volvería a pedir. Es el mismo detalle que dejó la app colgada una vez.
-	res, err := s.saveLocked(ctx, rec.TargetID, string(content), rec.BaseHash)
+	res, err := s.saveLocked(ctx, rec.TargetID, string(content), rec.BaseHash, workspace.VersionAgent)
 	if err != nil {
 		release()
 		return nil, err
@@ -1373,6 +1548,8 @@ func (s *Service) applyUpdate(
 		"id": res.Meta.ID, "rel_path": res.Meta.RelPath, "via": rec.ResolvedVia,
 		"token": token,
 	})
+
+	s.linkAfterConfirm(rec, res.Meta.ProjectSlug)
 
 	return &WriteResult{
 		Meta:    res.Meta,

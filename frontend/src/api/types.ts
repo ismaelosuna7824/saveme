@@ -41,6 +41,39 @@ export interface Project {
   counts: Record<string, number>
   total: number
   last_activity: string | null
+  /** Repo de código vinculado, reconocido por remote y commit raíz (no por ruta). */
+  repo?: ProjectRepo
+}
+
+export interface ProjectRepo {
+  /** `github.com/dueño/repo`, normalizado. Falta si el repo no tiene remote. */
+  remote?: string
+  root_commit?: string
+  /** Página del repo en GitHub, GitLab o Bitbucket; falta en otros alojamientos. */
+  web_url?: string
+  /** Dónde se vio por última vez. Es una pista, no la identidad. */
+  last_path?: string
+}
+
+/** Un commit, lo justo para enseñarlo. */
+export interface GitCommit {
+  sha: string
+  subject: string
+  when: string
+}
+
+/**
+ * Lo que cambió el código desde que se escribió un resumen
+ * (`GET /summaries/{id}/freshness`). `available: false` no es un error: `reason`
+ * dice por qué no se pudo contar.
+ */
+export interface Freshness {
+  available: boolean
+  reason?: 'no_files' | 'no_repo' | 'repo_moved' | 'no_git' | 'other_repo' | 'superseded' | 'git_failed' | string
+  count: number
+  stale: boolean
+  latest: GitCommit[]
+  since?: string
 }
 
 export interface SummaryMeta {
@@ -58,6 +91,12 @@ export interface SummaryMeta {
   tags: string[]
   files_touched: string[]
   related: string[]
+  /** Resúmenes que este deja sin vigencia (ids o rutas, como en el frontmatter). */
+  supersedes: string[]
+  /** Id del resumen más reciente que sustituye a este; falta si sigue vigente. */
+  superseded_by?: string
+  /** Página web de `commit_sha` en el repo del proyecto, si se sabe enlazar. */
+  commit_url?: string
   word_count: number
   size_bytes: number
   created_at: string
@@ -85,6 +124,35 @@ export interface SummaryDetail {
 export interface SummaryLinks {
   related: SummaryMeta[]
   backlinks: SummaryMeta[]
+  /** Los que este deja sin vigencia, en el orden del frontmatter. */
+  supersedes: SummaryMeta[]
+  /** Los que dejan sin vigencia a este, el más reciente primero. */
+  superseded_by: SummaryMeta[]
+}
+
+/** Qué reemplazó una versión: una actualización del agente, una edición o una restauración. */
+export type SummaryVersionReason = 'agent' | 'edit' | 'restore'
+
+/**
+ * Una versión anterior de un resumen: lo que había en el archivo justo antes de
+ * que algo lo reescribiera (`GET /summaries/{id}/versions`).
+ */
+export interface SummaryVersion {
+  /** `<sello>.<motivo>`; es lo que se manda para leerla o restaurarla. */
+  version: string
+  replaced_at: string
+  reason: SummaryVersionReason | string
+  size: number
+}
+
+export interface SummaryVersionList {
+  items: SummaryVersion[]
+}
+
+/** Una versión con su contenido y el de ahora, los dos con frontmatter, para compararlos. */
+export interface SummaryVersionDetail extends SummaryVersion {
+  content: string
+  current: string
 }
 
 /** Alternativa concreta que se le ofrece al usuario además de la inferida. */
@@ -123,6 +191,30 @@ export interface Proposal {
   files_touched: string[]
   /** Ids de los resúmenes que enlaza; se escriben en el frontmatter al confirmar. */
   related: string[]
+  /** Ids de los resúmenes que deja sin vigencia; se escriben en `supersedes` al confirmar. */
+  supersedes: string[]
+  /** Posibles credenciales en el título, la línea de resumen o el cuerpo. Solo avisa. */
+  secrets?: SecretFinding[]
+  /** El repo desde el que se propuso, si el agente pasó su directorio. */
+  repo?: {
+    remote?: string
+    root_commit?: string
+    /** Proyecto al que ya está vinculado ese repo. */
+    linked_project?: string
+    /** Confirmar vinculará el repo al proyecto de la propuesta. */
+    will_link?: boolean
+  }
+}
+
+/**
+ * Un posible secreto (`domain.SecretFinding`). `hint` es el principio del valor
+ * enmascarado: el secreto entero nunca sale del core.
+ */
+export interface SecretFinding {
+  kind: string
+  field: 'title' | 'summary' | 'body' | string
+  line: number
+  hint: string
 }
 
 /**

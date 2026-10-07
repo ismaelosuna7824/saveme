@@ -179,6 +179,19 @@ CONFLICT_CODE="$(curl -s --max-time 5 -o /dev/null -w '%{http_code}' -X PUT "$BA
 assert_eq "guardar con hash viejo da 409" "409" "$CONFLICT_CODE"
 assert_contains "y no pisó el archivo" "CodeMirror 6" "$(cat "$SAVEME_ROOT/$REL_PATH")"
 
+# Guardar reemplazó el texto: lo de antes tiene que estar en el historial y poder
+# volver, por la misma puerta y con el mismo control de hash que el editor.
+VERSIONS="$(curl -s --max-time 5 "$BASE/api/summaries/$ID/versions")"
+VERSION="$(echo "$VERSIONS" | json_field "['items'][0]['version']")"
+assert_contains "el guardado dejó la versión anterior en el historial" '"reason":"edit"' "$VERSIONS"
+OLD="$(curl -s --max-time 5 "$BASE/api/summaries/$ID/versions/$VERSION")"
+assert_contains "la versión tiene el texto de antes del cambio" "con CodeMirror y" "$OLD"
+FRESH_HASH="$(curl -s --max-time 5 -D - -o /dev/null "$BASE/api/summaries/$ID/raw" | tr -d '\r' | awk -F': ' 'tolower($1)=="x-saveme-content-hash"{print $2}')"
+RESTORE_CODE="$(curl -s --max-time 5 -o /dev/null -w '%{http_code}' -X POST "$BASE/api/summaries/$ID/versions/$VERSION/restore" \
+  -H 'Content-Type: application/json' -d "{\"base_hash\":\"$FRESH_HASH\"}")"
+assert_eq "restaurar la versión responde 200" "200" "$RESTORE_CODE"
+if grep -q "CodeMirror 6" "$SAVEME_ROOT/$REL_PATH"; then bad "restaurar no devolvió el texto anterior"; else ok "el archivo volvió al texto anterior"; fi
+
 step "7. Stream SSE"
 EVENTS="$(curl -s --max-time 3 -N "$BASE/api/events" 2>/dev/null | head -c 2000 || true)"
 assert_contains "el stream emite el saludo inicial" "hello" "$EVENTS"

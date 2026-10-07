@@ -42,6 +42,11 @@ export const inbox = {
   },
   whyCategory: 'por qué esta categoría',
   orSaveIn: 'o guárdalo en',
+  supersedes: 'deja sin vigencia',
+  repo: {
+    willLink: 'Al aprobarla, el repo {repo} quedará vinculado a este proyecto.',
+    otherProject: 'Ojo: este repo ({repo}) está vinculado al proyecto {project}, no a este.',
+  },
   filesTouched: {
     one: '{count} archivo',
     other: '{count} archivos',

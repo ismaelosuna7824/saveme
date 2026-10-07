@@ -88,17 +88,20 @@ type projectDTO struct {
 }
 
 type summaryDTO struct {
-	ID        string   `json:"id" jsonschema:"identificador estable del resumen"`
-	Project   string   `json:"project"`
-	Category  string   `json:"category"`
-	Title     string   `json:"title"`
-	Summary   string   `json:"summary_line,omitempty" jsonschema:"una línea que resume el contenido"`
-	RelPath   string   `json:"rel_path" jsonschema:"ruta relativa dentro del workspace"`
-	Tags      []string `json:"tags,omitempty"`
-	Status    string   `json:"status" jsonschema:"confirmed, draft o unmanaged"`
-	CreatedAt string   `json:"created_at"`
-	UpdatedAt string   `json:"updated_at"`
-	Snippet   string   `json:"snippet,omitempty" jsonschema:"solo en búsquedas: el trozo del resumen o del cuerpo donde aparece lo buscado, con cada coincidencia entre **dobles asteriscos**"`
+	ID           string   `json:"id" jsonschema:"identificador estable del resumen"`
+	Project      string   `json:"project"`
+	Category     string   `json:"category"`
+	Title        string   `json:"title"`
+	Summary      string   `json:"summary_line,omitempty" jsonschema:"una línea que resume el contenido"`
+	RelPath      string   `json:"rel_path" jsonschema:"ruta relativa dentro del workspace"`
+	Tags         []string `json:"tags,omitempty"`
+	Status       string   `json:"status" jsonschema:"confirmed, draft o unmanaged"`
+	CreatedAt    string   `json:"created_at"`
+	UpdatedAt    string   `json:"updated_at"`
+	Snippet      string   `json:"snippet,omitempty" jsonschema:"solo en búsquedas: el trozo del resumen o del cuerpo donde aparece lo buscado, con cada coincidencia entre **dobles asteriscos**"`
+	SupersededBy string   `json:"superseded_by,omitempty" jsonschema:"si está, este resumen YA NO ES VIGENTE: lo sustituyó el resumen con este id (una decisión posterior lo revirtió o lo reemplazó). Léelo con saveme_summary_read antes de seguir lo que dice este."`
+	// ChangedSince solo viene en saveme_context con cwd.
+	ChangedSince *service.Freshness `json:"changed_since,omitempty" jsonschema:"solo en saveme_context con cwd: cuántos commits tocaron los archivos de este resumen después de escribirlo (count), si son bastantes para dudar de él (stale) y los más recientes (latest)."`
 }
 
 // snippetMarks cambia los marcadores de control del índice por negritas de
@@ -108,17 +111,18 @@ var snippetMarks = strings.NewReplacer(domain.SnippetOpen, "**", domain.SnippetC
 
 func toSummaryDTO(m domain.SummaryMeta) summaryDTO {
 	return summaryDTO{
-		ID:        m.ID,
-		Project:   m.ProjectSlug,
-		Category:  m.Category,
-		Title:     m.Title,
-		Summary:   m.SummaryLine,
-		RelPath:   m.RelPath,
-		Tags:      m.Tags,
-		Status:    m.Status,
-		CreatedAt: m.CreatedAt.UTC().Format(time.RFC3339),
-		UpdatedAt: m.UpdatedAt.UTC().Format(time.RFC3339),
-		Snippet:   snippetMarks.Replace(m.Snippet),
+		ID:           m.ID,
+		Project:      m.ProjectSlug,
+		Category:     m.Category,
+		Title:        m.Title,
+		Summary:      m.SummaryLine,
+		RelPath:      m.RelPath,
+		Tags:         m.Tags,
+		Status:       m.Status,
+		CreatedAt:    m.CreatedAt.UTC().Format(time.RFC3339),
+		UpdatedAt:    m.UpdatedAt.UTC().Format(time.RFC3339),
+		Snippet:      snippetMarks.Replace(m.Snippet),
+		SupersededBy: m.SupersededBy,
 	}
 }
 
@@ -200,7 +204,8 @@ func (s *Server) registerTools() {
 		Description: "Devuelve los resúmenes que tocaron estos archivos. Llámalo **antes** de " +
 			"empezar a tocar uno: te dice qué se hizo ahí, cuándo y por qué, para no repetir " +
 			"un error ya resuelto ni deshacer una decisión que ya se tomó. Es más directo que " +
-			"saveme_summary_search, porque aquí no hay que acertar con las palabras.",
+			"saveme_summary_search, porque aquí no hay que acertar con las palabras. Un resultado " +
+			"con superseded_by ya no es vigente: manda el resumen que lo sustituye.",
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true},
 	}, s.handleContext)
 
@@ -290,7 +295,8 @@ func (s *Server) handleProjectCreate(ctx context.Context, _ *mcp.CallToolRequest
 // --- saveme_summary_propose --------------------------------------------------
 
 type proposeIn struct {
-	Project string `json:"project" jsonschema:"Proyecto al que pertenece el resumen. Es el nombre de la carpeta de primer nivel, en minúsculas y con guiones, por ejemplo \"saveme-app\". Si el proyecto no existe, SaveMe lo crea al confirmar."`
+	Project string `json:"project,omitempty" jsonschema:"Proyecto al que pertenece el resumen. Es el nombre de la carpeta de primer nivel, en minúsculas y con guiones, por ejemplo \"saveme-app\". Si el proyecto no existe, SaveMe lo crea al confirmar. Puedes omitirlo si pasas cwd y ese repo ya está vinculado a un proyecto."`
+	Cwd     string `json:"cwd,omitempty" jsonschema:"Tu directorio de trabajo, ruta absoluta. Pásalo siempre: si está dentro de un repo git vinculado a un proyecto, el proyecto sale de ahí; si el repo no está vinculado, queda vinculado al confirmar. El repo se reconoce por su remote y su primer commit, así que da igual que lo muevan de carpeta."`
 	Title   string `json:"title" jsonschema:"Título corto y descriptivo, en el idioma del usuario. Es lo primero que se ve en el historial: que diga QUÉ se hizo, no cómo. Ejemplo: \"Editor markdown con preview sincronizado\"."`
 	Body    string `json:"body" jsonschema:"El resumen en markdown: documentación para alguien que lo leerá en seis meses sin haber visto la conversación. Contexto, qué se hizo, por qué, cómo funciona, cómo verificarlo y qué falta, con diagramas mermaid (flowchart, sequenceDiagram…) cuando haya flujos o piezas que se hablan. NO es un changelog ni un diff. Estructura y ejemplos en el recurso saveme://guide."`
 
@@ -302,6 +308,7 @@ type proposeIn struct {
 	Commit       string   `json:"commit,omitempty" jsonschema:"SHA del commit relacionado, si lo hay."`
 	Target       string   `json:"target,omitempty" jsonschema:"Si esto CONTINÚA un resumen que ya existe, su id (el que devuelven saveme_summary_search, saveme_summary_list o saveme_pending) o su ruta relativa. Déjalo vacío para crear uno nuevo. Con target, el resumen se reescribe en su sitio: no se mueve ni se duplica."`
 	Related      []string `json:"related,omitempty" jsonschema:"Otros resúmenes con los que este tiene una relación que conviene seguir: los continúa sin reescribirlos, depende de ellos o los explica. Ids (los de saveme_summary_search o saveme_summary_list) o rutas relativas, como en target. Como mucho 10; si alguno no existe la propuesta falla y te dice cuál. En la app se muestran como enlaces en los dos sentidos. Omítelo si no hay ninguno claro; al actualizar con target, omitirlo conserva los que ya tenía y pasarlo los reemplaza."`
+	Supersedes   []string `json:"supersedes,omitempty" jsonschema:"Resúmenes que este deja SIN VIGENCIA: una decisión que se revierte, un enfoque que se abandona, un diseño que se reemplaza. Ids o rutas relativas, como en related; como mucho 10. No se reescriben ni se borran —siguen siendo historia—, pero desde entonces se marcan como sustituidos y quien los consulte verá cuál manda. No lo uses para algo que solo continúa o amplía: eso es related."`
 }
 
 type alternativeDTO struct {
@@ -317,17 +324,20 @@ type proposeOut struct {
 	// Ya guardado: este contenido exacto ya se escribió antes.
 	AlreadySaved *summaryDTO `json:"already_saved,omitempty"`
 
-	Project          string           `json:"project,omitempty"`
-	Category         string           `json:"category,omitempty"`
-	RelPath          string           `json:"rel_path,omitempty" jsonschema:"ruta relativa donde se guardaría el archivo"`
-	AbsPath          string           `json:"abs_path,omitempty"`
-	Title            string           `json:"title,omitempty"`
-	WhyCategory      string           `json:"why_this_category,omitempty" jsonschema:"explicación en lenguaje natural de por qué se eligió esa categoría"`
-	Confidence       float64          `json:"confidence,omitempty" jsonschema:"confianza de la inferencia, de 0 a 1"`
-	Alternatives     []alternativeDTO `json:"alternatives,omitempty" jsonschema:"otros destinos concretos que puedes ofrecerle al usuario"`
-	ExpiresInMinutes int              `json:"expires_in_minutes,omitempty" jsonschema:"minutos de vida que le quedan al token"`
-	Related          []string         `json:"related,omitempty" jsonschema:"ids de los resúmenes relacionados, ya resueltos; se escribirán en el frontmatter al confirmar"`
-	NextStep         string           `json:"next_step" jsonschema:"qué hacer ahora. Léelo y síguelo."`
+	Project          string                 `json:"project,omitempty"`
+	Category         string                 `json:"category,omitempty"`
+	RelPath          string                 `json:"rel_path,omitempty" jsonschema:"ruta relativa donde se guardaría el archivo"`
+	AbsPath          string                 `json:"abs_path,omitempty"`
+	Title            string                 `json:"title,omitempty"`
+	WhyCategory      string                 `json:"why_this_category,omitempty" jsonschema:"explicación en lenguaje natural de por qué se eligió esa categoría"`
+	Confidence       float64                `json:"confidence,omitempty" jsonschema:"confianza de la inferencia, de 0 a 1"`
+	Alternatives     []alternativeDTO       `json:"alternatives,omitempty" jsonschema:"otros destinos concretos que puedes ofrecerle al usuario"`
+	ExpiresInMinutes int                    `json:"expires_in_minutes,omitempty" jsonschema:"minutos de vida que le quedan al token"`
+	Related          []string               `json:"related,omitempty" jsonschema:"ids de los resúmenes relacionados, ya resueltos; se escribirán en el frontmatter al confirmar"`
+	Supersedes       []string               `json:"supersedes,omitempty" jsonschema:"ids de los resúmenes que este deja sin vigencia, ya resueltos; dile al usuario cuáles son al preguntarle"`
+	SecretWarnings   []domain.SecretFinding `json:"secret_warnings,omitempty" jsonschema:"posibles credenciales en el título, el resumen o el cuerpo (tipo, campo, línea y el principio enmascarado). Si hay alguna, quítala y vuelve a proponer antes de preguntar al usuario"`
+	Repo             *domain.ProposalRepo   `json:"repo,omitempty" jsonschema:"el repo git de cwd: a qué proyecto está vinculado ya (linked_project) o si quedará vinculado a este al confirmar (will_link)"`
+	NextStep         string                 `json:"next_step" jsonschema:"qué hacer ahora. Léelo y síguelo."`
 }
 
 func (s *Server) handlePropose(ctx context.Context, _ *mcp.CallToolRequest, in proposeIn) (*mcp.CallToolResult, proposeOut, error) {
@@ -342,7 +352,9 @@ func (s *Server) handlePropose(ctx context.Context, _ *mcp.CallToolRequest, in p
 		Agent:        in.Agent,
 		Commit:       in.Commit,
 		Target:       in.Target,
+		Cwd:          in.Cwd,
 		Related:      in.Related,
+		Supersedes:   in.Supersedes,
 	})
 	if err != nil {
 		return nil, proposeOut{}, translate(err)
@@ -374,6 +386,9 @@ func (s *Server) handlePropose(ctx context.Context, _ *mcp.CallToolRequest, in p
 		Confidence:       p.Inference.Confidence,
 		ExpiresInMinutes: int(math.Ceil(time.Until(p.ExpiresAt).Minutes())),
 		Related:          p.Related,
+		Supersedes:       p.Supersedes,
+		SecretWarnings:   p.Secrets,
+		Repo:             p.Repo,
 	}
 	for _, a := range p.Alternatives {
 		out.Alternatives = append(out.Alternatives, alternativeDTO{
@@ -405,7 +420,48 @@ func (s *Server) handlePropose(ctx context.Context, _ *mcp.CallToolRequest, in p
 			"El token vale %d minutos y solo funciona una vez.",
 		p.RelPath, p.ProjectSlug, alt.String(), out.ExpiresInMinutes,
 	)
+	if r := p.Repo; r != nil {
+		switch {
+		case r.WillLink:
+			out.NextStep += "\n\nAl confirmar, este repo (" + repoName(r) + ") quedará vinculado al proyecto " +
+				p.ProjectSlug + ": la próxima vez basta con pasar cwd. Díselo al usuario al preguntarle."
+		case r.LinkedProject != "" && r.LinkedProject != p.ProjectSlug:
+			out.NextStep += "\n\nOJO: este repo está vinculado al proyecto " + r.LinkedProject +
+				", pero propones guardar en " + p.ProjectSlug + ". Pregúntale al usuario si es a propósito."
+		}
+	}
+	if len(p.Secrets) > 0 {
+		// Va delante de todo: es lo primero que el agente tiene que resolver, y
+		// después de preguntar dónde guardar ya sería tarde.
+		out.NextStep = "ANTES DE PREGUNTAR: el resumen parece contener credenciales (" +
+			describeSecrets(p.Secrets) + "). Un resumen se comparte y se exporta: sustitúyelas " +
+			"por <REDACTED> y vuelve a llamar a saveme_summary_propose con el cuerpo corregido. " +
+			"Si no son secretos de verdad (un ejemplo, un valor de prueba), díselo al usuario al " +
+			"preguntarle.\n\n" + out.NextStep
+	}
 	return nil, out, nil
+}
+
+// describeSecrets resume los hallazgos para leerlos de corrido: «aws_access_key
+// en body:12 (AKIA…)». Nunca lleva el secreto, solo la pista enmascarada.
+func describeSecrets(findings []domain.SecretFinding) string {
+	parts := make([]string, 0, len(findings))
+	for _, f := range findings {
+		parts = append(parts, fmt.Sprintf("%s en %s:%d (%s)", f.Kind, f.Field, f.Line, f.Hint))
+	}
+	return strings.Join(parts, ", ")
+}
+
+// repoName es cómo se nombra un repo para una persona: su remote, o el principio
+// de su commit raíz si no tiene remote.
+func repoName(r *domain.ProposalRepo) string {
+	if r.Remote != "" {
+		return r.Remote
+	}
+	if len(r.RootCommit) > 7 {
+		return "commit raíz " + r.RootCommit[:7]
+	}
+	return "commit raíz " + r.RootCommit
 }
 
 // --- saveme_summary_confirm --------------------------------------------------
@@ -634,6 +690,10 @@ func (s *Server) buildElicitRequest(ctx context.Context, token string) (mcp.Inpu
 		"SaveMe quiere guardar un resumen tuyo.\n\nTítulo: %s\nCategoría propuesta: %s (%s)\nDestino: %s\n\n---\n%s\n---\n\n¿Dónde lo guardo?",
 		p.Title, p.Category, p.Inference.Reason, p.RelPath, preview,
 	)
+	if len(p.Secrets) > 0 {
+		message = "⚠ Parece que contiene credenciales: " + describeSecrets(p.Secrets) +
+			". Revísalo antes de guardarlo.\n\n" + message
+	}
 
 	return mcp.InputRequestMap{
 		elicitRequestKey: &mcp.ElicitParams{
@@ -767,6 +827,7 @@ func (s *Server) handleSearch(ctx context.Context, _ *mcp.CallToolRequest, in se
 type contextIn struct {
 	Files []string `json:"files" jsonschema:"Rutas de los archivos que vas a tocar, como aparecen en el repositorio. Se admiten varias."`
 	Limit int      `json:"limit,omitempty" jsonschema:"Cuántos devolver. Por defecto 20."`
+	Cwd   string   `json:"cwd,omitempty" jsonschema:"Tu directorio de trabajo, ruta absoluta. Con él, cada resumen dice cuántos commits tocaron sus archivos después de escribirse (changed_since): si son muchos, lo que cuenta puede estar desactualizado."`
 }
 
 type contextOut struct {
@@ -783,12 +844,30 @@ func (s *Server) handleContext(ctx context.Context, _ *mcp.CallToolRequest, in c
 	if err != nil {
 		return nil, contextOut{}, err
 	}
-	out := contextOut{Total: len(items), Items: make([]summaryDTO, 0, len(items))}
-	for _, m := range items {
-		out.Items = append(out.Items, toSummaryDTO(m))
+	fresh := map[string]service.Freshness{}
+	if strings.TrimSpace(in.Cwd) != "" {
+		fresh = s.svc.FreshnessForAgent(ctx, items, strings.TrimSpace(in.Cwd))
 	}
-	if len(items) == 0 {
+	out := contextOut{Total: len(items), Items: make([]summaryDTO, 0, len(items))}
+	stale := 0
+	for _, m := range items {
+		dto := toSummaryDTO(m)
+		if f, ok := fresh[m.ID]; ok && f.Available {
+			f := f
+			dto.ChangedSince = &f
+			if f.Stale {
+				stale++
+			}
+		}
+		out.Items = append(out.Items, dto)
+	}
+	switch {
+	case len(items) == 0:
 		out.Note = "No hay nada en el historial sobre esos archivos."
+	case stale > 0:
+		out.Note = fmt.Sprintf("%d resumen(es) tienen %d o más commits posteriores en sus archivos "+
+			"(changed_since.stale): lo que cuentan puede estar desactualizado. Míralos con el código "+
+			"delante antes de fiarte, y si ya no valen, propón uno nuevo con supersedes.", stale, service.StaleThreshold)
 	}
 	return nil, out, nil
 }

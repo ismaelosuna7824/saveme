@@ -23,6 +23,7 @@ import { ExportProjectButton } from '@/features/projects/ExportProjectButton'
 import { ChangelogButton } from '@/features/projects/ChangelogButton'
 import { ProjectIconDialog } from '@/features/projects/ProjectIconDialog'
 import { NewSummaryDialog } from '@/features/projects/NewSummaryDialog'
+import { ProjectRepoBadge } from '@/features/projects/ProjectRepoBadge'
 import { copyToClipboard, useShownPathname } from '@/lib/hooks'
 import { formatRelative } from '@/lib/format'
 
@@ -205,11 +206,14 @@ export function ProjectLayout({ slug }: ProjectLayoutProps) {
             </Button>
           </div>
         </div>
-        <div className="mt-0.5 flex items-center gap-1 text-2xs text-muted-foreground">
-          <FolderGit2 className="size-3 shrink-0" />
-          <code className="truncate" title={project.path}>
-            {project.path}
-          </code>
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-2xs text-muted-foreground">
+          <span className="flex min-w-0 items-center gap-1">
+            <FolderGit2 className="size-3 shrink-0" />
+            <code className="truncate" title={project.path}>
+              {project.path}
+            </code>
+          </span>
+          <ProjectRepoBadge project={project} />
         </div>
       </header>
 

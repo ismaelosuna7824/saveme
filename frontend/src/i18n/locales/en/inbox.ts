@@ -42,6 +42,11 @@ export const inbox = {
   },
   whyCategory: 'why this category',
   orSaveIn: 'or save it in',
+  supersedes: 'replaces',
+  repo: {
+    willLink: 'Approving it will link the repo {repo} to this project.',
+    otherProject: 'Note: this repo ({repo}) is linked to the project {project}, not this one.',
+  },
   filesTouched: {
     one: '{count} file',
     other: '{count} files',
