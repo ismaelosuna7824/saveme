@@ -13,5 +13,7 @@ export const Route = createFileRoute('/p/$project/')({
 
 function ProjectOverviewRoute() {
   const { project } = Route.useParams()
-  return <ProjectOverview slug={project} />
+  // `key`: la ruta se reutiliza al cambiar de proyecto, y sin él la búsqueda
+  // escrita en uno seguía puesta en el siguiente.
+  return <ProjectOverview key={project} slug={project} />
 }
