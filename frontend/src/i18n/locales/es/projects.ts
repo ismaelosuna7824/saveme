@@ -122,7 +122,7 @@ export const projects = {
     placeholder: 'buscar en títulos, resumen y cuerpo…',
     label: 'Buscar resúmenes',
     clear: 'Limpiar búsqueda',
-    searching: 'buscando «{query}»…',
+    searching: 'buscando…',
     results: 'resultados',
     resultCount: {
       one: '{count} resultado',

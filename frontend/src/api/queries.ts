@@ -191,11 +191,24 @@ export function useCategories(): UseQueryResult<Category[]> {
   return useQuery(categoriesQuery())
 }
 
+/**
+ * `keepPrevious`: mientras llega una lista nueva del **mismo proyecto** (otra
+ * búsqueda, por ejemplo), se sigue enseñando la anterior en vez de vaciar la
+ * pantalla con un esqueleto. Entre proyectos no: la lista de otro proyecto bajo
+ * esta cabecera sería mentira.
+ */
 export function useSummaries(
   filter: SummaryFilter,
-  options: { enabled?: boolean } = {},
+  options: { enabled?: boolean; keepPrevious?: boolean } = {},
 ): UseQueryResult<SummaryList> {
-  return useQuery({ ...summariesQuery(filter), enabled: options.enabled ?? true })
+  return useQuery({
+    ...summariesQuery(filter),
+    enabled: options.enabled ?? true,
+    placeholderData: options.keepPrevious
+      ? (previous, previousQuery) =>
+          previousQuery?.queryKey[2].project === filter.project ? previous : undefined
+      : undefined,
+  })
 }
 
 export function useSummary(id: string): UseQueryResult<SummaryDetail> {

@@ -116,7 +116,7 @@ export const projects = {
     placeholder: 'search titles, summary and body…',
     label: 'Search summaries',
     clear: 'Clear search',
-    searching: 'searching “{query}”…',
+    searching: 'searching…',
     results: 'results',
     resultCount: {
       one: '{count} result',

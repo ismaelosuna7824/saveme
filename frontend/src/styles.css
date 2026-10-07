@@ -761,6 +761,16 @@ html[data-translucent='true'] body {
     overflow: hidden;
   }
 
+  /*
+   * El cursor de texto, del color de acento. El del navegador es del color del
+   * texto y de un píxel: sobre la imagen de fondo casi no se ve, y al escribir
+   * en una caja no había forma de saber dónde caía la siguiente letra.
+   */
+  input,
+  textarea {
+    caret-color: var(--color-primary);
+  }
+
   ::selection {
     background: color-mix(in srgb, var(--color-primary) 25%, transparent);
   }

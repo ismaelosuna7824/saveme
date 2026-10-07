@@ -14,9 +14,22 @@ export function ProjectOverview({ slug }: { slug: string }) {
   const t = useT()
   const [query, setQuery] = useState('')
   const debouncedQuery = useDebouncedValue(query, 300).trim()
-  const searching = debouncedQuery.length > 0
 
-  const summaries = useSummaries(projectOverviewFilter(slug, searching ? debouncedQuery : undefined))
+  const summaries = useSummaries(
+    projectOverviewFilter(slug, debouncedQuery.length > 0 ? debouncedQuery : undefined),
+    { keepPrevious: true },
+  )
+  const stale = summaries.isPlaceholderData
+
+  // La búsqueda de la lista que se ve. Mientras llega la siguiente, la lista
+  // sigue siendo la anterior, y su título y su «nada coincide» también: si no,
+  // dirían una búsqueda que todavía no ha contestado.
+  const [shownQuery, setShownQuery] = useState(debouncedQuery)
+  if (!stale && summaries.data && shownQuery !== debouncedQuery) setShownQuery(debouncedQuery)
+  const searching = shownQuery.length > 0
+  // Se está escribiendo (el debounce aún no soltó el texto) o la búsqueda
+  // está en camino.
+  const busy = query.trim() !== debouncedQuery || stale
 
   return (
     <div className="flex h-full flex-col">
@@ -24,12 +37,8 @@ export function ProjectOverview({ slug }: { slug: string }) {
         <SearchBox
           value={query}
           onChange={setQuery}
+          busy={busy}
           resultCount={summaries.data?.total}
-          placeholder={
-            searching
-              ? t('projects.search.searching', { query: debouncedQuery })
-              : t('projects.search.placeholder')
-          }
         />
       </div>
 
@@ -47,6 +56,9 @@ export function ProjectOverview({ slug }: { slug: string }) {
         />
       </div>
 
+      {/* Sin atenuar con `opacity` mientras llega la búsqueda: un ancestro con
+          opacidad < 1 corta el `backdrop-filter` de las tarjetas de dentro, y el
+          difuminado desaparecía y volvía a cada letra. «buscando…» ya lo avisa. */}
       <div className="min-h-0 flex-1 overflow-y-auto">
         <SummaryList
           result={summaries.data}
@@ -58,7 +70,7 @@ export function ProjectOverview({ slug }: { slug: string }) {
           showCategory
           emptyTitle={
             searching
-              ? t('projects.search.empty.title', { query: debouncedQuery })
+              ? t('projects.search.empty.title', { query: shownQuery })
               : t('projects.empty.title')
           }
           emptyHint={t('projects.empty.hint')}
