@@ -55,7 +55,8 @@ Reglas:
 
 - `slug` de proyecto: minúsculas, `[a-z0-9-]`, sin acentos, colapsa separadores repetidos.
   `SaveMe App` → `saveme-app`. El **nombre visible** se conserva en la base de datos.
-- Nombre de archivo: `YYYY-MM-DD-<slug-titulo>.md`. Ordena cronológicamente de forma natural.
+- Nombre de archivo: `YYYY-MM-DD-<slug-titulo>.md`, con la fecha **local** de creación (la
+  misma que enseña la interfaz; `created_at` sigue en UTC). Ordena cronológicamente de forma natural.
   Colisión → sufijo `-2`, `-3`, …
 - Todo directorio de proyecto contiene **una carpeta por categoría**, creadas al registrar el
   proyecto, incluso si están vacías. Así el agente nunca elige entre "crear carpeta" o

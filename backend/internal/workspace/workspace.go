@@ -408,12 +408,16 @@ func (w *Workspace) pruneEmptyDirs(dir string) {
 
 // SummaryFilename construye el nombre de archivo canónico:
 // YYYY-MM-DD-slug-del-titulo.md
+//
+// La fecha es la **local**, como la que enseñan la interfaz, el digest y el
+// pulso. En UTC, un resumen escrito a las 22:00 en América salía con la fecha
+// del día siguiente en el nombre y la del día real en pantalla.
 func SummaryFilename(createdAt time.Time, title string) string {
 	slug := domain.SlugTruncated(title)
 	if slug == "" {
 		slug = "resumen"
 	}
-	return fmt.Sprintf("%s-%s.md", createdAt.UTC().Format("2006-01-02"), slug)
+	return fmt.Sprintf("%s-%s.md", createdAt.Local().Format("2006-01-02"), slug)
 }
 
 // UniqueRelPath busca un nombre libre dentro de dirRel, añadiendo -2, -3, …
