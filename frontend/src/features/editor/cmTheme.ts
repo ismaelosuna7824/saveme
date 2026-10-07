@@ -16,17 +16,19 @@ export function savemeEditorTheme(fontSize: number) {
         fontSize: `${fontSize}px`,
         height: '100%',
       },
+      // El cursor y la selección siguen el acento del tema, como el resto de
+      // campos de texto: un ámbar fijo desentonaba en los temas que no lo son.
       '.cm-content': {
-        caretColor: '#ffb454',
+        caretColor: 'var(--color-primary)',
         fontFamily: 'inherit',
         padding: '8px 0',
       },
       '.cm-cursor, .cm-dropCursor': {
-        borderLeftColor: '#ffb454',
+        borderLeftColor: 'var(--color-primary)',
         borderLeftWidth: '2px',
       },
       '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection': {
-        backgroundColor: 'rgba(255, 180, 84, 0.18)',
+        backgroundColor: 'color-mix(in srgb, var(--color-primary) 18%, transparent)',
       },
       '.cm-gutters': {
         backgroundColor: '#0e1416',
