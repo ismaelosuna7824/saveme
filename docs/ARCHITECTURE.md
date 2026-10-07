@@ -131,6 +131,18 @@ related: []
 - Un archivo sin frontmatter válido se indexa igual (`status: unmanaged`) y se muestra en la UI,
   pero SaveMe no lo sobrescribe: la escritura siempre crea un archivo nuevo.
 - `content_hash` = SHA-256 del archivo completo. Se usa para concurrencia optimista en `PUT`.
+- `related` son los ids de otros resúmenes que este continúa, de los que depende o que
+  explica. Los pone el agente al proponer (`related` en `saveme_summary_propose`, ids o
+  rutas relativas, como `target`, hasta 10): `Propose` los resuelve a ids, quita repetidos
+  y el propio id si es una actualización, y falla con `ErrNotFound` diciendo cuál no existe.
+  La propuesta los guarda ya resueltos (`proposals.related_json`, migración 004) y `confirm`
+  los escribe en el frontmatter. Al actualizar (`target`), una propuesta con `related` los
+  reemplaza y una sin él conserva los que había. El índice los copia en
+  `summaries.related_json`; los enlaces inversos se calculan con `json_each` sobre esa
+  columna (por id y también por ruta, porque a mano se escriben rutas) en vez de mantener
+  otra tabla. `GET /summaries/{id}/links` devuelve las dos direcciones ya resueltas a
+  `SummaryMeta` en una sola petición, y el loader de `/s/$id` la precarga junto al detalle
+  para que la fila «relacionados / lo citan» del editor llegue sin parpadeo.
 
 ## 5. Esquema SQLite
 
@@ -205,7 +217,8 @@ CREATE TABLE proposals (
   files_json TEXT NOT NULL DEFAULT '[]',
   commit_sha TEXT,
   target_id TEXT NOT NULL DEFAULT '', -- si actualiza un resumen, cuál (migración 002)
-  base_hash TEXT NOT NULL DEFAULT ''  -- su hash al proponer, para no pisar cambios
+  base_hash TEXT NOT NULL DEFAULT '', -- su hash al proponer, para no pisar cambios
+  related_json TEXT NOT NULL DEFAULT '[]' -- ids relacionados ya resueltos (migración 004)
 );
 
 Las migraciones son numeradas y se aplican solas al abrir el workspace
@@ -248,6 +261,7 @@ que los clientes (MCP, UI, CLI) lo encuentren.
 | GET | `/backgrounds/{image}` | — | la imagen, con `Cache-Control: immutable` (404 si el nombre no tiene la forma del import) |
 | GET | `/categories` | — | `[Category]` |
 | GET | `/stats` | — | `{projects, summaries, by_category{}, pending_proposals}` |
+| GET | `/tags` | query: `project?` | `{[tag]: count}` — las de un proyecto o, sin `project`, todas |
 | GET | `/projects` | — | `[Project]` |
 | POST | `/projects` | `{name, slug?}` | `Project` (201, 409 si existe) |
 | GET | `/projects/{slug}` | — | `Project` (misma forma que en el listado, con `counts` y `total`) |
@@ -255,11 +269,12 @@ que los clientes (MCP, UI, CLI) lo encuentren.
 | GET | `/projects/{slug}/briefing` | query: `days` (30 por defecto) | `Briefing` — «¿dónde lo dejamos?» |
 | GET | `/projects/{slug}/activity` | query: `days` (365 por defecto) | `ActivityMap` — un día por entrada, vacíos incluidos |
 | GET | `/projects/{slug}/changelog` | query: `since, until` (AAAA-MM-DD; vacíos = últimos 30 días) | `Changelog` — datos, no markdown. 400 `invalid_date` |
-| GET | `/summaries` | query: `project,category,q,tag,status,limit,offset,sort` (`sort` ∈ `recent`\|`created`\|`oldest`\|`title`; vacío = relevancia al buscar, fecha al listar) | `{items:[SummaryMeta], total, limit, offset}` |
+| GET | `/summaries` | query: `project,category,q,tag,status,from,to,limit,offset,sort` (`sort` ∈ `recent`\|`created`\|`oldest`\|`title`; vacío = relevancia al buscar, fecha al listar; `from`/`to` = días AAAA-MM-DD de creación en hora local, los dos incluidos) | `{items:[SummaryMeta], total, limit, offset}` — con `q`, cada item puede traer `snippet`. 400 `invalid_date` |
 | GET | `/summaries/{id}` | — | `{meta: SummaryMeta, content: string}` |
 | PUT | `/summaries/{id}` | `{content, base_hash?}` | `{meta}` — 409 `hash_mismatch` si `base_hash` no coincide |
 | DELETE | `/summaries/{id}` | query: `hard=true\|false` | `{ok, archived_path?}` |
 | GET | `/summaries/{id}/raw` | — | `text/markdown` |
+| GET | `/summaries/{id}/links` | — | `{related: [SummaryMeta], backlinks: [SummaryMeta]}` |
 | GET | `/proposals` | query: `status=pending` | `[Proposal]` |
 | GET | `/proposals/{token}` | — | `Proposal` |
 | POST | `/proposals/{token}/confirm` | `{decision, override?}` | `{summary, meta}` |
@@ -290,6 +305,19 @@ ocupado —restaurar de la papelera, por ejemplo—. Ninguno de los dos es un 50
 fallos del servidor, son conflictos con el estado del disco que el cliente puede resolver.
 | GET | `/agents/guide` | — | `text/markdown` con instrucciones para pegar en `CLAUDE.md` |
 
+**Búsqueda.** Con `q`, `/summaries` usa FTS5 (`summaries_fts`, orden por `bm25` con el
+título pesando más) y cae a `LIKE` si SQLite no trae FTS5 o la consulta no se deja
+parsear: buscar nunca devuelve error. Cada resultado puede traer `snippet`, el trozo de la
+línea de resumen o del cuerpo donde aparece lo buscado: con FTS5 lo da `snippet()`, y sin
+él el store recorta en Go alrededor de la primera aparición. Las coincidencias van entre
+los caracteres de control `\x02` y `\x03` (`domain.SnippetOpen`/`SnippetClose`), **nunca
+HTML**: la interfaz los convierte en `<mark>` con React, sin interpretar nada del índice, y
+el tool MCP los entrega como `**negrita**`. Si solo casaron el título o una etiqueta, no hay
+`snippet` y la fila enseña su línea de resumen. Los filtros (`tag`, `status`, `from`/`to`…)
+valen igual para buscar que para listar; `to` incluye su día hasta la medianoche local
+siguiente, y los límites se comparan en UTC cortados al segundo para que la fracción de
+segundo de RFC3339Nano no altere el orden de texto.
+
 Tipos:
 
 ```ts
@@ -298,12 +326,14 @@ type Project = { slug: string; name: string; path: string; created_at: string; u
                  counts: Record<string, number>; total: number; last_activity: string | null }
 type SummaryMeta = { id, project_slug, category, title, summary_line, rel_path, abs_path,
                      status, author, agent, commit_sha, tags: string[], files_touched: string[],
-                     related: string[], word_count, size_bytes, created_at, updated_at, content_hash }
+                     related: string[], word_count, size_bytes, created_at, updated_at, content_hash,
+                     snippet? /* solo al buscar */ }
 type Proposal = { token, project_slug, category, title, rel_path, abs_path, filename,
                   created_at, expires_at, status,
                   inference: {category, reason, confidence, evidence: string[]},
                   alternatives: {category, folder, label, rel_path}[],
                   preview, body_bytes, agent?, tags: string[], files_touched: string[],
+                  related: string[],
                   decision?, resolved_via?, resolved_at?, summary_id? }
 ```
 
@@ -385,10 +415,10 @@ el reconciliador detecta los archivos nuevos por `mtime` y los indexa.
 | --- | --- | --- | --- |
 | `saveme_project_list` | — | `{projects:[Project]}` | no |
 | `saveme_project_create` | `{name, slug?}` | `{project}` | sí (crea carpetas) |
-| `saveme_summary_propose` | `{project, title, body, category?, tags?, files_touched?, summary?, agent?, commit?, **target?**}` | `{token, proposal, expires_at, alternatives, next_step}` | **no** |
+| `saveme_summary_propose` | `{project, title, body, category?, tags?, files_touched?, summary?, agent?, commit?, **target?**, **related?**}` | `{token, proposal, expires_at, alternatives, related, next_step}` | **no** |
 | `saveme_summary_confirm` | `{token, decision, override?, elicit?}` | `{summary, meta, written_path}` | **sí** |
 | `saveme_summary_cancel` | `{token, reason?}` | `{ok}` | no |
-| `saveme_summary_search` | `{query, project?, category?, limit?}` | `{items:[SummaryMeta], total}` | no |
+| `saveme_summary_search` | `{query, project?, category?, limit?}` | `{items:[SummaryMeta + snippet?], total}` | no |
 | `saveme_summary_list` | `{project?, category?, limit?}` | `{items:[SummaryMeta]}` | no |
 | `saveme_summary_read` | `{id}` | `{meta, content}` | no |
 | `saveme_pending` | `{project?}` | `{proposals:[Proposal]}` | no |
@@ -1056,12 +1086,30 @@ make dev-core   # daemon Go con recarga manual en :7411
 make dev-web    # Vite en :1420
 make dev        # tauri dev (lanza el core como sidecar)
 make test       # todas las suites: go -race, cargo, tsc, preview, i18n, css, temas, mermaid, notas, diff, exportación, compartir, notas de versión, icono
+make test-e2e   # el binario real en otro proceso: dos fases, SSE, el agente con la app apagada
+make test-ui    # transiciones en Chromium sin ventana, fotograma a fotograma (ver abajo)
 make build      # binario Go + bundle Tauri
 make install-app  # macOS: compila el .app y sustituye el de /Applications
 make install:macos  # macOS: el binario `saveme` (donde ya esté en el PATH) y la app
 make icon       # regenera el icono en todos sus formatos
 make version    # muestra la version; NEXT=0.4.0 la fija en los tres ficheros
 ```
+
+`make test-ui` (`scripts/verify-transitions.mjs`) mira lo que dura uno o dos fotogramas y
+ninguna prueba unitaria ve. Arranca el core con workspace, configuración y `HOME`
+temporales en el puerto 7581, siembra tres proyectos —uno con fondo propio— y dos imágenes,
+sirve el build de la interfaz con `vite preview` en el 7582 (proxy de `/api` al core; a
+diferencia de `vite dev`, no recarga la página al descubrir dependencias) y la recorre en
+Chromium: barra lateral, pestañas, abrir un resumen y volver con Escape, el buscador. Un
+muestreador por `requestAnimationFrame` dentro de la página falla con el paso y el
+fotograma si ve un esqueleto en `main`, el fondo sin `data-backdrop`, un ancestro de
+`.backdrop-surface` con `opacity` < 1 o `filter`, el editor sin texto o con el título vacío,
+o un «not found». Los fondos se retrasan 250 ms y las lecturas de resúmenes 120 ms para que
+un estado intermedio dure varios fotogramas; los dos caben en los 400 ms de `holdForData`.
+Cada paso exige un mínimo de fotogramas muestreados: si el navegador no dibujara, fallaría
+en vez de dar un verde vacío. El navegador se instala una vez con
+`cd frontend && bunx playwright install --only-shell chromium`; los puertos se cambian con
+`SAVEME_UI_CORE_PORT` y `SAVEME_UI_WEB_PORT`.
 
 ## 10.1 Versión, icono y publicación
 

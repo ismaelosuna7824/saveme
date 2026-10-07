@@ -96,7 +96,22 @@ type SummaryMeta struct {
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 	ContentHash  string    `json:"content_hash"`
+	// Snippet solo viene en resultados de búsqueda: el trozo de la línea de
+	// resumen o del cuerpo donde aparece lo buscado, con cada coincidencia entre
+	// SnippetOpen y SnippetClose. Vacío si solo casaron el título o las etiquetas.
+	Snippet string `json:"snippet,omitempty"`
 }
+
+// Marcadores de coincidencia dentro de SummaryMeta.Snippet. Son caracteres de
+// control (STX y ETX) y no HTML a propósito: no aparecen en markdown escrito
+// por nadie, no hay que escapar nada para mandarlos en JSON, y quien los pinta
+// los cambia por su propio resaltado (la interfaz, por un <mark> construido con
+// React, sin interpretar HTML del índice). Si un archivo llegara a traerlos,
+// lo peor que pasa es un resaltado de más.
+const (
+	SnippetOpen  = "\x02"
+	SnippetClose = "\x03"
+)
 
 // Frontmatter es el bloque YAML que encabeza cada archivo gestionado.
 type Frontmatter struct {
@@ -148,6 +163,9 @@ type Proposal struct {
 	Agent        string        `json:"agent,omitempty"`
 	Tags         []string      `json:"tags"`
 	FilesTouched []string      `json:"files_touched"`
+	// Related son los ids de los resúmenes que esta propuesta enlaza, ya
+	// resueltos. Se escriben en el `related` del frontmatter al confirmar.
+	Related []string `json:"related"`
 
 	// Auditoría de la resolución. Es lo que permite responder después
 	// "¿esto lo aprobó una persona o lo decidió el agente?".

@@ -89,3 +89,15 @@ jobs:
       # la app lo encuentra al volver. Compila el binario por su cuenta.
       - name: Verificación end-to-end
         run: make test-e2e
+
+      # Solo el shell sin ventana de Chromium, con sus librerías de sistema: es lo
+      # único que lanza `make test-ui`. La versión la fija el Playwright del lock.
+      - name: Navegador para las transiciones
+        working-directory: frontend
+        run: bunx playwright install --with-deps --only-shell chromium
+
+      # Lo que dura uno o dos fotogramas: esqueletos al navegar, el fondo que se
+      # apaga al cambiar de proyecto, el cristal cortado por un ancestro con
+      # opacidad, el editor pintado sin texto. Chromium real contra el core real.
+      - name: Transiciones de la interfaz
+        run: make test-ui

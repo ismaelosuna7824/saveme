@@ -48,6 +48,15 @@ Dos cosas que conviene saber:
   nada**: la confirmación falla y te pide releerlo. No es un error tuyo, es la
   garantía de que no se pierde el trabajo de nadie.
 
+## Si continúa o explica otro resumen, enlázalo
+
+Cuando lo que escribes no es lo mismo que un resumen existente pero sí lo continúa,
+depende de él o lo explica, pasa su id (o su ruta relativa) en `related`, hasta 10.
+No se reescribe nada: en la app se muestran como enlaces en los dos sentidos. Si
+alguno no existe, la propuesta falla y te dice cuál; búscalo con
+`saveme_summary_search`. Al actualizar con `target`, omitir `related` conserva los
+que ya tenía y pasarlo los reemplaza.
+
 {{writing}}
 ## Elegir la categoría
 

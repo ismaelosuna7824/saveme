@@ -53,6 +53,11 @@ export const editor = {
     copyPathDone: 'Path copied',
     copyPathFailed: "Couldn't copy the path",
   },
+  links: {
+    label: 'Linked summaries',
+    related: 'related',
+    backlinks: 'referenced by',
+  },
   share: {
     download: 'Save as markdown…',
     filterName: 'Markdown',

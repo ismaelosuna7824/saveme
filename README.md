@@ -121,10 +121,21 @@ chat or the diff.
 ```bash
 make test        # Go with -race, Rust, types and every frontend verification
 make test-e2e    # 54 checks against the real binary, in a separate process
+make test-ui     # screen transitions in headless Chromium, frame by frame
 ```
 
 `make test-e2e` covers the path that matters for MCP: **it stops the app, writes a
 summary through the agent and checks that the app finds it when it starts again.**
+
+`make test-ui` covers what only lasts a frame or two. It starts the real core on a
+temporary workspace (never yours), seeds three projects and two backgrounds, serves the
+built UI and walks it in Chromium —sidebar, category tabs, opening a summary and going back
+with Escape, searching— while a `requestAnimationFrame` sampler inside the page checks every
+frame: no skeleton after the first load, the background (`data-backdrop`) never drops, no
+ancestor of a glass card (`.backdrop-surface`) has `opacity` < 1 or a `filter`, the editor
+never paints without text or with an empty title, and no "not found". A failure names the
+step and the frame. It needs the browser once:
+`cd frontend && bunx playwright install --only-shell chromium`.
 
 ## The editor
 
@@ -417,6 +428,9 @@ Verified:
 - `bash scripts/e2e.sh` — 54 checks on the binary: two phases, cross-process visibility,
   confirmation over HTTP, edit conflicts, SSE, the project pulse, and the "the agent writes
   with the app off" path.
+- `node scripts/verify-transitions.mjs` (`make test-ui`) — 19 screen transitions in headless
+  Chromium against the real core, sampled every frame: no skeletons, no lost background, no
+  dimmed ancestor cutting the glass, no empty editor, no "not found".
 - `bun run --cwd frontend typecheck` and `bun run --cwd frontend build`.
 - `bun run --cwd frontend verify:live-preview` — 32 checks on the Live Preview logic without
   a browser: what gets hidden, what gets styled, where widgets go and when a fence becomes a

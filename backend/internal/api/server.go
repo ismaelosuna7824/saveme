@@ -109,6 +109,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/trash/restore", s.handleRestore)
 	mux.HandleFunc("DELETE /api/trash", s.handleEmptyTrash)
 	mux.HandleFunc("GET /api/summaries/{id}/raw", s.handleRawSummary)
+	// Relacionados y enlaces inversos ya resueltos a metadata, en una sola
+	// petición: el editor los pinta con su título sin pedir uno por enlace.
+	mux.HandleFunc("GET /api/summaries/{id}/links", s.handleSummaryLinks)
 
 	// Lo hecho en un rango de fechas, cruzando todos los proyectos.
 	mux.HandleFunc("GET /api/digest", s.handleDigest)
@@ -404,7 +407,8 @@ func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleTags(w http.ResponseWriter, r *http.Request) {
-	tags, err := s.svc.Tags(r.Context())
+	// `?project=` acota a las etiquetas de un proyecto (el filtro del buscador).
+	tags, err := s.svc.Tags(r.Context(), r.URL.Query().Get("project"))
 	if err != nil {
 		s.fail(w, r, "tags_failed", err)
 		return
@@ -473,6 +477,17 @@ func (s *Server) handleListSummaries(w http.ResponseWriter, r *http.Request) {
 		Limit:    atoiDefault(q.Get("limit"), 50),
 		Offset:   atoiDefault(q.Get("offset"), 0),
 	}
+	// `from` y `to` son días AAAA-MM-DD en hora local, como en el changelog; `to`
+	// incluye su día entero (eso lo resuelve el store).
+	var err error
+	if filter.From, err = parseFechaQuery(q.Get("from")); err != nil {
+		writeErr(w, http.StatusBadRequest, "invalid_date", err.Error())
+		return
+	}
+	if filter.To, err = parseFechaQuery(q.Get("to")); err != nil {
+		writeErr(w, http.StatusBadRequest, "invalid_date", err.Error())
+		return
+	}
 	items, total, err := s.svc.List(r.Context(), filter)
 	if err != nil {
 		s.fail(w, r, "list_failed", err)
@@ -510,6 +525,15 @@ func (s *Server) handleRawSummary(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Saveme-Content-Hash", meta.ContentHash)
 	w.WriteHeader(http.StatusOK)
 	_, _ = io.WriteString(w, raw)
+}
+
+func (s *Server) handleSummaryLinks(w http.ResponseWriter, r *http.Request) {
+	links, err := s.svc.Links(r.Context(), r.PathValue("id"))
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, links)
 }
 
 func (s *Server) handleSaveSummary(w http.ResponseWriter, r *http.Request) {
@@ -641,6 +665,7 @@ func (s *Server) handleCreateSummary(w http.ResponseWriter, r *http.Request) {
 		Summary      string   `json:"summary"`
 		Tags         []string `json:"tags"`
 		FilesTouched []string `json:"files_touched"`
+		Related      []string `json:"related"`
 	}
 	if !decodeBody(w, r, &body) {
 		return
@@ -654,6 +679,7 @@ func (s *Server) handleCreateSummary(w http.ResponseWriter, r *http.Request) {
 		Summary:      body.Summary,
 		Tags:         body.Tags,
 		FilesTouched: body.FilesTouched,
+		Related:      body.Related,
 		// El autor y el agente distinguen lo que escribió una persona de lo que
 		// escribió una máquina, que es lo que permite filtrarlo después.
 		Author: "humano",

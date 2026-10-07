@@ -124,6 +124,25 @@ export const projects = {
     },
     empty: {
       title: 'Nothing matches “{query}”',
+      titleFiltered: 'Nothing matches “{query}” with these filters',
+      filtered: 'Nothing matches these filters',
+      filteredHint: 'Remove a filter to widen the search.',
+    },
+    /** Filters under the search box (tag, status, creation dates). */
+    filters: {
+      label: 'filters',
+      tag: 'tag',
+      status: 'status',
+      from: 'from',
+      to: 'to',
+      any: 'any',
+      noTags: 'no tags in this project',
+      byTag: 'Filter by tag',
+      byStatus: 'Filter by status',
+      fromDate: 'Created on or after',
+      toDate: 'Created on or before',
+      remove: 'Remove the {name} filter',
+      clearAll: 'clear filters',
     },
   },
   icon: {

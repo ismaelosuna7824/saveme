@@ -64,6 +64,15 @@ export const editor = {
     copyPathFailed: 'No pude copiar la ruta',
   },
   /**
+   * Resúmenes enlazados: los que este nombra en su `related` y los que lo nombran
+   * a él (`features/editor/SummaryLinksRow.tsx`).
+   */
+  links: {
+    label: 'Resúmenes enlazados',
+    related: 'relacionados',
+    backlinks: 'lo citan',
+  },
+  /**
    * Guardar el resumen como fichero y compartirlo. El documento sale sin
    * frontmatter y con el título arriba (`features/editor/shareMarkdown.ts`).
    */

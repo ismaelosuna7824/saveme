@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ModeSwitch } from '@/features/editor/ModeSwitch'
 import { ShareActions } from '@/features/editor/ShareActions'
+import { SummaryLinksRow } from '@/features/editor/SummaryLinksRow'
 import { useT, type TranslationKey } from '@/i18n'
 import { formatDateTime, shortenPath } from '@/lib/format'
 import { copyToClipboard } from '@/lib/hooks'
@@ -224,6 +225,8 @@ export function EditorToolbar({
           <Trash2 className="size-3" />
         </Button>
       </div>
+
+      <SummaryLinksRow id={meta.id} />
 
       <ConfirmDialog
         open={confirmOpen}

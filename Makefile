@@ -97,8 +97,14 @@ test: ## Pruebas de Go y Rust, tipos, Live Preview, traducciones, CSS, temas, Me
 test-e2e: ## Verificación end-to-end contra el binario real
 	bash scripts/e2e.sh
 
+# Con node y no con bun: Playwright solo garantiza node. El navegador se instala
+# una vez con `cd frontend && bunx playwright install --only-shell chromium`.
+.PHONY: test-ui
+test-ui: ## Transiciones de la interfaz en Chromium: sin esqueletos, sin perder el fondo ni el cristal, editor con texto
+	node scripts/verify-transitions.mjs
+
 .PHONY: test-all
-test-all: test test-e2e ## Todo
+test-all: test test-e2e test-ui ## Todo
 
 .PHONY: install
 install: build-core ## Instala el binario en $(BINDIR) para usarlo como MCP global

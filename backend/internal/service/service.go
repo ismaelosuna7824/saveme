@@ -224,6 +224,18 @@ func (s *Service) Propose(ctx context.Context, req domain.CreateRequest) (*Prepa
 		target = &meta
 	}
 
+	// Los relacionados se resuelven ahora y no al confirmar: lo que el usuario ve
+	// en la propuesta tiene que ser lo que se escriba, y un enlace a un resumen
+	// que no existe es mejor rechazarlo mientras el agente aún puede corregirlo.
+	selfID := ""
+	if target != nil {
+		selfID = target.ID
+	}
+	related, err := s.resolveRelated(ctx, req.Related, selfID)
+	if err != nil {
+		return nil, err
+	}
+
 	var relPath string
 	filename := workspace.SummaryFilename(now, req.Title)
 	if target != nil {
@@ -322,6 +334,7 @@ func (s *Service) Propose(ctx context.Context, req domain.CreateRequest) (*Prepa
 		CommitSHA:       req.Commit,
 		TargetID:        targetID,
 		BaseHash:        baseHash,
+		Related:         related,
 	}
 	if err := s.st.InsertProposal(ctx, rec); err != nil {
 		return nil, err
@@ -364,11 +377,54 @@ func (s *Service) toProposal(_ context.Context, rec store.ProposalRecord) (*doma
 		Agent:        rec.Agent,
 		Tags:         rec.Tags,
 		FilesTouched: rec.FilesTouched,
+		Related:      rec.Related,
 		Decision:     rec.Decision,
 		ResolvedVia:  rec.ResolvedVia,
 		ResolvedAt:   rec.ResolvedAt,
 		SummaryID:    rec.SummaryID,
 	}, nil
+}
+
+// MaxRelated es cuántos resúmenes puede enlazar una propuesta. Un resumen que
+// "se relaciona" con veinte otros no se relaciona con ninguno en particular, y
+// una lista así en la barra del editor deja de leerse.
+const MaxRelated = 10
+
+// resolveRelated convierte lo que el agente pasó en `related` (ids o rutas
+// relativas, igual que `target`) en ids de resúmenes que existen, sin repetir y
+// sin el propio resumen que se actualiza, que enlazarse a sí mismo no dice nada.
+func (s *Service) resolveRelated(ctx context.Context, raw []string, selfID string) ([]string, error) {
+	out := make([]string, 0, len(raw))
+	seen := make(map[string]bool, len(raw))
+	for _, entry := range raw {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			continue
+		}
+		meta, err := s.st.GetSummary(ctx, entry)
+		if errors.Is(err, store.ErrNotFound) {
+			meta, err = s.st.GetSummaryByRelPath(ctx, entry)
+		}
+		if errors.Is(err, store.ErrNotFound) || (err == nil && meta.ID == "") {
+			return nil, fmt.Errorf(
+				"%w: no encuentro el resumen relacionado %q; búscalo con saveme_summary_search "+
+					"y pasa su id o su ruta relativa", ErrNotFound, entry)
+		}
+		if err != nil {
+			return nil, err
+		}
+		if meta.ID == selfID || seen[meta.ID] {
+			continue
+		}
+		seen[meta.ID] = true
+		out = append(out, meta.ID)
+	}
+	if len(out) > MaxRelated {
+		return nil, fmt.Errorf("%w: enlaza como mucho %d resúmenes relacionados (pasaste %d); "+
+			"quédate con los que de verdad continúa, de los que depende o los que explica",
+			ErrInvalid, MaxRelated, len(out))
+	}
+	return out, nil
 }
 
 // --- confirmación ------------------------------------------------------------
@@ -603,6 +659,7 @@ func (s *Service) Confirm(ctx context.Context, token string, d Decision) (*Write
 		Tags:         rec.Tags,
 		FilesTouched: rec.FilesTouched,
 		Commit:       rec.CommitSHA,
+		Related:      rec.Related,
 	}
 	content, err := markdown.Render(fm, rec.Body)
 	if err != nil {
@@ -873,6 +930,56 @@ func (s *Service) Read(ctx context.Context, id string) (domain.SummaryMeta, stri
 	return meta, doc.Body, nil
 }
 
+// SummaryLinks son los enlaces de un resumen en los dos sentidos, ya resueltos a
+// metadata para que la interfaz pinte títulos sin una petición por enlace.
+type SummaryLinks struct {
+	// Related son los resúmenes que este enlaza en su `related`, en el orden del
+	// frontmatter. Los que ya no existen se omiten: un enlace roto no tiene
+	// título que enseñar.
+	Related []domain.SummaryMeta `json:"related"`
+	// Backlinks son los resúmenes que enlazan a este.
+	Backlinks []domain.SummaryMeta `json:"backlinks"`
+}
+
+// Links devuelve los relacionados y los enlaces inversos de un resumen.
+func (s *Service) Links(ctx context.Context, id string) (SummaryLinks, error) {
+	links := SummaryLinks{Related: []domain.SummaryMeta{}, Backlinks: []domain.SummaryMeta{}}
+	meta, err := s.st.GetSummary(ctx, id)
+	if errors.Is(err, store.ErrNotFound) {
+		return links, fmt.Errorf("%w: el resumen %q no existe", ErrNotFound, id)
+	}
+	if err != nil {
+		return links, err
+	}
+
+	seen := map[string]bool{meta.ID: true}
+	for _, ref := range meta.Related {
+		// El frontmatter se puede editar a mano, y ahí lo natural es escribir la
+		// ruta: se acepta igual que al proponer.
+		other, err := s.st.GetSummary(ctx, ref)
+		if errors.Is(err, store.ErrNotFound) {
+			other, err = s.st.GetSummaryByRelPath(ctx, ref)
+		}
+		if errors.Is(err, store.ErrNotFound) {
+			continue
+		}
+		if err != nil {
+			return links, err
+		}
+		if seen[other.ID] {
+			continue
+		}
+		seen[other.ID] = true
+		links.Related = append(links.Related, other)
+	}
+
+	links.Backlinks, err = s.st.Backlinks(ctx, meta.ID, meta.RelPath)
+	if err != nil {
+		return links, err
+	}
+	return links, nil
+}
+
 // ReadRaw devuelve el archivo completo, frontmatter incluido. Es lo que carga
 // el editor en modo fuente, porque editar el frontmatter también es parte de
 // "md first".
@@ -1102,9 +1209,9 @@ func (s *Service) Stats(ctx context.Context) (store.Stats, error) {
 	return s.st.Stats(ctx)
 }
 
-// Tags devuelve las etiquetas en uso.
-func (s *Service) Tags(ctx context.Context) (map[string]int, error) {
-	return s.st.AllTags(ctx)
+// Tags devuelve las etiquetas en uso, de un proyecto o (vacío) de todos.
+func (s *Service) Tags(ctx context.Context, project string) (map[string]int, error) {
+	return s.st.AllTags(ctx, project)
 }
 
 // --- helpers -----------------------------------------------------------------
@@ -1224,14 +1331,19 @@ func (s *Service) applyUpdate(
 		Tags:         rec.Tags,
 		FilesTouched: rec.FilesTouched,
 		Commit:       rec.CommitSHA,
+		Related:      rec.Related,
 	}
 	// Lo que la propuesta no trae se conserva de lo que ya había: el autor
 	// original y los enlaces a otros resúmenes son del usuario, no de este cambio.
+	// Si la propuesta sí trae relacionados, el agente los eligió mirando el
+	// resumen entero y reemplazan a los anteriores.
 	if previous.Frontmatter != nil {
 		if strings.TrimSpace(previous.Frontmatter.Author) != "" {
 			fm.Author = previous.Frontmatter.Author
 		}
-		fm.Related = previous.Frontmatter.Related
+		if len(rec.Related) == 0 {
+			fm.Related = previous.Frontmatter.Related
+		}
 	}
 
 	content, err := markdown.Render(fm, rec.Body)

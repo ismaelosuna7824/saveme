@@ -6,30 +6,52 @@ import { useSummaries } from '@/api/queries'
 import { SectionHeader } from '@/components/common/SectionHeader'
 import { useDebouncedValue } from '@/lib/hooks'
 import { SearchBox } from '@/features/projects/SearchBox'
+import { SearchFilters } from '@/features/projects/SearchFilters'
 import { SummaryList } from '@/features/projects/SummaryList'
-import { projectOverviewFilter } from '@/features/projects/summaryFilters'
+import {
+  hasOverviewFilters,
+  projectOverviewFilter,
+  type OverviewFilters,
+} from '@/features/projects/summaryFilters'
 
-/** Resumen general del proyecto: buscador + últimos resúmenes tocados. */
+/** Resumen general del proyecto: buscador con filtros + últimos resúmenes tocados. */
 export function ProjectOverview({ slug }: { slug: string }) {
   const t = useT()
   const [query, setQuery] = useState('')
   const debouncedQuery = useDebouncedValue(query, 300).trim()
+  // Los filtros no pasan por el debounce: son un clic, no una ráfaga de teclas.
+  const [filters, setFilters] = useState<OverviewFilters>({})
 
-  const summaries = useSummaries(
-    projectOverviewFilter(slug, debouncedQuery.length > 0 ? debouncedQuery : undefined),
-    { keepPrevious: true },
+  const filter = projectOverviewFilter(
+    slug,
+    debouncedQuery.length > 0 ? debouncedQuery : undefined,
+    filters,
   )
+  const summaries = useSummaries(filter, { keepPrevious: true })
   const stale = summaries.isPlaceholderData
 
-  // La búsqueda de la lista que se ve. Mientras llega la siguiente, la lista
-  // sigue siendo la anterior, y su título y su «nada coincide» también: si no,
-  // dirían una búsqueda que todavía no ha contestado.
-  const [shownQuery, setShownQuery] = useState(debouncedQuery)
-  if (!stale && summaries.data && shownQuery !== debouncedQuery) setShownQuery(debouncedQuery)
-  const searching = shownQuery.length > 0
+  // La búsqueda (texto y filtros) de la lista que se ve. Mientras llega la
+  // siguiente, la lista sigue siendo la anterior, y su título y su «nada
+  // coincide» también: si no, dirían una búsqueda que todavía no ha contestado.
+  const requestedKey = JSON.stringify(filter)
+  const [shown, setShown] = useState({ key: requestedKey, query: debouncedQuery, filters })
+  if (!stale && summaries.data && shown.key !== requestedKey) {
+    setShown({ key: requestedKey, query: debouncedQuery, filters })
+  }
+  const searching = shown.query.length > 0
+  const filtering = hasOverviewFilters(shown.filters)
   // Se está escribiendo (el debounce aún no soltó el texto) o la búsqueda
   // está en camino.
   const busy = query.trim() !== debouncedQuery || stale
+
+  let emptyTitle = t('projects.empty.title')
+  if (searching && filtering) {
+    emptyTitle = t('projects.search.empty.titleFiltered', { query: shown.query })
+  } else if (searching) {
+    emptyTitle = t('projects.search.empty.title', { query: shown.query })
+  } else if (filtering) {
+    emptyTitle = t('projects.search.empty.filtered')
+  }
 
   return (
     <div className="flex h-full flex-col">
@@ -40,11 +62,14 @@ export function ProjectOverview({ slug }: { slug: string }) {
           busy={busy}
           resultCount={summaries.data?.total}
         />
+        <SearchFilters project={slug} value={filters} onChange={setFilters} />
       </div>
 
       <div className="backdrop-surface shrink-0 px-3 pb-2">
         <SectionHeader
-          title={searching ? t('projects.search.results') : t('projects.recentActivity')}
+          title={
+            searching || filtering ? t('projects.search.results') : t('projects.recentActivity')
+          }
           hint={
             summaries.data
               ? t('projects.resultsShown', {
@@ -68,12 +93,10 @@ export function ProjectOverview({ slug }: { slug: string }) {
             void summaries.refetch()
           }}
           showCategory
-          emptyTitle={
-            searching
-              ? t('projects.search.empty.title', { query: shownQuery })
-              : t('projects.empty.title')
+          emptyTitle={emptyTitle}
+          emptyHint={
+            filtering ? t('projects.search.empty.filteredHint') : t('projects.empty.hint')
           }
-          emptyHint={t('projects.empty.hint')}
         />
       </div>
     </div>

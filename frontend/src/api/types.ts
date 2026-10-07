@@ -63,11 +63,28 @@ export interface SummaryMeta {
   created_at: string
   updated_at: string
   content_hash: string
+  /**
+   * Solo en búsquedas: el trozo de la línea de resumen o del cuerpo donde
+   * aparece lo buscado, con cada coincidencia entre `SNIPPET_OPEN` y
+   * `SNIPPET_CLOSE` (`features/projects/snippet.ts`). Falta si solo casó el
+   * título o una etiqueta.
+   */
+  snippet?: string
 }
 
 export interface SummaryDetail {
   meta: SummaryMeta
   content: string
+}
+
+/**
+ * Enlaces de un resumen en los dos sentidos, ya resueltos a metadata: los que
+ * enlaza en su `related` y los que lo enlazan a él. Llegan en una sola petición
+ * para pintar títulos sin pedir uno por enlace.
+ */
+export interface SummaryLinks {
+  related: SummaryMeta[]
+  backlinks: SummaryMeta[]
 }
 
 /** Alternativa concreta que se le ofrece al usuario además de la inferida. */
@@ -104,6 +121,8 @@ export interface Proposal {
   agent?: string
   tags: string[]
   files_touched: string[]
+  /** Ids de los resúmenes que enlaza; se escriben en el frontmatter al confirmar. */
+  related: string[]
 }
 
 /**
@@ -404,6 +423,10 @@ export interface SummaryFilter {
   q?: string
   tag?: string
   status?: string
+  /** Creado desde este día (AAAA-MM-DD, hora local), incluido. */
+  from?: string
+  /** Creado hasta este día (AAAA-MM-DD, hora local), incluido entero. */
+  to?: string
   limit?: number
   offset?: number
   sort?: string

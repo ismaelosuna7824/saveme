@@ -46,6 +46,10 @@ alternativas concretas. Poner una categoría a la fuerza solo empeora la sugeren
 Antes de proponer, considera llamar a saveme_summary_search para ver si ya hay un resumen
 de esto.
 
+Si lo que escribes continúa, depende o explica OTRO resumen sin ser el mismo tema, pasa
+su id en related (hasta 10). No reescribe nada: en la app quedan enlazados en los dos
+sentidos. Si un id no existe, la propuesta falla y te dice cuál.
+
 SI YA HAY UN RESUMEN DE ESTO, ACTUALÍZALO EN VEZ DE CREAR OTRO
 Un diario que solo sabe añadir se degrada: iterando una semana sobre la misma
 funcionalidad acabas con diez entradas casi iguales y ninguna que cuente la historia

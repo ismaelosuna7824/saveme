@@ -98,7 +98,13 @@ type summaryDTO struct {
 	Status    string   `json:"status" jsonschema:"confirmed, draft o unmanaged"`
 	CreatedAt string   `json:"created_at"`
 	UpdatedAt string   `json:"updated_at"`
+	Snippet   string   `json:"snippet,omitempty" jsonschema:"solo en búsquedas: el trozo del resumen o del cuerpo donde aparece lo buscado, con cada coincidencia entre **dobles asteriscos**"`
 }
+
+// snippetMarks cambia los marcadores de control del índice por negritas de
+// markdown: un agente lee mejor «**coincidencia**» que dos caracteres
+// invisibles.
+var snippetMarks = strings.NewReplacer(domain.SnippetOpen, "**", domain.SnippetClose, "**")
 
 func toSummaryDTO(m domain.SummaryMeta) summaryDTO {
 	return summaryDTO{
@@ -112,6 +118,7 @@ func toSummaryDTO(m domain.SummaryMeta) summaryDTO {
 		Status:    m.Status,
 		CreatedAt: m.CreatedAt.UTC().Format(time.RFC3339),
 		UpdatedAt: m.UpdatedAt.UTC().Format(time.RFC3339),
+		Snippet:   snippetMarks.Replace(m.Snippet),
 	}
 }
 
@@ -294,6 +301,7 @@ type proposeIn struct {
 	Agent        string   `json:"agent,omitempty" jsonschema:"Nombre del agente que lo escribe, por ejemplo \"claude-code\". Se guarda para poder auditar después."`
 	Commit       string   `json:"commit,omitempty" jsonschema:"SHA del commit relacionado, si lo hay."`
 	Target       string   `json:"target,omitempty" jsonschema:"Si esto CONTINÚA un resumen que ya existe, su id (el que devuelven saveme_summary_search, saveme_summary_list o saveme_pending) o su ruta relativa. Déjalo vacío para crear uno nuevo. Con target, el resumen se reescribe en su sitio: no se mueve ni se duplica."`
+	Related      []string `json:"related,omitempty" jsonschema:"Otros resúmenes con los que este tiene una relación que conviene seguir: los continúa sin reescribirlos, depende de ellos o los explica. Ids (los de saveme_summary_search o saveme_summary_list) o rutas relativas, como en target. Como mucho 10; si alguno no existe la propuesta falla y te dice cuál. En la app se muestran como enlaces en los dos sentidos. Omítelo si no hay ninguno claro; al actualizar con target, omitirlo conserva los que ya tenía y pasarlo los reemplaza."`
 }
 
 type alternativeDTO struct {
@@ -318,6 +326,7 @@ type proposeOut struct {
 	Confidence       float64          `json:"confidence,omitempty" jsonschema:"confianza de la inferencia, de 0 a 1"`
 	Alternatives     []alternativeDTO `json:"alternatives,omitempty" jsonschema:"otros destinos concretos que puedes ofrecerle al usuario"`
 	ExpiresInMinutes int              `json:"expires_in_minutes,omitempty" jsonschema:"minutos de vida que le quedan al token"`
+	Related          []string         `json:"related,omitempty" jsonschema:"ids de los resúmenes relacionados, ya resueltos; se escribirán en el frontmatter al confirmar"`
 	NextStep         string           `json:"next_step" jsonschema:"qué hacer ahora. Léelo y síguelo."`
 }
 
@@ -333,6 +342,7 @@ func (s *Server) handlePropose(ctx context.Context, _ *mcp.CallToolRequest, in p
 		Agent:        in.Agent,
 		Commit:       in.Commit,
 		Target:       in.Target,
+		Related:      in.Related,
 	})
 	if err != nil {
 		return nil, proposeOut{}, translate(err)
@@ -363,6 +373,7 @@ func (s *Server) handlePropose(ctx context.Context, _ *mcp.CallToolRequest, in p
 		WhyCategory:      p.Inference.Reason,
 		Confidence:       p.Inference.Confidence,
 		ExpiresInMinutes: int(math.Ceil(time.Until(p.ExpiresAt).Minutes())),
+		Related:          p.Related,
 	}
 	for _, a := range p.Alternatives {
 		out.Alternatives = append(out.Alternatives, alternativeDTO{

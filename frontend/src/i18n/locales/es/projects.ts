@@ -130,6 +130,25 @@ export const projects = {
     },
     empty: {
       title: 'Nada coincide con «{query}»',
+      titleFiltered: 'Nada coincide con «{query}» con estos filtros',
+      filtered: 'Nada coincide con estos filtros',
+      filteredHint: 'Quita un filtro para ampliar la búsqueda.',
+    },
+    /** Filtros bajo la caja de búsqueda (etiqueta, estado, fechas de creación). */
+    filters: {
+      label: 'filtros',
+      tag: 'etiqueta',
+      status: 'estado',
+      from: 'desde',
+      to: 'hasta',
+      any: 'cualquiera',
+      noTags: 'este proyecto no tiene etiquetas',
+      byTag: 'Filtrar por etiqueta',
+      byStatus: 'Filtrar por estado',
+      fromDate: 'Creado desde este día',
+      toDate: 'Creado hasta este día',
+      remove: 'Quitar el filtro de {name}',
+      clearAll: 'quitar filtros',
     },
   },
   /** El icono de píxeles de un proyecto (`ProjectIconDialog`). */

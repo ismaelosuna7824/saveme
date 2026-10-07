@@ -10,13 +10,14 @@ import { TagLink } from '@/components/common/TagLink'
 import { StatusBadge } from '@/components/common/StatusBadge'
 import { Badge } from '@/components/ui/badge'
 import { formatDateTime, formatRelative } from '@/lib/format'
+import { splitSnippet } from '@/features/projects/snippet'
 
 interface SummaryRowProps {
   summary: SummaryMeta
   showCategory?: boolean
 }
 
-/** Fila de un resumen: título, fecha, línea de resumen y etiquetas. */
+/** Fila de un resumen: título, fecha, línea de resumen (o el fragmento que casó) y etiquetas. */
 export function SummaryRow({ summary, showCategory = false }: SummaryRowProps) {
   const t = useT()
   const tags = asStringArray(summary.tags)
@@ -40,7 +41,23 @@ export function SummaryRow({ summary, showCategory = false }: SummaryRowProps) {
         </span>
       </div>
 
-      {summary.summary_line.length > 0 ? (
+      {summary.snippet ? (
+        // Con búsqueda, el trozo donde aparece lo buscado sustituye a la línea
+        // de resumen: dice por qué salió este resultado. Las coincidencias se
+        // pintan como <mark> de React a partir de los marcadores del core, sin
+        // interpretar HTML del índice.
+        <p className="mt-0.5 line-clamp-2 pl-5 text-2xs text-muted-foreground">
+          {splitSnippet(summary.snippet).map((part, index) =>
+            part.match ? (
+              <mark key={index} className="rounded-sm bg-primary/15 text-primary">
+                {part.text}
+              </mark>
+            ) : (
+              <span key={index}>{part.text}</span>
+            ),
+          )}
+        </p>
+      ) : summary.summary_line.length > 0 ? (
         <p className="mt-0.5 line-clamp-2 pl-5 text-2xs text-muted-foreground">
           {summary.summary_line}
         </p>

@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/ismaelosuna/saveme/backend/internal/domain"
 )
@@ -227,19 +229,27 @@ func (s *Store) Stats(ctx context.Context) (Stats, error) {
 // ErrNotFound indica que la fila pedida no existe.
 var ErrNotFound = errors.New("no encontrado")
 
-const summaryCols = `id, project_slug, category, title, summary_line, rel_path,
-	content_hash, status, author, COALESCE(agent, ''), COALESCE(commit_sha, ''),
-	tags_json, files_json, related_json, word_count, size_bytes, created_at, updated_at`
+// summaryCols son las columnas de un resumen, cualificadas con el alias `s`:
+// toda consulta que las use debe leer `FROM summaries s`. Sin el alias, la
+// búsqueda FTS (que cruza con `summaries_fts`, que también tiene `id`, `title`
+// y `summary_line`) fallaba con «ambiguous column name» y caía siempre a LIKE
+// sin que nadie lo notara: perdía el orden por relevancia y los fragmentos.
+const summaryCols = `s.id, s.project_slug, s.category, s.title, s.summary_line, s.rel_path,
+	s.content_hash, s.status, s.author, COALESCE(s.agent, ''), COALESCE(s.commit_sha, ''),
+	s.tags_json, s.files_json, s.related_json, s.word_count, s.size_bytes, s.created_at, s.updated_at`
 
-func (s *Store) scanSummary(sc scanner) (domain.SummaryMeta, error) {
+// scanSummary lee una fila de summaryCols. `extra` recibe las columnas que la
+// consulta pida detrás de ellas (los fragmentos de la búsqueda, por ejemplo).
+func (s *Store) scanSummary(sc scanner, extra ...any) (domain.SummaryMeta, error) {
 	var m domain.SummaryMeta
 	var tagsJSON, filesJSON, relatedJSON, createdStr, updatedStr string
-	if err := sc.Scan(
+	dest := []any{
 		&m.ID, &m.ProjectSlug, &m.Category, &m.Title, &m.SummaryLine, &m.RelPath,
 		&m.ContentHash, &m.Status, &m.Author, &m.Agent, &m.CommitSHA,
 		&tagsJSON, &filesJSON, &relatedJSON, &m.WordCount, &m.SizeBytes,
 		&createdStr, &updatedStr,
-	); err != nil {
+	}
+	if err := sc.Scan(append(dest, extra...)...); err != nil {
 		return m, err
 	}
 	m.Tags = decodeStrings(tagsJSON)
@@ -328,7 +338,7 @@ func (s *Store) UpsertSummary(ctx context.Context, m domain.SummaryMeta, body st
 
 // GetSummary lee la metadata de un resumen por id.
 func (s *Store) GetSummary(ctx context.Context, id string) (domain.SummaryMeta, error) {
-	row := s.db.QueryRowContext(ctx, `SELECT `+summaryCols+` FROM summaries WHERE id = ?`, id)
+	row := s.db.QueryRowContext(ctx, `SELECT `+summaryCols+` FROM summaries s WHERE s.id = ?`, id)
 	m, err := s.scanSummary(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return m, ErrNotFound
@@ -342,7 +352,7 @@ func (s *Store) GetSummary(ctx context.Context, id string) (domain.SummaryMeta, 
 // GetSummaryByRelPath busca por ruta relativa. Lo usa el reconciliador, que
 // razona en rutas y no en ids.
 func (s *Store) GetSummaryByRelPath(ctx context.Context, rel string) (domain.SummaryMeta, error) {
-	row := s.db.QueryRowContext(ctx, `SELECT `+summaryCols+` FROM summaries WHERE rel_path = ?`, rel)
+	row := s.db.QueryRowContext(ctx, `SELECT `+summaryCols+` FROM summaries s WHERE s.rel_path = ?`, rel)
 	m, err := s.scanSummary(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return m, ErrNotFound
@@ -351,6 +361,35 @@ func (s *Store) GetSummaryByRelPath(ctx context.Context, rel string) (domain.Sum
 		return m, fmt.Errorf("leer el resumen en %s: %w", rel, err)
 	}
 	return m, nil
+}
+
+// Backlinks devuelve los resúmenes que enlazan a `id` en su `related`, los más
+// recientes primero. También cuenta la ruta relativa, porque quien edita el
+// frontmatter a mano escribe rutas y no ids.
+//
+// Se busca dentro del JSON con `json_each` en vez de mantener una tabla de
+// enlaces aparte: `related_json` ya es la copia indexada del frontmatter, y una
+// segunda tabla sería otra caché que mantener sincronizada con el disco. Con
+// unos pocos miles de resúmenes el recorrido completo no se nota.
+func (s *Store) Backlinks(ctx context.Context, id, relPath string) ([]domain.SummaryMeta, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT `+summaryCols+` FROM summaries s
+		WHERE s.id <> ? AND EXISTS (
+			SELECT 1 FROM json_each(s.related_json) WHERE value IN (?, ?))
+		ORDER BY s.updated_at DESC`, id, id, relPath)
+	if err != nil {
+		return nil, fmt.Errorf("buscar quién enlaza a %s: %w", id, err)
+	}
+	defer rows.Close()
+
+	out := []domain.SummaryMeta{}
+	for rows.Next() {
+		m, err := s.scanSummary(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, m)
+	}
+	return out, rows.Err()
 }
 
 // GetSummaryBody lee el cuerpo indexado. Es un atajo para búsqueda y
@@ -395,8 +434,15 @@ type SummaryFilter struct {
 	Tag      string
 	// File filtra por archivo tocado. Es lo que responde «¿qué se hizo aquí?»
 	// antes de tocar un archivo.
-	File   string
-	Query  string
+	File  string
+	Query string
+	// From y To acotan por fecha de creación, por días enteros: From cuenta desde
+	// su medianoche y To incluye su día completo (hasta la medianoche siguiente,
+	// sin incluirla). El día es el de la zona de la propia fecha —la API las lee
+	// en hora local—, porque «lo que hice el lunes» es el lunes de quien lo
+	// pregunta, no el de UTC. Cero significa sin límite.
+	From   time.Time
+	To     time.Time
 	Sort   string // recent (default) | oldest | title
 	Limit  int
 	Offset int
@@ -490,10 +536,36 @@ func (f SummaryFilter) where() (string, []any) {
 		conds = append(conds, `files_json LIKE ? ESCAPE '\'`)
 		args = append(args, "%\""+escapeLike(strings.TrimSpace(f.File))+"\"%")
 	}
+	if !f.From.IsZero() {
+		conds = append(conds, "s.created_at >= ?")
+		args = append(args, dayBound(startOfDay(f.From)))
+	}
+	if !f.To.IsZero() {
+		conds = append(conds, "s.created_at < ?")
+		args = append(args, dayBound(startOfDay(f.To).AddDate(0, 0, 1)))
+	}
 	if len(conds) == 0 {
 		return "", nil
 	}
 	return " WHERE " + strings.Join(conds, " AND "), args
+}
+
+// startOfDay lleva una fecha a la medianoche de su día, en su propia zona.
+func startOfDay(t time.Time) time.Time {
+	y, m, d := t.Date()
+	return time.Date(y, m, d, 0, 0, 0, 0, t.Location())
+}
+
+// dayBound escribe un límite de día para compararlo con `created_at`.
+//
+// Va en UTC y **sin la zeta ni fracción de segundo**: las fechas guardadas son
+// RFC3339Nano, que omite la fracción cuando es cero, y entre «…00Z» y
+// «…00.5Z» el orden de texto no es el cronológico ('.' < 'Z'). Cortando en el
+// segundo, el límite es prefijo de cualquier instante de ese mismo segundo y
+// queda por debajo de todos ellos, que es justo lo que piden `>=` (desde) y
+// `<` (hasta la medianoche siguiente, excluida).
+func dayBound(t time.Time) string {
+	return t.UTC().Format("2006-01-02T15:04:05")
 }
 
 // ListSummaries devuelve una página de resúmenes y el total que matchea el
@@ -575,22 +647,46 @@ func (s *Store) searchFTS(ctx context.Context, f SummaryFilter, q string) ([]dom
 		return nil, 0, err
 	}
 
-	sqlq := `SELECT ` + summaryCols + ftsJoin +
+	// Dos fragmentos: el de la línea de resumen y el del cuerpo. snippet() con
+	// columna automática (-1) elegía a menudo el título o las etiquetas, que la
+	// fila ya enseña; pickSnippet se queda con el primero que de verdad marca
+	// una coincidencia. Los marcadores van como parámetros para que salgan de
+	// las mismas constantes que lee la interfaz.
+	const snippetCols = `, snippet(summaries_fts, 2, ?, ?, ?, 32), snippet(summaries_fts, 3, ?, ?, ?, 16)`
+	snippetArgs := []any{
+		domain.SnippetOpen, domain.SnippetClose, snippetEllipsis,
+		domain.SnippetOpen, domain.SnippetClose, snippetEllipsis,
+	}
+	sqlq := `SELECT ` + summaryCols + snippetCols + ftsJoin +
 		` WHERE summaries_fts MATCH ?` + andAlso(where) +
 		` ORDER BY ` + f.searchOrderBy(true) + ` LIMIT ? OFFSET ?`
-	rows, err := s.db.QueryContext(ctx, sqlq, append(append([]any{}, args...), f.Limit, f.Offset)...)
+	allArgs := append(append(snippetArgs, args...), f.Limit, f.Offset)
+	rows, err := s.db.QueryContext(ctx, sqlq, allArgs...)
 	if err != nil {
 		return nil, 0, err
 	}
 	defer rows.Close()
 
-	items, err := s.collectSummaries(rows)
-	if err != nil {
+	var items []domain.SummaryMeta
+	for rows.Next() {
+		var lineSnippet, bodySnippet string
+		m, err := s.scanSummary(rows, &lineSnippet, &bodySnippet)
+		if err != nil {
+			return nil, 0, fmt.Errorf("leer resultado de búsqueda: %w", err)
+		}
+		m.Snippet = pickSnippet(lineSnippet, bodySnippet)
+		items = append(items, m)
+	}
+	if err := rows.Err(); err != nil {
 		return nil, 0, err
 	}
 	return items, total, nil
 }
 
+// searchLike es la búsqueda degradada (SQLite sin FTS5, o una consulta que FTS
+// no acepta). Casa la consulta entera como subcadena, sin distinguir mayúsculas
+// ASCII, y calcula el fragmento en Go con likeSnippet: así la interfaz recibe la
+// misma forma de resultado con o sin FTS.
 func (s *Store) searchLike(ctx context.Context, f SummaryFilter, q string) ([]domain.SummaryMeta, int, error) {
 	where, args := f.where()
 	like := "%" + strings.ToLower(q) + "%"
@@ -613,7 +709,9 @@ func (s *Store) searchLike(ctx context.Context, f SummaryFilter, q string) ([]do
 		return nil, 0, fmt.Errorf("contar resultados de búsqueda: %w", err)
 	}
 
-	sqlq := `SELECT ` + summaryCols + ` FROM summaries s
+	// El cuerpo se lee solo para recortar el fragmento. Son como mucho `Limit`
+	// cuerpos, y solo en el camino degradado.
+	sqlq := `SELECT ` + summaryCols + `, COALESCE(b.body, '') FROM summaries s
 	         LEFT JOIN summary_bodies b ON b.summary_id = s.id` + whereLike +
 		` ORDER BY ` + f.searchOrderBy(false) + ` LIMIT ? OFFSET ?`
 	rows, err := s.db.QueryContext(ctx, sqlq, append(append([]any{}, allArgs...), f.Limit, f.Offset)...)
@@ -622,11 +720,133 @@ func (s *Store) searchLike(ctx context.Context, f SummaryFilter, q string) ([]do
 	}
 	defer rows.Close()
 
-	items, err := s.collectSummaries(rows)
-	if err != nil {
+	var items []domain.SummaryMeta
+	for rows.Next() {
+		var body string
+		m, err := s.scanSummary(rows, &body)
+		if err != nil {
+			return nil, 0, fmt.Errorf("leer resultado de búsqueda: %w", err)
+		}
+		m.Snippet = likeSnippet(m.SummaryLine, body, q)
+		items = append(items, m)
+	}
+	if err := rows.Err(); err != nil {
 		return nil, 0, err
 	}
 	return items, total, nil
+}
+
+// snippetEllipsis marca el texto recortado a los lados de un fragmento.
+const snippetEllipsis = "…"
+
+// likeSnippetContext es cuántos caracteres de contexto deja likeSnippet a cada
+// lado de la coincidencia: más o menos lo que ocupan los 16 tokens que pide
+// snippet() en la búsqueda FTS.
+const likeSnippetContext = 50
+
+// pickSnippet elige entre el fragmento de la línea de resumen y el del cuerpo.
+//
+// snippet() devuelve texto aunque la columna no case (su principio, sin
+// marcas), así que solo vale el que trae una marca. Primero la línea de
+// resumen: es corta, la fila ya la enseñaría, y resaltada se lee mejor que un
+// trozo de cuerpo. Si solo casaron el título o las etiquetas, no hay fragmento
+// y la fila enseña su línea de resumen de siempre.
+func pickSnippet(line, body string) string {
+	for _, candidate := range []string{line, body} {
+		if strings.Contains(candidate, domain.SnippetOpen) {
+			return cleanSnippet(candidate)
+		}
+	}
+	return ""
+}
+
+// cleanSnippet deja un fragmento de cuerpo legible en una línea: junta los
+// espacios y saltos de línea, quita los títulos de sección que no traen la
+// coincidencia («## Contexto» pegado a la frase siguiente se leía como parte de
+// ella) y los tokens que son solo sintaxis de markdown («```», «-», «>», «|»…),
+// que en un trozo suelto no dicen nada.
+func cleanSnippet(text string) string {
+	var out []string
+	for _, line := range strings.Split(text, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "#") && !strings.Contains(trimmed, domain.SnippetOpen) {
+			continue
+		}
+		for _, w := range strings.Fields(trimmed) {
+			if strings.Trim(w, "#`*-_>|=~") != "" {
+				out = append(out, w)
+			}
+		}
+	}
+	return strings.Join(out, " ")
+}
+
+// likeSnippet imita snippet() para la búsqueda sin FTS: la primera aparición de
+// la consulta entera (la misma regla que el LIKE) en la línea de resumen o, si
+// no está, en el cuerpo, con la coincidencia entre marcadores y contexto a los
+// lados. Sigue el mismo orden que el camino FTS —marcar, limpiar, recortar— para
+// que cleanSnippet vea la marca y no tire un título que trae la coincidencia.
+// Vacío si solo casaron el título o las etiquetas.
+func likeSnippet(line, body, q string) string {
+	for _, text := range []string{line, body} {
+		if marked := markFirst(text, q); marked != "" {
+			return trimAroundMark(cleanSnippet(marked))
+		}
+	}
+	return ""
+}
+
+// markFirst devuelve text con la primera aparición de q, sin distinguir
+// mayúsculas, entre marcadores; vacío si no aparece. Trabaja en runas:
+// unicode.ToLower convierte cada runa en exactamente una, así que los índices
+// sobre el texto en minúsculas valen para el original.
+func markFirst(text, q string) string {
+	needle := []rune(strings.ToLower(strings.TrimSpace(q)))
+	runes := []rune(text)
+	if len(needle) == 0 || len(needle) > len(runes) {
+		return ""
+	}
+	lower := make([]rune, len(runes))
+	for i, r := range runes {
+		lower[i] = unicode.ToLower(r)
+	}
+	for at := 0; at+len(needle) <= len(lower); at++ {
+		if slices.Equal(lower[at:at+len(needle)], needle) {
+			end := at + len(needle)
+			return string(runes[:at]) + domain.SnippetOpen + string(runes[at:end]) +
+				domain.SnippetClose + string(runes[end:])
+		}
+	}
+	return ""
+}
+
+// trimAroundMark recorta un texto ya marcado a likeSnippetContext caracteres a
+// cada lado de la coincidencia, ensanchando hasta el espacio más cercano para no
+// partir palabras, y pone «…» donde corta.
+func trimAroundMark(text string) string {
+	runes := []rune(text)
+	open := slices.Index(runes, []rune(domain.SnippetOpen)[0])
+	closing := slices.Index(runes, []rune(domain.SnippetClose)[0])
+	if open < 0 || closing < open {
+		return text
+	}
+	from := max(0, open-likeSnippetContext)
+	for from > 0 && !unicode.IsSpace(runes[from-1]) {
+		from--
+	}
+	to := min(len(runes), closing+1+likeSnippetContext)
+	for to < len(runes) && !unicode.IsSpace(runes[to]) {
+		to++
+	}
+
+	out := string(runes[from:to])
+	if from > 0 {
+		out = snippetEllipsis + out
+	}
+	if to < len(runes) {
+		out += snippetEllipsis
+	}
+	return out
 }
 
 // andAlso convierte " WHERE x" en " AND x" para encadenarlo tras MATCH.
@@ -658,11 +878,18 @@ func ftsQuery(q string) string {
 }
 
 // AllTags devuelve las etiquetas en uso con su frecuencia, para autocompletar.
-func (s *Store) AllTags(ctx context.Context) (map[string]int, error) {
+//
+// Con `project` cuenta solo las de ese proyecto: es lo que ofrece el filtro por
+// etiqueta del buscador de un proyecto, donde una etiqueta de otro proyecto
+// solo serviría para dar cero resultados. Vacío, todas.
+func (s *Store) AllTags(ctx context.Context, project string) (map[string]int, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT tag, COUNT(*) FROM summary_tags GROUP BY tag ORDER BY COUNT(*) DESC, tag`)
+		`SELECT t.tag, COUNT(*) FROM summary_tags t
+		 JOIN summaries s ON s.id = t.summary_id
+		 WHERE ? = '' OR s.project_slug = ?
+		 GROUP BY t.tag ORDER BY COUNT(*) DESC, t.tag`, project, project)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("leer etiquetas: %w", err)
 	}
 	defer rows.Close()
 	out := map[string]int{}

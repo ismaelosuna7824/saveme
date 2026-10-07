@@ -41,6 +41,7 @@ import type {
   SummaryDetail,
   SummaryFilter,
   SummaryList,
+  SummaryLinks,
   SummaryMeta,
   WriteResult,
   EmptyTrashResult,
@@ -70,6 +71,9 @@ export const queryKeys = {
     all: ['summaries'] as const,
     list: (filter: SummaryFilter) => ['summaries', 'list', filter] as const,
     detail: (id: string) => ['summaries', 'detail', id] as const,
+    // Bajo `summaries` a propósito: cualquier escritura que invalide los
+    // resúmenes refresca también quién enlaza a quién.
+    links: (id: string) => ['summaries', 'links', id] as const,
   },
   proposals: {
     all: ['proposals'] as const,
@@ -86,7 +90,8 @@ export const queryKeys = {
     file: (path: string) => ['notes', 'file', path] as const,
     search: (query: string) => ['notes', 'search', query] as const,
   },
-  tags: ['tags'] as const,
+  /** `project` vacío son las de todo el workspace. */
+  tags: (project = '') => ['tags', project] as const,
   mcp: {
     providers: ['mcp', 'providers'] as const,
     snippet: (key: string) => ['mcp', 'snippet', key] as const,
@@ -144,6 +149,19 @@ export const summaryQuery = (id: string) =>
     staleTime: 0,
   })
 
+/**
+ * Relacionados y enlaces inversos de un resumen, con su metadata. El loader de
+ * `/s/$id` los precarga junto al detalle para que la sección no aparezca de golpe
+ * después de abrir el editor.
+ */
+export const summaryLinksQuery = (id: string) =>
+  queryOptions({
+    queryKey: queryKeys.summaries.links(id),
+    queryFn: ({ signal }) =>
+      api.get<SummaryLinks>(`/summaries/${encodeURIComponent(id)}/links`, signal),
+    staleTime: 15_000,
+  })
+
 export function useProjects(): UseQueryResult<Project[]> {
   return useQuery(projectsQuery())
 }
@@ -174,16 +192,18 @@ export function useProject(slug: string): {
 }
 
 /**
- * Todas las etiquetas del workspace, con cuántos resúmenes lleva cada una.
+ * Las etiquetas en uso, con cuántos resúmenes lleva cada una: las de todo el
+ * workspace o, con `project`, solo las de ese proyecto.
  *
- * El endpoint existía desde el principio y no lo llamaba nadie: las etiquetas se
- * pintaban pero no se podían usar para navegar. Ahora alimenta el contador de la
- * pantalla de una etiqueta.
+ * Alimenta el contador de la pantalla de una etiqueta y, acotada a un proyecto,
+ * el filtro por etiqueta de su buscador: ahí una etiqueta de otro proyecto solo
+ * daría cero resultados.
  */
-export function useTags(): UseQueryResult<Record<string, number>> {
+export function useTags(project?: string): UseQueryResult<Record<string, number>> {
   return useQuery({
-    queryKey: queryKeys.tags,
-    queryFn: () => api.get<Record<string, number>>('/tags'),
+    queryKey: queryKeys.tags(project),
+    queryFn: ({ signal }) =>
+      api.get<Record<string, number>>(`/tags${buildQuery({ project })}`, signal),
   })
 }
 
@@ -213,6 +233,10 @@ export function useSummaries(
 
 export function useSummary(id: string): UseQueryResult<SummaryDetail> {
   return useQuery({ ...summaryQuery(id), enabled: id.length > 0 })
+}
+
+export function useSummaryLinks(id: string): UseQueryResult<SummaryLinks> {
+  return useQuery({ ...summaryLinksQuery(id), enabled: id.length > 0 })
 }
 
 export function useProposals(
