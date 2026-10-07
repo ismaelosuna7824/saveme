@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { FileQuestion } from 'lucide-react'
 
@@ -50,7 +50,7 @@ export function EditorPage({ id }: { id: string }) {
   const now = useNow(1000)
   const hostRef = useRef<HTMLDivElement | null>(null)
   const previewRef = useRef<HTMLDivElement | null>(null)
-  const [titleDraft, setTitleDraft] = useState('')
+  const [titleDraft, setTitleDraft] = useState(doc?.meta.title ?? '')
   // El diálogo de metadatos vive aquí y no en la barra: la barra es presentación y
   // no tiene por qué saber qué diálogos existen.
   const [metaOpen, setMetaOpen] = useState(false)
@@ -170,10 +170,11 @@ export function EditorPage({ id }: { id: string }) {
   }, [goBackTo])
 
   // El título vive en el frontmatter: se edita reescribiendo esa línea, y el
-  // único escritor del documento sigue siendo CodeMirror.
+  // único escritor del documento sigue siendo CodeMirror. Se sincroniza antes
+  // de pintar para que la caja no aparezca un fotograma vacía.
   const documentTitle = doc?.meta.title
   const documentId = doc?.meta.id
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (documentTitle === undefined) return
     setTitleDraft(documentTitle)
   }, [documentId, documentTitle, adoptVersion])

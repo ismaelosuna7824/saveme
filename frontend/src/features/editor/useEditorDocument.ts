@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 
-import { api } from '@/api/client'
-import { queryKeys, useSummary } from '@/api/queries'
+import { summaryQuery, useSummary } from '@/api/queries'
 import type { SummaryDetail, SummaryMeta } from '@/api/types'
 
 export interface EditorDocument {
@@ -45,11 +44,24 @@ export function useEditorDocument(id: string): EditorDocumentState {
   const query = useSummary(id)
   const queryClient = useQueryClient()
 
-  const [doc, setDoc] = useState<EditorDocument | null>(null)
+  // Si el `loader` de la ruta ya dejó el resumen en caché, el documento nace con
+  // él: así el primer pintado es el editor, no un esqueleto que se cambia por el
+  // editor un fotograma después.
+  const [doc, setDoc] = useState<EditorDocument | null>(() =>
+    query.data === undefined
+      ? null
+      : {
+          meta: query.data.meta,
+          content: query.data.content,
+          savedContent: query.data.content,
+          baseHash: query.data.meta.content_hash,
+          savedAt: null,
+        },
+  )
   const [adoptVersion, setAdoptVersion] = useState(0)
 
-  const docRef = useRef<EditorDocument | null>(null)
-  const adoptedHashRef = useRef<string | null>(null)
+  const docRef = useRef<EditorDocument | null>(doc)
+  const adoptedHashRef = useRef<string | null>(doc?.baseHash ?? null)
   const forceAdoptRef = useRef(false)
 
   useEffect(() => {
@@ -79,11 +91,7 @@ export function useEditorDocument(id: string): EditorDocumentState {
   }, [query.data, query.dataUpdatedAt])
 
   const fetchFresh = useCallback(async (): Promise<SummaryDetail> => {
-    return queryClient.fetchQuery({
-      queryKey: queryKeys.summaries.detail(id),
-      queryFn: ({ signal }) => api.get<SummaryDetail>(`/summaries/${id}`, signal),
-      staleTime: 0,
-    })
+    return queryClient.fetchQuery(summaryQuery(id))
   }, [id, queryClient])
 
   const reloadFromDisk = useCallback(async (): Promise<SummaryDetail | null> => {
@@ -121,7 +129,9 @@ export function useEditorDocument(id: string): EditorDocumentState {
 
   return {
     doc,
-    isLoading: query.isLoading && doc === null,
+    // Con datos y sin documento todavía es el fotograma antes de adoptarlos, no
+    // un «no encontrado»: si no, ese aviso parpadea al abrir cualquier resumen.
+    isLoading: doc === null && (query.isLoading || query.data !== undefined),
     error: query.error,
     dirty: doc !== null && isDirty(doc),
     adoptVersion,

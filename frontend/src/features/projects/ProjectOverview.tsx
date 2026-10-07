@@ -7,6 +7,7 @@ import { SectionHeader } from '@/components/common/SectionHeader'
 import { useDebouncedValue } from '@/lib/hooks'
 import { SearchBox } from '@/features/projects/SearchBox'
 import { SummaryList } from '@/features/projects/SummaryList'
+import { projectOverviewFilter } from '@/features/projects/summaryFilters'
 
 /** Resumen general del proyecto: buscador + últimos resúmenes tocados. */
 export function ProjectOverview({ slug }: { slug: string }) {
@@ -15,11 +16,7 @@ export function ProjectOverview({ slug }: { slug: string }) {
   const debouncedQuery = useDebouncedValue(query, 300).trim()
   const searching = debouncedQuery.length > 0
 
-  const summaries = useSummaries({
-    project: slug,
-    q: searching ? debouncedQuery : undefined,
-    limit: 40,
-  })
+  const summaries = useSummaries(projectOverviewFilter(slug, searching ? debouncedQuery : undefined))
 
   return (
     <div className="flex h-full flex-col">

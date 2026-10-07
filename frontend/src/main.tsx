@@ -1,10 +1,11 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { RouterProvider } from '@tanstack/react-router'
 
 import { UiProvider } from '@/app/preferences'
+import { queryClient } from '@/app/queryClient'
 import { I18nGate } from '@/i18n/I18nGate'
 import { BootGate } from '@/components/boot/BootGate'
 import { DiagramViewerHost } from '@/components/common/DiagramViewer'
@@ -13,16 +14,6 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { router } from '@/router'
 
 import './styles.css'
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      refetchOnWindowFocus: false,
-      staleTime: 10_000,
-    },
-  },
-})
 
 const container = document.getElementById('root')
 if (container === null) {

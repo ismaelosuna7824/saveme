@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useRouterState } from '@tanstack/react-router'
 
 /** Valor que solo se propaga tras `delayMs` sin cambios. */
 export function useDebouncedValue<T>(value: T, delayMs = 300): T {
@@ -10,6 +11,19 @@ export function useDebouncedValue<T>(value: T, delayMs = 300): T {
   }, [value, delayMs])
 
   return debounced
+}
+
+/**
+ * La ruta de la pantalla que se ve ahora mismo.
+ *
+ * No es `location.pathname`: `location` cambia nada más empezar a navegar, y la
+ * pantalla nueva se pinta cuando su `loader` trae los datos. Lo que acompaña al
+ * contenido —pestañas, fondo— tiene que cambiar a la vez que él, no antes.
+ */
+export function useShownPathname(): string {
+  return useRouterState({
+    select: (state) => state.matches[state.matches.length - 1]?.pathname ?? state.location.pathname,
+  })
 }
 
 /**

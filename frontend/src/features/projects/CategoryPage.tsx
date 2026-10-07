@@ -5,19 +5,14 @@ import { SectionHeader } from '@/components/common/SectionHeader'
 import { categoryLabel } from '@/features/projects/CategoryCounts'
 import { categoryDescription } from '@/lib/labels'
 import { SummaryList } from '@/features/projects/SummaryList'
+import { categoryFilter } from '@/features/projects/summaryFilters'
 
 interface CategoryPageProps {
   slug: string
   category: string
 }
 
-/**
- * Resúmenes de una categoría, del más nuevo al más viejo.
- *
- * Se pide `sort=created`: el contrato (§6) lista el parámetro `sort` sin
- * enumerar valores, así que `created` es una suposición razonable, no un valor
- * confirmado por el core.
- */
+/** Resúmenes de una categoría, del más nuevo al más viejo (ver `categoryFilter`). */
 export function CategoryPage({ slug, category }: CategoryPageProps) {
   const t = useT()
   const categories = useCategories()
@@ -26,12 +21,7 @@ export function CategoryPage({ slug, category }: CategoryPageProps) {
   // La descripción se traduce por clave; el texto del core es el respaldo.
   const description = categoryDescription(t, category, meta?.description)
 
-  const summaries = useSummaries({
-    project: slug,
-    category,
-    limit: 200,
-    sort: 'created',
-  })
+  const summaries = useSummaries(categoryFilter(slug, category))
 
   return (
     <div className="flex h-full flex-col">

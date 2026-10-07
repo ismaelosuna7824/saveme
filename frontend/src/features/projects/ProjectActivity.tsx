@@ -16,6 +16,9 @@ const VENTANAS = [
   { days: 365, key: 'projects.activity.window.year' },
 ] as const
 
+/** La ventana con la que abre la pantalla; la ruta la precarga. */
+export const DEFAULT_ACTIVITY_DAYS = 365
+
 /**
  * «Pulso» de un proyecto: dónde se dejó y cómo ha ido.
  *
@@ -27,7 +30,7 @@ const VENTANAS = [
  */
 export function ProjectActivity({ slug }: { slug: string }) {
   const t = useT()
-  const [dias, setDias] = useState<number>(365)
+  const [dias, setDias] = useState<number>(DEFAULT_ACTIVITY_DAYS)
   const briefing = useBriefing(slug, dias)
   const activity = useActivity(slug, dias)
 

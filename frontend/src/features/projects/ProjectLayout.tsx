@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
+import { Outlet, useNavigate } from '@tanstack/react-router'
 import { Activity, Copy, FolderGit2, ImagePlus, TriangleAlert, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -23,7 +23,7 @@ import { ExportProjectButton } from '@/features/projects/ExportProjectButton'
 import { ChangelogButton } from '@/features/projects/ChangelogButton'
 import { ProjectIconDialog } from '@/features/projects/ProjectIconDialog'
 import { NewSummaryDialog } from '@/features/projects/NewSummaryDialog'
-import { copyToClipboard } from '@/lib/hooks'
+import { copyToClipboard, useShownPathname } from '@/lib/hooks'
 import { formatRelative } from '@/lib/format'
 
 interface ProjectLayoutProps {
@@ -47,7 +47,7 @@ export function ProjectLayout({ slug }: ProjectLayoutProps) {
   const [backgroundOpen, setBackgroundOpen] = useState(false)
   const [iconOpen, setIconOpen] = useState(false)
   const config = useConfig()
-  const pathname = useRouterState({ select: (state) => state.location.pathname })
+  const pathname = useShownPathname()
 
   const activeCategory = useMemo(() => {
     const parts = pathname.split('/').filter((part) => part.length > 0)

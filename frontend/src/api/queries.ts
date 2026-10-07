@@ -3,6 +3,7 @@
  * componente llama a `fetch` directamente.
  */
 import {
+  queryOptions,
   useMutation,
   useQuery,
   useQueryClient,
@@ -105,12 +106,46 @@ export function useHealth(refetchInterval: number | false = false): UseQueryResu
   })
 }
 
-export function useProjects(): UseQueryResult<Project[]> {
-  return useQuery({
+/**
+ * Opciones de las lecturas que también precargan las rutas.
+ *
+ * El hook y el `loader` de la ruta comparten clave, `queryFn` y `staleTime`: si
+ * no, la ruta llenaría una entrada de caché que el componente no lee y la
+ * pantalla volvería a pasar por el esqueleto.
+ */
+export const projectsQuery = () =>
+  queryOptions({
     queryKey: queryKeys.projects,
     queryFn: ({ signal }) => api.get<Project[]>('/projects', signal),
     staleTime: 30_000,
   })
+
+export const categoriesQuery = () =>
+  queryOptions({
+    queryKey: queryKeys.categories,
+    queryFn: ({ signal }) => api.get<Category[]>('/categories', signal),
+    // La taxonomía es estática mientras corre el proceso.
+    staleTime: Infinity,
+  })
+
+export const summariesQuery = (filter: SummaryFilter) =>
+  queryOptions({
+    queryKey: queryKeys.summaries.list(filter),
+    queryFn: ({ signal }) =>
+      api.get<SummaryList>(`/summaries${buildQuery({ ...filter })}`, signal),
+    staleTime: 15_000,
+  })
+
+export const summaryQuery = (id: string) =>
+  queryOptions({
+    queryKey: queryKeys.summaries.detail(id),
+    queryFn: ({ signal }) => api.get<SummaryDetail>(`/summaries/${id}`, signal),
+    // El contenido en disco manda: nunca servimos caché para editar.
+    staleTime: 0,
+  })
+
+export function useProjects(): UseQueryResult<Project[]> {
+  return useQuery(projectsQuery())
 }
 
 /**
@@ -153,35 +188,18 @@ export function useTags(): UseQueryResult<Record<string, number>> {
 }
 
 export function useCategories(): UseQueryResult<Category[]> {
-  return useQuery({
-    queryKey: queryKeys.categories,
-    queryFn: ({ signal }) => api.get<Category[]>('/categories', signal),
-    // La taxonomía es estática mientras corre el proceso.
-    staleTime: Infinity,
-  })
+  return useQuery(categoriesQuery())
 }
 
 export function useSummaries(
   filter: SummaryFilter,
   options: { enabled?: boolean } = {},
 ): UseQueryResult<SummaryList> {
-  return useQuery({
-    queryKey: queryKeys.summaries.list(filter),
-    queryFn: ({ signal }) =>
-      api.get<SummaryList>(`/summaries${buildQuery({ ...filter })}`, signal),
-    staleTime: 15_000,
-    enabled: options.enabled ?? true,
-  })
+  return useQuery({ ...summariesQuery(filter), enabled: options.enabled ?? true })
 }
 
 export function useSummary(id: string): UseQueryResult<SummaryDetail> {
-  return useQuery({
-    queryKey: queryKeys.summaries.detail(id),
-    queryFn: ({ signal }) => api.get<SummaryDetail>(`/summaries/${id}`, signal),
-    // El contenido en disco manda: nunca servimos caché para editar.
-    staleTime: 0,
-    enabled: id.length > 0,
-  })
+  return useQuery({ ...summaryQuery(id), enabled: id.length > 0 })
 }
 
 export function useProposals(
@@ -287,8 +305,8 @@ export function useDigest(days: number): UseQueryResult<Digest> {
  * se mira al abrir un proyecto, y enseñar el de hace un rato justo cuando acaba de
  * llegar una propuesta nueva es la peor forma de fallar.
  */
-export function useBriefing(slug: string, days: number): UseQueryResult<Briefing> {
-  return useQuery({
+export const briefingQuery = (slug: string, days: number) =>
+  queryOptions({
     queryKey: queryKeys.briefing(slug, days),
     queryFn: ({ signal }) =>
       api.get<Briefing>(
@@ -296,12 +314,14 @@ export function useBriefing(slug: string, days: number): UseQueryResult<Briefing
         signal,
       ),
     staleTime: 30_000,
-    enabled: slug.length > 0,
   })
+
+export function useBriefing(slug: string, days: number): UseQueryResult<Briefing> {
+  return useQuery({ ...briefingQuery(slug, days), enabled: slug.length > 0 })
 }
 
-export function useActivity(slug: string, days: number): UseQueryResult<ActivityMap> {
-  return useQuery({
+export const activityQuery = (slug: string, days: number) =>
+  queryOptions({
     queryKey: queryKeys.activity(slug, days),
     queryFn: ({ signal }) =>
       api.get<ActivityMap>(
@@ -309,8 +329,10 @@ export function useActivity(slug: string, days: number): UseQueryResult<Activity
         signal,
       ),
     staleTime: 60_000,
-    enabled: slug.length > 0,
   })
+
+export function useActivity(slug: string, days: number): UseQueryResult<ActivityMap> {
+  return useQuery({ ...activityQuery(slug, days), enabled: slug.length > 0 })
 }
 
 /**

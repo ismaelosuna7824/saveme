@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react'
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { getCM, vim, type CodeMirror } from '@replit/codemirror-vim'
@@ -126,7 +126,9 @@ export function useMarkdownEditor({
     onDocChangeRef.current = onDocChange
   })
 
-  useEffect(() => {
+  // `useLayoutEffect` y no `useEffect`: el editor se monta antes de que el
+  // navegador pinte, así que el resumen no aparece primero como un hueco vacío.
+  useLayoutEffect(() => {
     if (!ready) return
     const host = hostRef.current
     if (host === null) return
