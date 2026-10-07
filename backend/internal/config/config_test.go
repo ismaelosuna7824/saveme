@@ -2,7 +2,6 @@ package config
 
 import "testing"
 
-
 // La lista de raíces recientes es lo que permite reconocer un workspace que se ha
 // movido: vive en el archivo de configuración, que está **fuera** de la carpeta
 // que se mueve.
