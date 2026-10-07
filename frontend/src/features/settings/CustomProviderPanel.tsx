@@ -3,7 +3,6 @@ import { Eye, Plug, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { errorMessage } from '@/api/client'
-import { asStringArray } from '@/api/normalize'
 import { useConfigureMCP, useMCPCustomSnippet, useUnconfigureMCP } from '@/api/queries'
 import type { MCPCustomDef } from '@/api/types'
 import { ErrorPanel } from '@/components/common/ErrorPanel'
@@ -14,6 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { CopyField } from '@/features/onboarding/CopyField'
 import { useT } from '@/i18n'
+import { mcpNoticeText, providerName, snippetWarnings } from '@/lib/labels'
 
 /**
  * Configurar un cliente que no está en la lista.
@@ -68,14 +68,14 @@ export function CustomProviderPanel() {
               })
               break
             case 'already-configured':
-              toast.info(t('settings.agents.custom.present'), { description: result.message })
+              toast.info(t('settings.agents.custom.present'), { description: mcpNoticeText(t, result) || undefined })
               break
             case 'manual':
-              toast.warning(t('settings.agents.custom.manual'), { description: result.message })
+              toast.warning(t('settings.agents.custom.manual'), { description: mcpNoticeText(t, result) || undefined })
               setPreviewed(custom)
               break
             default:
-              toast.error(t('settings.agents.custom.failed'), { description: result?.message })
+              toast.error(t('settings.agents.custom.failed'), { description: mcpNoticeText(t, result) || undefined })
           }
         },
         onError: (error) =>
@@ -92,7 +92,7 @@ export function CustomProviderPanel() {
       {
         onSuccess: (data) => {
           const result = data.results[0]
-          const description = result?.message
+          const description = mcpNoticeText(t, result) || undefined
           const name = t('settings.agents.custom.title')
           switch (result?.action) {
             case 'removed':
@@ -198,11 +198,13 @@ export function CustomProviderPanel() {
         {previewed !== null && snippet.data ? (
           <div className="space-y-1.5">
             <CopyField
-              label={t('onboarding.apply.snippet', { name: snippet.data.name })}
+              label={t('onboarding.apply.snippet', {
+                name: providerName(t, snippet.data.provider, snippet.data.name),
+              })}
               value={snippet.data.body}
               maxLines={12}
             />
-            {asStringArray(snippet.data.warnings).map((warning) => (
+            {snippetWarnings(t, snippet.data).map((warning) => (
               <p key={warning} className="text-2xs text-primary/85">
                 {warning}
               </p>

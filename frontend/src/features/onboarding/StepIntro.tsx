@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { CopyField } from '@/features/onboarding/CopyField'
 import { useT } from '@/i18n'
+import { mcpNoticeText } from '@/lib/labels'
 
 /** Ruta futura documentada por el core cuando todavía no se instaló nada. */
 const FUTURE_PATH = '~/.saveme/bin/saveme'
@@ -137,7 +138,7 @@ export function StepIntro() {
         <div className="space-y-1 border border-secondary/35 bg-secondary/5 px-2 py-1.5">
           <div className="flex items-center gap-1.5 text-2xs text-secondary">
             <ShieldCheck className="size-3" />
-            {installed.message}
+            {mcpNoticeText(t, installed)}
           </div>
           <code className="block break-all text-2xs text-foreground">{installed.path}</code>
           <p className="flex items-start gap-1.5 text-2xs text-muted-foreground">

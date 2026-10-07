@@ -168,7 +168,7 @@ section('5. El nombre del fichero se puede guardar')
   check('ni un ..', !changelogFileName('../etc/passwd', 'x').includes('..'))
   check(
     'un proyecto vacío tiene nombre igual',
-    changelogFileName('', '2026-03-10T23:59:59Z') === 'saveme-proyecto-changelog-2026-03-10.md',
+    changelogFileName('', '2026-03-10T23:59:59Z') === 'saveme-project-changelog-2026-03-10.md',
   )
 }
 

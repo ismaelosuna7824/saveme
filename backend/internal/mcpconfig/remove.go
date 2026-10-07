@@ -45,12 +45,16 @@ func Remove(p Provider, opts Options) (WriteResult, error) {
 			Command: command,
 			Message: "Este cliente se configura con un comando, así que no hay archivo " +
 				"que tocar. Quítalo con: " + command,
+			Code: "remove_cli_command",
+			Vars: map[string]string{"command": command},
 		}, nil
 	case FormatDelegated:
 		return WriteResult{
 			Action: ActionAbsent,
 			Message: p.Name + " no tiene configuración propia: quita SaveMe de los agentes " +
 				"que lanza.",
+			Code: "remove_delegated",
+			Vars: map[string]string{"provider": p.Key, "via": strings.Join(p.Via, ",")},
 		}, nil
 	}
 
@@ -69,6 +73,7 @@ func Remove(p Provider, opts Options) (WriteResult, error) {
 			Path:    path,
 			Action:  ActionAbsent,
 			Message: "No hay nada que quitar: el archivo de configuración no existe.",
+			Code:    "remove_no_file",
 		}, nil
 	}
 	if err != nil {
@@ -88,6 +93,7 @@ func Remove(p Provider, opts Options) (WriteResult, error) {
 			Action: ActionAbsent,
 			Message: "A este cliente nunca le escribí la configuración, así que no hay " +
 				"nada que quitar: si lo pegaste a mano, bórralo a mano.",
+			Code: "remove_manual",
 		}, nil
 	}
 }
@@ -100,6 +106,8 @@ func removeJSON(p Provider, opts Options, path string, existing []byte) (WriteRe
 			Message: "Tu archivo tiene comentarios (JSONC) y reescribirlo te los borraría, " +
 				"así que no lo toco. Quita a mano la entrada \"" + opts.Name +
 				"\" de \"" + serversLabel(p) + "\".",
+			Code: "remove_jsonc",
+			Vars: map[string]string{"name": opts.Name, "key": serversLabel(p)},
 		}, nil
 	}
 
@@ -118,6 +126,8 @@ func removeJSON(p Provider, opts Options, path string, existing []byte) (WriteRe
 			Path:    path,
 			Action:  ActionAbsent,
 			Message: "«" + opts.Name + "» no estaba configurado; no toqué el archivo.",
+			Code:    "remove_not_configured",
+			Vars:    map[string]string{"name": opts.Name},
 		}, nil
 	}
 
@@ -146,6 +156,7 @@ func removeJSON(p Provider, opts Options, path string, existing []byte) (WriteRe
 			Action:  ActionRemoved,
 			Backup:  backup,
 			Message: "Quitada la entrada y borrado el archivo, que solo tenía esto.",
+			Code:    "remove_entry_file_deleted",
 		}, nil
 	}
 
@@ -206,6 +217,8 @@ func removeTOML(p Provider, opts Options, path string, existing []byte) (WriteRe
 			Path:    path,
 			Action:  ActionAbsent,
 			Message: "«" + opts.Name + "» no estaba en el archivo; no lo toqué.",
+			Code:    "remove_not_in_file",
+			Vars:    map[string]string{"name": opts.Name},
 		}, nil
 	}
 	if end == -1 {
@@ -227,6 +240,7 @@ func removeTOML(p Provider, opts Options, path string, existing []byte) (WriteRe
 			Action:  ActionRemoved,
 			Backup:  backup,
 			Message: "Quitada la sección y borrado el archivo, que solo tenía esto.",
+			Code:    "remove_section_file_deleted",
 		}, nil
 	}
 

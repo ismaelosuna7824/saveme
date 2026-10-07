@@ -3,12 +3,12 @@ import { Link } from '@tanstack/react-router'
 import { toast } from 'sonner'
 import { Check, Clock, FolderInput, GitBranch, GitCompare, History, Paperclip, Trash2, User } from 'lucide-react'
 
-import { useT } from '@/i18n'
+import { useT, type Translate } from '@/i18n'
 
 import { errorMessage } from '@/api/client'
 import { asArray, asStringArray } from '@/api/normalize'
 import { useCancelProposal, useConfirmProposal, useSummary } from '@/api/queries'
-import type { Proposal, ProposalAlternative, SecretFinding } from '@/api/types'
+import type { Proposal, ProposalAlternative, ProposalInference, SecretFinding } from '@/api/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { CategoryBadge } from '@/components/common/CategoryBadge'
@@ -35,6 +35,31 @@ function ConfidenceMeter({ confidence }: { confidence: number }) {
       <span className="text-2xs text-primary">{formatConfidence(confidence)}</span>
     </div>
   )
+}
+
+/**
+ * Por qué se propuso la categoría, en el idioma de la interfaz.
+ *
+ * El core la explica en español para el agente; aquí se monta desde `kind`. Solo
+ * una propuesta anterior a que existiera `kind` cae en la frase del core.
+ */
+function inferenceReason(t: Translate, inference: ProposalInference, evidence: string[]): string {
+  const category = categoryLabel(t, inference.category)
+  const vars = { category, evidence: evidence.map((e) => `«${e}»`).join(', ') }
+  switch (inference.kind) {
+    case 'explicit':
+      return t('inbox.inference.explicit')
+    case 'none':
+      return t('inbox.inference.none', vars)
+    case 'signals':
+      return t('inbox.inference.signals', vars)
+    case 'tie':
+      return inference.runner_up
+        ? t('inbox.inference.tie', { ...vars, runnerUp: categoryLabel(t, inference.runner_up) })
+        : t('inbox.inference.tieUnknown', vars)
+    default:
+      return inference.reason
+  }
 }
 
 /**
@@ -169,7 +194,7 @@ export function ProposalCard({ proposal }: { proposal: Proposal }) {
             </span>
             <ConfidenceMeter confidence={proposal.inference.confidence} />
           </div>
-          <p className="mt-1 text-xs text-foreground">{proposal.inference.reason}</p>
+          <p className="mt-1 text-xs text-foreground">{inferenceReason(t, proposal.inference, evidence)}</p>
           {evidence.length > 0 ? (
             <div className="mt-1 flex flex-wrap gap-1">
               {evidence.slice(0, 8).map((item) => (

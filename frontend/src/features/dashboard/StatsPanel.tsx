@@ -1,3 +1,4 @@
+import { errorMessage } from '@/api/client'
 import { useStats } from '@/api/queries'
 import { CategoryBadge } from '@/components/common/CategoryBadge'
 import { SectionHeader } from '@/components/common/SectionHeader'
@@ -34,9 +35,7 @@ export function StatsPanel() {
         </div>
       ) : error ? (
         <p className="text-2xs text-destructive">
-          {t('dashboard.stats.error', {
-            message: error instanceof Error ? error.message : t('common.state.error'),
-          })}
+          {t('dashboard.stats.error', { message: errorMessage(error) })}
         </p>
       ) : (
         <>

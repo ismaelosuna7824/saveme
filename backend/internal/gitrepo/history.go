@@ -82,13 +82,33 @@ func ChangesSince(ctx context.Context, top string, files []string, afterSHA stri
 	if err != nil {
 		return out, err
 	}
+	out.Latest = parseLog(raw)
+	return out, nil
+}
+
+// Log devuelve los últimos `limit` commits de la rama actual, el más reciente
+// primero.
+func Log(ctx context.Context, top string, limit int) ([]Commit, error) {
+	if limit <= 0 {
+		return []Commit{}, nil
+	}
+	raw, err := run(ctx, top, "log", "-n", strconv.Itoa(limit), "--format=%H%x1f%cI%x1f%s", "HEAD")
+	if err != nil {
+		return nil, err
+	}
+	return parseLog(raw), nil
+}
+
+// parseLog lee la salida de `git log --format=%H%x1f%cI%x1f%s`.
+func parseLog(raw string) []Commit {
+	out := []Commit{}
 	for _, line := range strings.Split(raw, "\n") {
 		parts := strings.SplitN(line, "\x1f", 3)
 		if len(parts) != 3 {
 			continue
 		}
 		when, _ := time.Parse(time.RFC3339, parts[1])
-		out.Latest = append(out.Latest, Commit{SHA: parts[0], When: when, Subject: parts[2]})
+		out = append(out, Commit{SHA: parts[0], When: when, Subject: parts[2]})
 	}
-	return out, nil
+	return out
 }

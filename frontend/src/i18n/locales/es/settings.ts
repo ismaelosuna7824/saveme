@@ -301,6 +301,7 @@ export const settings = {
     reindexFailed: 'no pude reindexar',
     reindexFailedToast: 'No pude reindexar',
     location: 'ubicación',
+    root: 'raíz',
     configFile: 'configuración',
     added: 'añadidos',
     updated: 'actualizados',
@@ -323,11 +324,13 @@ export const settings = {
       label: 'reindexar',
       description: 'Reconciliar el índice con los archivos que hay ahora.',
       done: 'Índice reconstruido: {indexed} archivos, {unchanged} sin cambios',
+      summary: '{indexed} archivos leídos · {projects} proyectos · {ms} ms',
       failed: 'La reindexación terminó con {count} avisos',
     },
     doctor: {
       title: 'cómo funciona',
       description: 'Si algo no cuadra, este comando diagnostica sin tocar nada:',
+      lead: 'El workspace son archivos markdown normales en disco: ábrelos, muévelos o versiónalos con git sin pasar por la app. El índice solo acelera las búsquedas y se puede reconstruir sin perder contenido.',
     },
   },
     trash: {

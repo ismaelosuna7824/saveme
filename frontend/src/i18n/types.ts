@@ -18,11 +18,6 @@ export const LOCALE_LABEL: Record<Locale, string> = {
   en: 'English',
 }
 
-export const LOCALE_HINT: Record<Locale, string> = {
-  es: 'La interfaz en español.',
-  en: 'The interface in English.',
-}
-
 export function isLocale(value: string): value is Locale {
   return (LOCALES as readonly string[]).includes(value)
 }

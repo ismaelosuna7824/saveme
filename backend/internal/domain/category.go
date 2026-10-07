@@ -213,11 +213,26 @@ var commonalityOrder = []string{
 // Inference explica por qué se propuso una categoría. Siempre viaja hasta el
 // usuario: la inferencia nunca decide en silencio.
 type Inference struct {
-	Category   string   `json:"category"`
+	Category string `json:"category"`
+	// Reason es la explicación en español, para el agente. La interfaz no la
+	// enseña tal cual: la monta en su idioma a partir de Kind, Evidence y RunnerUp.
 	Reason     string   `json:"reason"`
 	Confidence float64  `json:"confidence"`
 	Evidence   []string `json:"evidence"`
+	// Kind dice cómo se llegó a la categoría: InferenceExplicit, InferenceNone,
+	// InferenceSignals o InferenceTie.
+	Kind string `json:"kind,omitempty"`
+	// RunnerUp es la categoría empatada, en InferenceTie.
+	RunnerUp string `json:"runner_up,omitempty"`
 }
+
+// Cómo se llegó a una categoría. Son claves estables: la interfaz las traduce.
+const (
+	InferenceExplicit = "explicit" // la pidió quien propone
+	InferenceNone     = "none"     // sin señales: feature por defecto
+	InferenceSignals  = "signals"  // la que más señales tiene
+	InferenceTie      = "tie"      // empate, desempatado por prioridad
+)
 
 // InferCategory propone una categoría a partir del título y el cuerpo.
 //
@@ -235,6 +250,7 @@ func InferCategory(title, body string) Inference {
 				"es el caso más común. Confírmalo o elige otra carpeta.",
 			Confidence: 0.15,
 			Evidence:   []string{},
+			Kind:       InferenceNone,
 		}
 	}
 
@@ -252,23 +268,25 @@ func InferCategory(title, body string) Inference {
 	}
 	confidence := round2(0.15 + dominance*(0.6+0.4*evidence/3)*0.85)
 
-	reason := fmt.Sprintf("El título y el cuerpo mencionan %s, que es señal de %s.",
-		quoteList(hits[winner]), categoryLabel(winner))
+	out := Inference{
+		Category:   winner,
+		Confidence: confidence,
+		Evidence:   hits[winner],
+		Kind:       InferenceSignals,
+		Reason: fmt.Sprintf("El título y el cuerpo mencionan %s, que es señal de %s.",
+			quoteList(hits[winner]), categoryLabel(winner)),
+	}
 	if len(ordered) > 1 && scores[ordered[1]] == scores[winner] {
 		// Con la misma evidencia la decisión es un desempate por prioridad, no
 		// una conclusión: hay que decirlo así y pedir confirmación.
-		reason = fmt.Sprintf(
+		out.Kind = InferenceTie
+		out.RunnerUp = ordered[1]
+		out.Reason = fmt.Sprintf(
 			"%s y %s tienen la misma evidencia (%s), así que propongo %s por ser la más específica. Confírmalo o elige otra carpeta.",
 			categoryLabel(winner), categoryLabel(ordered[1]),
 			quoteList(hits[winner]), categoryLabel(winner))
 	}
-
-	return Inference{
-		Category:   winner,
-		Reason:     reason,
-		Confidence: confidence,
-		Evidence:   hits[winner],
-	}
+	return out
 }
 
 // Alternatives devuelve hasta n categorías alternativas ordenadas por puntaje,

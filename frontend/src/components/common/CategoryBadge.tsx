@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useT } from '@/i18n'
-import { categoryLabel } from '@/lib/labels'
+import { categoryDescription, categoryLabel } from '@/lib/labels'
 
 import { useCategories } from '@/api/queries'
 import type { Category } from '@/api/types'
@@ -53,7 +53,7 @@ export function CategoryBadge({ category, className, withDescription = false }: 
     <Badge
       variant={variant}
       className={cn('uppercase', className)}
-      title={withDescription ? meta?.description : undefined}
+      title={withDescription ? categoryDescription(t, category, meta?.description) : undefined}
     >
       {label}
     </Badge>

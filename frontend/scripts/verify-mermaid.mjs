@@ -24,6 +24,7 @@ import { join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { isDiagramLanguage, mermaidThemeVariables } from '../src/lib/mermaid.ts'
+import { decisionMapDiagram, mermaidLabel } from '../src/features/projects/decisionMapDiagram.ts'
 import { MAX_SCALE, MIN_SCALE, fitView, zoomAt } from '../src/lib/panZoom.ts'
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url))
@@ -160,6 +161,42 @@ check('encajar un diagrama ancho lo ajusta al ancho', close(wide.scale, 1000 / 4
 check('y lo centra', close(wide.x, 24) && close(wide.y, (648 - 1000 * wide.scale) / 2))
 const tiny = fitView({ width: 50, height: 20 }, { width: 1048, height: 648 }, 24)
 check('encajar uno diminuto no lo amplía sin límite', tiny.scale === 2)
+
+// --- 6. El mapa de decisiones -------------------------------------------------
+
+section('6. El mapa de decisiones genera un diagrama válido')
+// Un título con comillas o con `<` cerraría la etiqueta o colaría HTML: el mapa
+// entero saldría como error de sintaxis.
+const raro = mermaidLabel('Usar "comillas" y <b>html</b>')
+check('las comillas y los < > de un título se escapan', !/["<>]/.test(raro))
+check('un título largo se recorta', mermaidLabel('x'.repeat(200)).length <= 48)
+
+// El título no repite el id: así se ve si el id del frontmatter se cuela en el diagrama.
+const node = (id, extra = {}) => ({
+  id, title: `Decisión ${id.slice(3)}`, category: 'design', project_slug: 'alfa', created_at: '2026-10-01T10:00:00Z',
+  superseded: false, stale: false, external: false, ...extra,
+})
+const mapa = decisionMapDiagram(
+  {
+    nodes: [node('sm_a', { superseded: true }), node('sm_b'), node('sm_c', { stale: true })],
+    edges: [
+      { from: 'sm_b', to: 'sm_a', kind: 'supersedes' },
+      { from: 'sm_c', to: 'sm_b', kind: 'related' },
+      { from: 'sm_c', to: 'sm_fuera', kind: 'related' },
+    ],
+    isolated: 0,
+    omitted: 0,
+  },
+  { supersedes: 'sustituye' },
+  { warning: '#ffb454' },
+)
+check('empieza como flowchart', mapa.code.startsWith('flowchart LR'))
+check('los ids del frontmatter no entran en el diagrama', !mapa.code.includes('sm_'))
+check('cada nodo vuelve a su resumen', mapa.nodeIds.get('n0') === 'sm_a' && mapa.nodeIds.get('n2') === 'sm_c')
+check('«sustituye» es una arista discontinua con su etiqueta', mapa.code.includes('n1 -. sustituye .-> n0'))
+check('«relacionado» es una arista continua', mapa.code.includes('n2 --> n1'))
+check('un enlace a un nodo que no está no se dibuja', mapa.code.split('-->').length === 2)
+check('lo sustituido y lo desactualizado llevan su clase', mapa.code.includes('class n0 superseded') && mapa.code.includes('class n2 stale'))
 
 console.log('')
 if (failures > 0) {

@@ -200,13 +200,18 @@ check(
     "The root folder can't be empty.",
 )
 check(
-  'un código con detalle dinámico conserva el texto del servidor',
-  asLocale('en', () => translateError('invalid', 'el título no puede estar vacío')) ===
+  'un código con detalle dinámico conserva el texto del core en español',
+  asLocale('es', () => translateError('invalid', 'el título no puede estar vacío')) ===
     'el título no puede estar vacío',
 )
 check(
+  'un código con detalle dinámico no deja el texto del core en inglés',
+  asLocale('en', () => translateError('invalid', 'el título no puede estar vacío')) ===
+    'The input is not valid.',
+)
+check(
   'un código desconocido conserva el texto del servidor',
-  asLocale('en', () => translateError('list_failed', 'listar: boom')) === 'listar: boom',
+  asLocale('en', () => translateError('codigo_nuevo', 'listar: boom')) === 'listar: boom',
 )
 const network = asLocale('en', () =>
   translateError('network_error', 'FALLBACK', { base: 'http://x', detail: 'boom' }),

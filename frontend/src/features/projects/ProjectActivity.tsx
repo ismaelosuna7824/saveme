@@ -37,7 +37,9 @@ export function ProjectActivity({ slug }: { slug: string }) {
   return (
     <div className="h-full overflow-y-auto">
       <div className="space-y-5 p-3">
-        <section className="space-y-2">
+        {/* Cada bloque va en su tarjeta de cristal: con imagen de fondo, el texto
+            quedaba directamente sobre la foto y no se leía. */}
+        <section className="backdrop-surface space-y-2 border border-border p-2">
           <div className="flex flex-wrap items-center gap-2">
             <SectionHeader
               title={t('projects.activity.title')}
@@ -81,7 +83,7 @@ export function ProjectActivity({ slug }: { slug: string }) {
         </section>
 
         {briefing.isLoading ? (
-          <div className="space-y-2">
+          <div className="backdrop-surface space-y-2 border border-border p-2">
             <Skeleton className="h-4 w-1/3" />
             <Skeleton className="h-32 w-full" />
           </div>

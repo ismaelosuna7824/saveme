@@ -224,6 +224,7 @@ func (s *Service) Propose(ctx context.Context, req domain.CreateRequest) (*Prepa
 			Reason:     "Lo pediste explícitamente.",
 			Confidence: 1,
 			Evidence:   []string{},
+			Kind:       domain.InferenceExplicit,
 		}
 	} else {
 		inference = domain.InferCategory(req.Title, req.Body)
@@ -352,28 +353,30 @@ func (s *Service) Propose(ctx context.Context, req domain.CreateRequest) (*Prepa
 	}
 
 	rec := store.ProposalRecord{
-		Token:           domain.NewToken(),
-		ProjectSlug:     projectSlug,
-		Category:        category.Key,
-		Title:           strings.TrimSpace(req.Title),
-		RelPath:         relPath,
-		Body:            req.Body,
-		SummaryLine:     summaryLine,
-		PayloadHash:     payloadHash,
-		InferenceReason: inference.Reason,
-		Confidence:      inference.Confidence,
-		Evidence:        inference.Evidence,
-		Alternatives:    alternatives,
-		CreatedAt:       now,
-		ExpiresAt:       now.Add(ProposalTTL),
-		Agent:           req.Agent,
-		Tags:            tags,
-		FilesTouched:    req.FilesTouched,
-		CommitSHA:       req.Commit,
-		TargetID:        targetID,
-		BaseHash:        baseHash,
-		Related:         related,
-		Supersedes:      supersedes,
+		Token:             domain.NewToken(),
+		ProjectSlug:       projectSlug,
+		Category:          category.Key,
+		Title:             strings.TrimSpace(req.Title),
+		RelPath:           relPath,
+		Body:              req.Body,
+		SummaryLine:       summaryLine,
+		PayloadHash:       payloadHash,
+		InferenceReason:   inference.Reason,
+		InferenceKind:     inference.Kind,
+		InferenceRunnerUp: inference.RunnerUp,
+		Confidence:        inference.Confidence,
+		Evidence:          inference.Evidence,
+		Alternatives:      alternatives,
+		CreatedAt:         now,
+		ExpiresAt:         now.Add(ProposalTTL),
+		Agent:             req.Agent,
+		Tags:              tags,
+		FilesTouched:      req.FilesTouched,
+		CommitSHA:         req.Commit,
+		TargetID:          targetID,
+		BaseHash:          baseHash,
+		Related:           related,
+		Supersedes:        supersedes,
 	}
 	if repo != nil {
 		rec.RepoRemote = repo.id.Remote
@@ -404,17 +407,20 @@ func (s *Service) Propose(ctx context.Context, req domain.CreateRequest) (*Prepa
 func (s *Service) toProposal(_ context.Context, rec store.ProposalRecord) (*domain.Proposal, error) {
 	abs := filepath.Join(s.ws.Root(), filepath.FromSlash(rec.RelPath))
 	return &domain.Proposal{
-		Token:        rec.Token,
-		ProjectSlug:  rec.ProjectSlug,
-		Category:     rec.Category,
-		Title:        rec.Title,
-		RelPath:      rec.RelPath,
-		AbsPath:      abs,
-		Filename:     filepath.Base(rec.RelPath),
-		ExpiresAt:    rec.ExpiresAt,
-		CreatedAt:    rec.CreatedAt,
-		Status:       rec.Status,
-		Inference:    domain.Inference{Category: rec.Category, Reason: rec.InferenceReason, Confidence: rec.Confidence, Evidence: rec.Evidence},
+		Token:       rec.Token,
+		ProjectSlug: rec.ProjectSlug,
+		Category:    rec.Category,
+		Title:       rec.Title,
+		RelPath:     rec.RelPath,
+		AbsPath:     abs,
+		Filename:    filepath.Base(rec.RelPath),
+		ExpiresAt:   rec.ExpiresAt,
+		CreatedAt:   rec.CreatedAt,
+		Status:      rec.Status,
+		Inference: domain.Inference{
+			Category: rec.Category, Reason: rec.InferenceReason, Confidence: rec.Confidence,
+			Evidence: rec.Evidence, Kind: rec.InferenceKind, RunnerUp: rec.InferenceRunnerUp,
+		},
 		Alternatives: rec.Alternatives,
 		Preview:      rec.Body,
 		BodyBytes:    len(rec.Body),
@@ -870,7 +876,9 @@ func (s *Service) Cancel(ctx context.Context, token, via, reason string) error {
 	if err != nil {
 		return err
 	}
-	if rec.Status != domain.ProposalPending {
+	// Las vencidas también se descartan: siguen en el inbox hasta que alguien
+	// decide, y «ya fue resuelta» era mentira para una que nadie había tocado.
+	if rec.Status != domain.ProposalPending && rec.Status != domain.ProposalExpired {
 		return ErrProposalResolved
 	}
 	ok, err := s.st.ResolveProposal(ctx, token, domain.ProposalCancelled, "cancelled", via, "", "", time.Now().UTC())

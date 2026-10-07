@@ -1,5 +1,10 @@
 /** Textos de `editor`. Ver `es/common.ts` para el criterio. */
 export const editor = {
+  /** Etiqueta accesible de la casilla de una tarea en el Live Preview. */
+  task: {
+    markDone: 'Marcar como hecha',
+    markPending: 'Marcar como pendiente',
+  },
   meta: {
     title: 'corregir categoría y título',
     description:

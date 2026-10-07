@@ -400,6 +400,39 @@ func TestExpiredProposalCannotBeConfirmed(t *testing.T) {
 	}
 }
 
+// Una vencida sigue en el inbox hasta que alguien decide, y descartarla tiene que
+// funcionar: «ya fue resuelta» era falso para una que nadie había tocado. Lo que
+// sí está resuelto —confirmado o descartado— no se puede volver a descartar.
+func TestExpiredProposalCanBeDiscarded(t *testing.T) {
+	ctx := context.Background()
+	svc, root := newTestService(t)
+
+	prep, _ := svc.Propose(ctx, sampleRequest())
+	token := prep.Proposal.Token
+	if _, err := svc.Store().DB().ExecContext(ctx,
+		`UPDATE proposals SET expires_at = ? WHERE token = ?`,
+		time.Now().UTC().Add(-time.Minute).Format(time.RFC3339Nano), token); err != nil {
+		t.Fatal(err)
+	}
+	if n, err := svc.ExpireProposals(ctx); err != nil || n != 1 {
+		t.Fatalf("ExpireProposals = %d, %v", n, err)
+	}
+
+	if err := svc.Cancel(ctx, token, domain.ResolvedViaUI, "ya no hace falta"); err != nil {
+		t.Fatalf("descartar una vencida tiene que funcionar: %v", err)
+	}
+	rec, _ := svc.Store().GetProposal(ctx, token)
+	if rec.Status != domain.ProposalCancelled {
+		t.Errorf("status = %q, esperaba cancelled", rec.Status)
+	}
+	if files := markdownFiles(t, root); len(files) != 0 {
+		t.Errorf("descartar no escribe nada: %v", files)
+	}
+	if err := svc.Cancel(ctx, token, domain.ResolvedViaUI, ""); !errors.Is(err, ErrProposalResolved) {
+		t.Errorf("descartar dos veces tiene que decir que ya está resuelta, dio %v", err)
+	}
+}
+
 func TestUnknownTokenRejected(t *testing.T) {
 	ctx := context.Background()
 	svc, _ := newTestService(t)

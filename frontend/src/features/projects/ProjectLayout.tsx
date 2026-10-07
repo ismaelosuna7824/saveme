@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Outlet, useNavigate } from '@tanstack/react-router'
-import { Activity, Copy, FolderGit2, ImagePlus, TriangleAlert, Trash2 } from 'lucide-react'
+import { Activity, Copy, FolderGit2, GitFork, History, ImagePlus, TriangleAlert, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
@@ -55,12 +55,14 @@ export function ProjectLayout({ slug }: ProjectLayoutProps) {
     return parts[0] === 'p' && parts[2] ? decodeURIComponent(parts[2]) : 'todas'
   }, [pathname])
 
-  // El pulso no es una categoría: mira el diario por **fecha**, no por tema. Las
-  // pestañas se esconden mientras se está ahí porque ninguna representa esa
-  // pantalla, y una tira de pestañas sin ninguna activa parece rota.
-  const enPulso = useMemo(() => {
+  // El pulso, el mapa y la línea de tiempo no son categorías: miran el diario por
+  // **fecha** o por **enlaces**, no por tema. Las pestañas se esconden mientras se
+  // está ahí porque ninguna representa esa pantalla, y una tira de pestañas sin
+  // ninguna activa parece rota.
+  const vista = useMemo(() => {
     const parts = pathname.split('/').filter((part) => part.length > 0)
-    return parts[0] === 'p' && parts[2] === 'actividad'
+    if (parts[0] !== 'p') return null
+    return parts[2] === 'actividad' || parts[2] === 'mapa' || parts[2] === 'historia' ? parts[2] : null
   }, [pathname])
 
   const tabs = useMemo(() => {
@@ -167,13 +169,31 @@ export function ProjectLayout({ slug }: ProjectLayoutProps) {
           <div className="ml-auto flex items-center gap-1">
             <NewSummaryDialog project={project.slug} />
             <Button
-              variant={enPulso ? 'outline' : 'ghost'}
+              variant={vista === 'actividad' ? 'outline' : 'ghost'}
               size="icon-sm"
               onClick={() => void navigate({ to: '/p/$project/actividad', params: { project: slug } })}
               title={t('projects.activity.action')}
               aria-label={t('projects.activity.action')}
             >
               <Activity className="size-3" />
+            </Button>
+            <Button
+              variant={vista === 'historia' ? 'outline' : 'ghost'}
+              size="icon-sm"
+              onClick={() => void navigate({ to: '/p/$project/historia', params: { project: slug } })}
+              title={t('projects.timeline.action')}
+              aria-label={t('projects.timeline.action')}
+            >
+              <History className="size-3" />
+            </Button>
+            <Button
+              variant={vista === 'mapa' ? 'outline' : 'ghost'}
+              size="icon-sm"
+              onClick={() => void navigate({ to: '/p/$project/mapa', params: { project: slug } })}
+              title={t('projects.graph.action')}
+              aria-label={t('projects.graph.action')}
+            >
+              <GitFork className="size-3" />
             </Button>
             <ChangelogButton slug={project.slug} />
             <ExportProjectButton slug={project.slug} />
@@ -240,7 +260,7 @@ export function ProjectLayout({ slug }: ProjectLayoutProps) {
         onOpenChange={setIconOpen}
       />
 
-      {enPulso ? null : (
+      {vista !== null ? null : (
         <div className="backdrop-surface shrink-0 px-3 pt-2">
           <Tabs value={activeCategory} onValueChange={goToCategory}>
             <TabsList>

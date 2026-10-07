@@ -11,6 +11,7 @@
  */
 import type { ProjectExport } from '@/api/types'
 import type { Translate } from '@/i18n'
+import { categoryLabel } from '@/lib/labels'
 
 /** Fecha corta y neutral (AAAA-MM-DD), sin depender del idioma. */
 function dia(iso: string): string {
@@ -51,7 +52,9 @@ export function buildProjectMarkdown(data: ProjectExport, t: Translate): string 
 
   for (const seccion of data.sections) {
     partes.push('')
-    partes.push(`## ${t('projects.export.categoryHeading', { category: seccion.category })}`)
+    partes.push(
+      `## ${t('projects.export.categoryHeading', { category: categoryLabel(t, seccion.category) })}`,
+    )
 
     for (const resumen of seccion.summaries) {
       partes.push('')
@@ -97,5 +100,5 @@ export function exportFileName(project: string, generatedAt: string): string {
     .replace(/[^a-zA-Z0-9._-]+/g, '-')
     .replace(/^[-.]+|[-.]+$/g, '')
 
-  return `saveme-${limpio || 'proyecto'}-${dia(generatedAt)}.md`
+  return `saveme-${limpio || 'project'}-${dia(generatedAt)}.md`
 }

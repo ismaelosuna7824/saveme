@@ -31,8 +31,11 @@ function ReindexSummary({ result }: { result: ReindexResult }) {
   return (
     <div className="space-y-1 border border-secondary/35 bg-secondary/5 px-2 py-1.5">
       <p className="text-2xs text-secondary">
-        {result.indexed} archivos leídos · {result.projects_discovered} proyectos ·{' '}
-        {result.duration_ms} ms
+        {t('settings.workspace.reindex.summary', {
+          indexed: result.indexed,
+          projects: result.projects_discovered,
+          ms: result.duration_ms,
+        })}
       </p>
       <div className="flex flex-wrap gap-x-3 gap-y-0.5">
         {metrics.map((metric) => (
@@ -86,7 +89,7 @@ export function SettingsWorkspace() {
     reindex.mutate(undefined, {
       onSuccess: (next) => {
         setResult(next)
-        toast.success(`Índice reconstruido: ${next.indexed} archivos`, {
+        toast.success(t('settings.workspace.reindex.done', { indexed: next.indexed, unchanged: next.unchanged }), {
           description: `+${next.added} · ~${next.updated} · -${next.removed} · =${next.unchanged}`,
         })
       },
@@ -124,14 +127,16 @@ export function SettingsWorkspace() {
         <SectionHeader title={t('settings.workspace.location')} hint="GET /config" />
         <div className="space-y-2 border border-border bg-panel px-2 py-2">
           <div className="space-y-0.5">
-            <div className="text-2xs uppercase tracking-[0.12em] text-muted-foreground">raíz</div>
+            <div className="text-2xs uppercase tracking-[0.12em] text-muted-foreground">
+              {t('settings.workspace.root')}
+            </div>
             <code className="block break-all text-2xs text-muted-foreground">
               {config.data?.root_dir ?? ''}
             </code>
           </div>
           <div className="space-y-0.5">
             <div className="text-2xs uppercase tracking-[0.12em] text-muted-foreground">
-              configuración
+              {t('settings.workspace.configFile')}
             </div>
             <code className="block break-all text-2xs text-muted-foreground">
               {config.data?.config_path ?? ''}
@@ -208,17 +213,14 @@ export function SettingsWorkspace() {
           <div className="flex items-start gap-2 border border-primary/35 bg-primary/5 px-2 py-2">
             <TriangleAlert className="mt-0.5 size-3.5 shrink-0 text-primary" />
             <p className="text-2xs text-foreground">
-              Hay una carpeta raíz nueva guardada que todavía no se aplicó. El workspace y la base
-              de datos se abren una sola vez al arrancar, así que <span className="text-primary">
-              cierra y vuelve a abrir SaveMe</span> para que el cambio valga.
+              {t('settings.workspace.rootPending')}
             </p>
           </div>
         ) : null}
 
         {config.data?.root_from_env ? (
           <p className="text-2xs text-muted-foreground">
-            La raíz la fija <code>SAVEME_ROOT</code> en el entorno y gana sobre el archivo de
-            configuración.
+            {t('settings.workspace.rootFromEnv')}
           </p>
         ) : null}
       </section>
@@ -240,7 +242,7 @@ export function SettingsWorkspace() {
                 : t('settings.workspace.reindexFromDisk')}
             </Button>
             <span className="text-2xs text-muted-foreground">
-              Reconciliar el índice con los archivos que hay ahora.
+              {t('settings.workspace.reindex.description')}
             </span>
           </div>
 
@@ -255,12 +257,10 @@ export function SettingsWorkspace() {
       <section className="space-y-2">
         <SectionHeader title={t('settings.workspace.doctor.title')} />
         <p className="text-2xs text-muted-foreground">
-          El workspace son archivos markdown normales en disco: ábrelos, muévelos o versiónalos con
-          git sin pasar por la app. El índice solo acelera las búsquedas y se puede reconstruir sin
-          perder contenido.
+          {t('settings.workspace.doctor.lead')}
         </p>
         <p className="text-2xs text-muted-foreground">
-          Si algo no cuadra, este comando diagnostica sin tocar nada:
+          {t('settings.workspace.doctor.description')}
         </p>
         <CopyField
           label={t('settings.workspace.doctorLabel')}

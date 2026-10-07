@@ -1,5 +1,9 @@
 /** Textos de `editor`. Misma forma que `es/editor.ts`. */
 export const editor = {
+  task: {
+    markDone: 'Mark as done',
+    markPending: 'Mark as pending',
+  },
   meta: {
     title: 'fix category and title',
     description:

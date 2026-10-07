@@ -1268,6 +1268,21 @@ html[data-theme='plain'] .scanlines {
   font-size: 12px;
 }
 
+/* Mapa de decisiones: cada nodo abre su resumen. */
+.decision-map svg {
+  margin: 0 auto;
+  background: transparent;
+}
+
+.decision-map g.node {
+  cursor: pointer;
+}
+
+.decision-map g.node:hover rect,
+.decision-map g.node:hover polygon {
+  stroke: var(--color-primary);
+}
+
 .mermaid-block__error {
   display: flex;
   align-items: flex-start;

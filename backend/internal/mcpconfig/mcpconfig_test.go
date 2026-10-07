@@ -315,6 +315,11 @@ func TestBuildWarnsWhenRootIsNotDefault(t *testing.T) {
 	if !strings.Contains(s.Warnings[0], "/tmp/otro") {
 		t.Errorf("el aviso debería nombrar la raíz: %s", s.Warnings[0])
 	}
+	// La interfaz traduce por código: el aviso tiene que llevarlo, con la raíz.
+	if len(s.Notices) != len(s.Warnings) || s.Notices[0].Code != "saveme_root" ||
+		s.Notices[0].Vars["root"] != "/tmp/otro" {
+		t.Errorf("avisos con código = %+v", s.Notices)
+	}
 
 	// Sin variables de entorno no hace falta ningún aviso: app y MCP coinciden.
 	s2, err := Build(mustFind(t, "opencode"), Options{Command: "saveme", Name: "saveme"})
@@ -925,6 +930,9 @@ func TestRemoveJSONCNoReescribeYLoExplica(t *testing.T) {
 	}
 	if !strings.Contains(result.Message, "comentarios") {
 		t.Errorf("el mensaje no explica el motivo: %q", result.Message)
+	}
+	if result.Code != "remove_jsonc" || result.Vars["key"] == "" {
+		t.Errorf("código = %q, vars = %v; esperaba remove_jsonc con la clave", result.Code, result.Vars)
 	}
 	after, _ := os.ReadFile(path)
 	if string(after) != string(original) {

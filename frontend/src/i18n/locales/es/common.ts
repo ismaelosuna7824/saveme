@@ -5,6 +5,8 @@
  * existir en `en/` con la misma forma, y el compilador lo comprueba.
  */
 export const common = {
+  /** Cabecera de un bloque de código que no dice su lenguaje. */
+  plainText: 'texto',
   actions: {
     save: 'guardar',
     saveNow: 'guardar ahora',

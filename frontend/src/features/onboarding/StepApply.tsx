@@ -11,12 +11,13 @@ import {
 
 import { useConfigureMCP, useMCPSnippet } from '@/api/queries'
 import type { MCPConfigureAction, MCPConfigureResult, MCPProvider } from '@/api/types'
-import { asArray, asStringArray } from '@/api/normalize'
+import { asArray } from '@/api/normalize'
 import { ErrorPanel } from '@/components/common/ErrorPanel'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { CopyField } from '@/features/onboarding/CopyField'
 import { useT, type TranslationKey } from '@/i18n'
+import { mcpNoticeText, providerName, snippetWarnings } from '@/lib/labels'
 
 interface StepApplyProps {
   providers: MCPProvider[]
@@ -101,7 +102,13 @@ export function ManualSnippet({ providerKey }: { providerKey: string }) {
   }
   if (!snippet.data) return null
 
-  const warnings = asStringArray(snippet.data.warnings)
+  const warnings = snippetWarnings(t, snippet.data)
+  const name = providerName(t, snippet.data.provider, snippet.data.name)
+  // En los clientes delegados el cuerpo es prosa del core, en español: se pinta
+  // la traducción por código y el cuerpo solo queda de respaldo.
+  const body = snippet.data.explanation
+    ? mcpNoticeText(t, { ...snippet.data.explanation, message: snippet.data.body })
+    : snippet.data.body
   const env = snippet.data.env_fixed
   const envEntries = env === null ? [] : Object.entries(env)
 
@@ -111,8 +118,8 @@ export function ManualSnippet({ providerKey }: { providerKey: string }) {
         <CopyField label={t('onboarding.apply.pasteIn')} value={snippet.data.path} maxLines={2} />
       ) : null}
       <CopyField
-        label={t('onboarding.apply.snippet', { name: snippet.data.name })}
-        value={snippet.data.body}
+        label={t('onboarding.apply.snippet', { name })}
+        value={body}
         maxLines={12}
       />
       {envEntries.length > 0 ? (
@@ -142,7 +149,8 @@ function ResultRow({
 }) {
   const t = useT()
   const key = result?.key ?? provider?.key ?? ''
-  const name = result?.name ?? provider?.name ?? key
+  const name = providerName(t, key, result?.name ?? provider?.name)
+  const message = mcpNoticeText(t, result)
   const action = result?.action
 
   if (running) {
@@ -187,9 +195,9 @@ function ResultRow({
         ) : null}
       </div>
 
-      {result?.message ? (
+      {message ? (
         <p className={tone === 'bad' ? 'text-2xs text-destructive' : 'text-2xs text-muted-foreground'}>
-          {result.message}
+          {message}
         </p>
       ) : null}
 

@@ -33,10 +33,11 @@ const t = (key, vars) => (vars === undefined ? key : `${key}${JSON.stringify(var
  *
  * Se leen de las variables que recibió el traductor y no del texto del título,
  * porque el traductor de mentira devuelve la clave: el título real lo pone la
- * interfaz.
+ * interfaz. La categoría llega ya traducida (`projects.category.<clave>`), que es
+ * lo que impide que el documento en inglés diga «feature» o «Sin categoría».
  */
 function categoriasDe(md) {
-  return [...md.matchAll(/^## .*"category":"([^"]+)"/gm)].map((m) => m[1])
+  return [...md.matchAll(/^## .*"category":"projects\.category\.([^"]+)"/gm)].map((m) => m[1])
 }
 
 const entry = (over) => ({
@@ -137,7 +138,7 @@ section('4. El nombre del fichero se puede guardar')
   check('una barra no llega al nombre', !exportFileName('a/b', 'x').includes('/'))
   check('ni un ..', !exportFileName('../etc/passwd', 'x').includes('..'))
   check('un proyecto vacío tiene nombre igual',
-    exportFileName('', '2026-03-10T09:30:00Z') === 'saveme-proyecto-2026-03-10.md')
+    exportFileName('', '2026-03-10T09:30:00Z') === 'saveme-project-2026-03-10.md')
 }
 
 // --- 5. Casos límite ---------------------------------------------------------

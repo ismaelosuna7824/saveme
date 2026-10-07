@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ReindexButton } from '@/features/dashboard/ReindexButton'
 import { DigestPanel } from '@/features/dashboard/DigestPanel'
+import { HealthPanel } from '@/features/dashboard/HealthPanel'
 import { TagsPanel } from '@/features/dashboard/TagsPanel'
 import { StatsPanel } from '@/features/dashboard/StatsPanel'
 import { ProposalCard } from '@/features/inbox/ProposalCard'
@@ -40,6 +41,7 @@ export function InboxPage() {
     <div className="grid h-full grid-cols-[21rem_minmax(0,1fr)]">
       <section className="backdrop-surface min-h-0 space-y-4 overflow-y-auto border-r border-border p-3">
         <StatsPanel />
+        <HealthPanel />
         <DigestPanel />
         <TagsPanel />
 

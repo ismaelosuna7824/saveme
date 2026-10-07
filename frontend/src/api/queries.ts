@@ -15,6 +15,9 @@ import { api, buildQuery } from './client'
 import type {
   ActivityMap,
   Freshness,
+  JournalHealth,
+  ProjectGraph,
+  ProjectTimeline,
   Briefing,
   Changelog,
   Digest,
@@ -101,6 +104,12 @@ export const queryKeys = {
   },
   /** `project` vacío son las de todo el workspace. */
   tags: (project = '') => ['tags', project] as const,
+  // Mapa, historia y salud dependen de los resúmenes: se invalidan con ellos.
+  graph: (slug: string) => ['graph', slug] as const,
+  graphAll: ['graph'] as const,
+  timeline: (slug: string) => ['timeline', slug] as const,
+  timelineAll: ['timeline'] as const,
+  journalHealth: ['journal-health'] as const,
   mcp: {
     providers: ['mcp', 'providers'] as const,
     snippet: (key: string) => ['mcp', 'snippet', key] as const,
@@ -297,6 +306,35 @@ export function useFreshness(id: string): UseQueryResult<Freshness> {
     queryFn: ({ signal }) =>
       api.get<Freshness>(`/summaries/${encodeURIComponent(id)}/freshness`, signal),
     enabled: id.length > 0,
+    staleTime: 60_000,
+  })
+}
+
+/** El mapa de decisiones de un proyecto. */
+export const projectGraphQuery = (slug: string) =>
+  queryOptions({
+    queryKey: queryKeys.graph(slug),
+    queryFn: ({ signal }) => api.get<ProjectGraph>(`/projects/${encodeURIComponent(slug)}/graph`, signal),
+    staleTime: 30_000,
+  })
+
+/** La historia de un proyecto: resúmenes y commits del repo vinculado. */
+export const projectTimelineQuery = (slug: string) =>
+  queryOptions({
+    queryKey: queryKeys.timeline(slug),
+    queryFn: ({ signal }) =>
+      api.get<ProjectTimeline>(`/projects/${encodeURIComponent(slug)}/timeline`, signal),
+    staleTime: 30_000,
+  })
+
+/**
+ * Salud de todo el diario. Contar commits ejecuta git por resumen, así que no se
+ * repite a cada momento.
+ */
+export function useJournalHealth(): UseQueryResult<JournalHealth> {
+  return useQuery({
+    queryKey: queryKeys.journalHealth,
+    queryFn: ({ signal }) => api.get<JournalHealth>('/journal/health', signal),
     staleTime: 60_000,
   })
 }

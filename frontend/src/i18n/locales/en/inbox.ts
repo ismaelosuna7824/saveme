@@ -41,6 +41,13 @@ export const inbox = {
       'The deadline passed, but the summary is still intact and you can approve it anyway.',
   },
   whyCategory: 'why this category',
+  inference: {
+    explicit: 'You asked for it explicitly.',
+    none: 'No clear signals in the title or the body, and {category} is the most common case. Confirm it or pick another folder.',
+    signals: 'The title and the body mention {evidence}, a sign of {category}.',
+    tie: '{category} and {runnerUp} have the same evidence ({evidence}), so I suggest {category} as the more specific one. Confirm it or pick another folder.',
+    tieUnknown: 'Another category has the same evidence ({evidence}), so I suggest {category} as the more specific one. Confirm it or pick another folder.',
+  },
   orSaveIn: 'or save it in',
   supersedes: 'replaces',
   repo: {

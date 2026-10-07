@@ -19,6 +19,8 @@ import { Route as TTagRouteImport } from './routes/t.$tag'
 import { Route as PProjectIndexRouteImport } from './routes/p.$project.index'
 import { Route as PProjectCategoryRouteImport } from './routes/p.$project.$category'
 import { Route as PProjectActividadRouteImport } from './routes/p.$project.actividad'
+import { Route as PProjectHistoriaRouteImport } from './routes/p.$project.historia'
+import { Route as PProjectMapaRouteImport } from './routes/p.$project.mapa'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -70,6 +72,16 @@ const PProjectActividadRoute = PProjectActividadRouteImport.update({
   path: '/actividad',
   getParentRoute: () => PProjectRoute,
 } as any)
+const PProjectHistoriaRoute = PProjectHistoriaRouteImport.update({
+  id: '/historia',
+  path: '/historia',
+  getParentRoute: () => PProjectRoute,
+} as any)
+const PProjectMapaRoute = PProjectMapaRouteImport.update({
+  id: '/mapa',
+  path: '/mapa',
+  getParentRoute: () => PProjectRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -81,6 +93,8 @@ export interface FileRoutesByFullPath {
   '/notes/': typeof NotesIndexRoute
   '/p/$project/$category': typeof PProjectCategoryRoute
   '/p/$project/actividad': typeof PProjectActividadRoute
+  '/p/$project/historia': typeof PProjectHistoriaRoute
+  '/p/$project/mapa': typeof PProjectMapaRoute
   '/p/$project/': typeof PProjectIndexRoute
 }
 export interface FileRoutesByTo {
@@ -91,6 +105,8 @@ export interface FileRoutesByTo {
   '/notes': typeof NotesIndexRoute
   '/p/$project/$category': typeof PProjectCategoryRoute
   '/p/$project/actividad': typeof PProjectActividadRoute
+  '/p/$project/historia': typeof PProjectHistoriaRoute
+  '/p/$project/mapa': typeof PProjectMapaRoute
   '/p/$project': typeof PProjectIndexRoute
 }
 export interface FileRoutesById {
@@ -104,6 +120,8 @@ export interface FileRoutesById {
   '/notes/': typeof NotesIndexRoute
   '/p/$project/$category': typeof PProjectCategoryRoute
   '/p/$project/actividad': typeof PProjectActividadRoute
+  '/p/$project/historia': typeof PProjectHistoriaRoute
+  '/p/$project/mapa': typeof PProjectMapaRoute
   '/p/$project/': typeof PProjectIndexRoute
 }
 export interface FileRouteTypes {
@@ -118,6 +136,8 @@ export interface FileRouteTypes {
     | '/notes/'
     | '/p/$project/$category'
     | '/p/$project/actividad'
+    | '/p/$project/historia'
+    | '/p/$project/mapa'
     | '/p/$project/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -128,6 +148,8 @@ export interface FileRouteTypes {
     | '/notes'
     | '/p/$project/$category'
     | '/p/$project/actividad'
+    | '/p/$project/historia'
+    | '/p/$project/mapa'
     | '/p/$project'
   id:
     | '__root__'
@@ -140,6 +162,8 @@ export interface FileRouteTypes {
     | '/notes/'
     | '/p/$project/$category'
     | '/p/$project/actividad'
+    | '/p/$project/historia'
+    | '/p/$project/mapa'
     | '/p/$project/'
   fileRoutesById: FileRoutesById
 }
@@ -223,6 +247,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PProjectActividadRouteImport
       parentRoute: typeof PProjectRoute
     }
+    '/p/$project/historia': {
+      id: '/p/$project/historia'
+      path: '/historia'
+      fullPath: '/p/$project/historia'
+      preLoaderRoute: typeof PProjectHistoriaRouteImport
+      parentRoute: typeof PProjectRoute
+    }
+    '/p/$project/mapa': {
+      id: '/p/$project/mapa'
+      path: '/mapa'
+      fullPath: '/p/$project/mapa'
+      preLoaderRoute: typeof PProjectMapaRouteImport
+      parentRoute: typeof PProjectRoute
+    }
   }
 }
 
@@ -241,12 +279,16 @@ const NotesRouteWithChildren = NotesRoute._addFileChildren(NotesRouteChildren)
 interface PProjectRouteChildren {
   PProjectCategoryRoute: typeof PProjectCategoryRoute
   PProjectActividadRoute: typeof PProjectActividadRoute
+  PProjectHistoriaRoute: typeof PProjectHistoriaRoute
+  PProjectMapaRoute: typeof PProjectMapaRoute
   PProjectIndexRoute: typeof PProjectIndexRoute
 }
 
 const PProjectRouteChildren: PProjectRouteChildren = {
   PProjectCategoryRoute: PProjectCategoryRoute,
   PProjectActividadRoute: PProjectActividadRoute,
+  PProjectHistoriaRoute: PProjectHistoriaRoute,
+  PProjectMapaRoute: PProjectMapaRoute,
   PProjectIndexRoute: PProjectIndexRoute,
 }
 

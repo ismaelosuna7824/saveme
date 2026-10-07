@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useT } from '@/i18n'
-import { providerNote } from '@/lib/labels'
+import { providerName, providerNote } from '@/lib/labels'
 import { cn } from '@/lib/utils'
 
 interface StepProvidersProps {
@@ -53,6 +53,7 @@ function ProviderRow({
   // La nota se traduce por clave; si el core manda un cliente nuevo, se enseña
   // la suya tal cual antes que nada.
   const note = providerNote(t, provider.key, provider.note)
+  const name = providerName(t, provider.key, provider.name)
   return (
     <div
       className={cn(
@@ -66,11 +67,11 @@ function ProviderRow({
           checked={checked}
           onChange={onToggle}
           className="mt-0.5"
-          aria-label={t('onboarding.providers.configure', { name: provider.name })}
+          aria-label={t('onboarding.providers.configure', { name })}
         />
         <div className="min-w-0 flex-1 space-y-0.5">
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-xs text-foreground">{provider.name}</span>
+            <span className="text-xs text-foreground">{name}</span>
             {provider.installed ? (
               <Badge variant="secondary">{t('onboarding.providers.badge.installed')}</Badge>
             ) : (

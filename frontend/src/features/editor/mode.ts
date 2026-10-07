@@ -1,6 +1,5 @@
 import type { PreviewMode } from '@/api/types'
 import type { TranslationKey } from '@/i18n'
-import { es } from '@/i18n/locales/es'
 
 /**
  * Orden del ciclo de `Cmd+E`.
@@ -31,28 +30,6 @@ export const MODE_HINT_KEY: Record<PreviewMode, TranslationKey> = {
   source: 'editor.mode.source.hint',
   split: 'editor.mode.split.hint',
   preview: 'editor.mode.preview.hint',
-}
-
-/**
- * @deprecated Solo español: es el texto del bundle `es`, no una traducción.
- *
- * Se mantiene para los consumidores que todavía no pasan por `useT()`
- * (`features/settings/SettingsAppearance.tsx`, que pertenece a otro cambio). En
- * cuanto ese archivo use `t(MODE_LABEL_KEY[mode])`, este export se puede borrar.
- */
-export const MODE_LABEL: Record<PreviewMode, string> = {
-  live: es.editor.mode.live.label,
-  source: es.editor.mode.source.label,
-  split: es.editor.mode.split.label,
-  preview: es.editor.mode.preview.label,
-}
-
-/** @deprecated Solo español. Ver `MODE_LABEL`: usa `MODE_HINT_KEY` con `t()`. */
-export const MODE_HINT: Record<PreviewMode, string> = {
-  live: es.editor.mode.live.hint,
-  source: es.editor.mode.source.hint,
-  split: es.editor.mode.split.hint,
-  preview: es.editor.mode.preview.hint,
 }
 
 export function isPreviewMode(value: string): value is PreviewMode {

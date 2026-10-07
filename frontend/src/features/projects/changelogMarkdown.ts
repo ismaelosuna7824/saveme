@@ -90,5 +90,5 @@ export function changelogFileName(project: string, hasta: string): string {
     .replace(/[^a-zA-Z0-9._-]+/g, '-')
     .replace(/^[-.]+|[-.]+$/g, '')
 
-  return `saveme-${limpio || 'proyecto'}-changelog-${dia(hasta)}.md`
+  return `saveme-${limpio || 'project'}-changelog-${dia(hasta)}.md`
 }

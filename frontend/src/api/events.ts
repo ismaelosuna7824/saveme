@@ -38,6 +38,9 @@ function invalidateForEvent(queryClient: QueryClient, type: string): void {
       void queryClient.invalidateQueries({ queryKey: queryKeys.summaries.all })
       void queryClient.invalidateQueries({ queryKey: queryKeys.projects })
       void queryClient.invalidateQueries({ queryKey: queryKeys.stats })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.graphAll })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.timelineAll })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.journalHealth })
       break
     case 'proposal.created':
     case 'proposal.resolved':

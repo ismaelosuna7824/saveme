@@ -297,6 +297,7 @@ export const settings = {
     reindexFailed: "couldn't reindex",
     reindexFailedToast: "Couldn't reindex",
     location: 'location',
+    root: 'root',
     configFile: 'configuration',
     added: 'added',
     updated: 'updated',
@@ -319,11 +320,13 @@ export const settings = {
       label: 'reindex',
       description: 'Reconcile the index with the files that are there now.',
       done: 'Index rebuilt: {indexed} files, {unchanged} unchanged',
+      summary: '{indexed} files read · {projects} projects · {ms} ms',
       failed: 'Reindex finished with {count} warnings',
     },
     doctor: {
       title: 'how it works',
       description: 'If something looks off, this command diagnoses it without touching anything:',
+      lead: 'The workspace is plain markdown files on disk: open, move or version them with git without going through the app. The index only speeds up search and can be rebuilt without losing content.',
     },
   },
     trash: {

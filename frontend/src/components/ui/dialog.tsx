@@ -2,6 +2,7 @@ import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { X } from 'lucide-react'
 import type * as React from 'react'
 
+import { useT } from '@/i18n'
 import { cn } from '@/lib/utils'
 
 const Dialog = DialogPrimitive.Root
@@ -52,13 +53,14 @@ function DialogContent({
  * negativo vertical evita que el botón haga crecer una cabecera fina.
  */
 function DialogCloseButton({ className }: { className?: string }) {
+  const t = useT()
   return (
     <DialogPrimitive.Close
       className={cn(
         '-my-1 inline-flex shrink-0 items-center justify-center rounded-sm p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
         className,
       )}
-      aria-label="Cerrar"
+      aria-label={t('common.actions.close')}
     >
       <X className="size-3.5" />
     </DialogPrimitive.Close>

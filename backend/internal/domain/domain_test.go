@@ -373,3 +373,18 @@ func TestInferCategoryDoesNotTreatWritingAsDocs(t *testing.T) {
 		t.Errorf("no debería haber empate: %s", got.Reason)
 	}
 }
+
+// La interfaz explica la inferencia en su idioma a partir de Kind: si Kind no
+// dice lo que pasó, la tarjeta del inbox explicaría otra cosa.
+func TestInferCategoryDiceComoLlegoALaCategoria(t *testing.T) {
+	if got := InferCategory("Cosas", "Texto sin pistas."); got.Kind != InferenceNone {
+		t.Errorf("sin señales, Kind = %q", got.Kind)
+	}
+	if got := InferCategory("Arreglamos el watcher", "Corregimos un fallo."); got.Kind != InferenceSignals || got.RunnerUp != "" {
+		t.Errorf("con señales claras, Kind = %q runner_up = %q", got.Kind, got.RunnerUp)
+	}
+	got := InferCategory("Refactor y arreglo", "Refactorizamos y arreglamos.")
+	if got.Kind != InferenceTie || got.Category != "fix" || got.RunnerUp != "refactor" {
+		t.Errorf("un empate tiene que decir con quién empató: %+v", got)
+	}
+}

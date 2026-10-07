@@ -663,8 +663,21 @@ type Snippet struct {
 	Language string
 	// Writable indica si `--write` puede aplicarlo automáticamente.
 	Writable bool
-	// Warnings son avisos que el usuario debería leer antes de aplicar nada.
+	// Warnings son avisos que el usuario debería leer antes de aplicar nada, en
+	// español (los lee la CLI).
 	Warnings []string
+	// Notices son los mismos avisos con código, en el mismo orden, para que la
+	// interfaz los traduzca.
+	Notices []Notice
+	// Explanation, si no es nil, es el código de Body cuando Body es prosa (los
+	// clientes delegados) y no un bloque que copiar.
+	Explanation *Notice
+}
+
+// warn añade un aviso a la vez en Warnings y en Notices, para que no diverjan.
+func (s *Snippet) warn(n Notice) {
+	s.Warnings = append(s.Warnings, n.Message)
+	s.Notices = append(s.Notices, n)
 }
 
 // Build genera el bloque de configuración de un proveedor.
@@ -684,25 +697,29 @@ func Build(p Provider, opts Options) (Snippet, error) {
 	// Un aviso que vale para todos: si la raíz no es la de por defecto, la app
 	// tiene que estar configurada igual o el agente escribirá donde nadie mira.
 	if root := opts.Env["SAVEME_ROOT"]; root != "" {
-		s.Warnings = append(s.Warnings, fmt.Sprintf(
+		s.warn(Notice{Code: "saveme_root", Vars: map[string]string{"root": root}, Message: fmt.Sprintf(
 			"Este bloque fija SAVEME_ROOT=%s. La app tiene que usar la misma raíz "+
 				"(o el MCP escribirá resúmenes que la interfaz no verá). Para uso normal, "+
-				"quita SAVEME_ROOT y deja que ambos usen ~/Documents/SaveMe.", root))
+				"quita SAVEME_ROOT y deja que ambos usen ~/Documents/SaveMe.", root)})
 	}
 	if !p.Verified {
 		if p.Format == FormatManual {
-			s.Warnings = append(s.Warnings, "El formato de este cliente no está confirmado, "+
-				"así que no se escribe solo: pega el bloque donde corresponda.")
+			s.warn(Notice{Code: "manual_unconfirmed", Message: "El formato de este cliente no está confirmado, " +
+				"así que no se escribe solo: pega el bloque donde corresponda."})
 		} else {
-			s.Warnings = append(s.Warnings, "La ruta y el formato de este cliente vienen de su "+
-				"convención y no los he confirmado contra su documentación. Se escribirá igual; "+
-				"si el cliente no lo detecta, revisa su doc o pásale otra ruta con --path.")
+			s.warn(Notice{Code: "path_unverified", Message: "La ruta y el formato de este cliente vienen de su " +
+				"convención y no los he confirmado contra su documentación. Se escribirá igual; " +
+				"si el cliente no lo detecta, revisa su doc o pásale otra ruta con --path."})
 		}
 	}
 	if p.Format == FormatCLI && p.CLINoEnv && len(opts.Env) > 0 {
-		s.Warnings = append(s.Warnings, fmt.Sprintf(
-			"El comando de %s no admite variables de entorno. Añade a mano %s en la "+
-				"entrada «%s» de su configuración.", p.Name, strings.Join(sortedKeys(opts.Env), ", "), opts.Name))
+		vars := strings.Join(sortedKeys(opts.Env), ", ")
+		s.warn(Notice{
+			Code: "cli_no_env",
+			Vars: map[string]string{"provider": p.Key, "vars": vars, "name": opts.Name},
+			Message: fmt.Sprintf("El comando de %s no admite variables de entorno. Añade a mano %s en la "+
+				"entrada «%s» de su configuración.", p.Name, vars, opts.Name),
+		})
 	}
 
 	switch p.Format {
@@ -724,7 +741,9 @@ func Build(p Provider, opts Options) (Snippet, error) {
 			s.Language = p.RenderLanguage
 		}
 	case FormatDelegated:
-		s.Body = delegatedMessage(p)
+		d := delegatedNotice(p)
+		s.Body = d.Message
+		s.Explanation = &d
 		s.Language = "text"
 	default:
 		return Snippet{}, fmt.Errorf("formato desconocido: %q", p.Format)
@@ -732,18 +751,25 @@ func Build(p Provider, opts Options) (Snippet, error) {
 	return s, nil
 }
 
-// delegatedMessage explica qué hay que configurar en lugar de un cliente que no
-// tiene configuración de MCP propia.
-func delegatedMessage(p Provider) string {
+// delegatedNotice explica qué hay que configurar en lugar de un cliente que no
+// tiene configuración de MCP propia. En Vars van las claves (no los nombres) de
+// los agentes que lanza, para que la interfaz los nombre en su idioma.
+func delegatedNotice(p Provider) Notice {
 	names := make([]string, 0, len(p.Via))
+	keys := make([]string, 0, len(p.Via))
 	for _, key := range p.Via {
 		if via, ok := Find(key); ok {
 			names = append(names, via.Name)
+			keys = append(keys, via.Key)
 		}
 	}
-	return fmt.Sprintf("%s no tiene configuración de MCP propia: lanza otros agentes y cada uno "+
-		"carga la suya.\nConfigura SaveMe en los que uses con %s: %s.",
-		p.Name, p.Name, strings.Join(names, ", "))
+	return Notice{
+		Code: "delegated",
+		Vars: map[string]string{"provider": p.Key, "via": strings.Join(keys, ",")},
+		Message: fmt.Sprintf("%s no tiene configuración de MCP propia: lanza otros agentes y cada uno "+
+			"carga la suya.\nConfigura SaveMe en los que uses con %s: %s.",
+			p.Name, p.Name, strings.Join(names, ", ")),
+	}
 }
 
 // serverEntry arma la entrada del servidor con la forma que espera el cliente.
@@ -846,7 +872,9 @@ func buildManual(p Provider, opts Options) string {
 	var b strings.Builder
 	if p.Path != nil {
 		if path := p.Path(); path != "" {
-			fmt.Fprintf(&b, "# archivo habitual de este cliente: %s\n", path)
+			// Solo la ruta: el bloque se copia tal cual y no debe llevar prosa en
+			// un idioma concreto; la interfaz ya explica qué es.
+			fmt.Fprintf(&b, "# %s\n", path)
 		}
 	}
 	if p.Render != nil {

@@ -33,6 +33,7 @@ import {
 import { NewProjectDialog } from '@/features/projects/NewProjectDialog'
 import { useT } from '@/i18n'
 import { useDebouncedValue } from '@/lib/hooks'
+import { categoryLabel } from '@/lib/labels'
 
 /** Paleta de comandos (Cmd+K): navegar y ejecutar acciones. */
 export function CommandPalette() {
@@ -76,13 +77,13 @@ export function CommandPalette() {
           key,
           projectSlug: project.slug,
           projectName: project.name,
-          label: meta?.label ?? key,
+          label: categoryLabel(t, key, meta?.label),
           count,
         })
       }
     }
     return entries.sort((a, b) => b.count - a.count).slice(0, 30)
-  }, [projects.data, categories.data])
+  }, [projects.data, categories.data, t])
 
   const run = (action: () => void) => {
     setPaletteOpen(false)

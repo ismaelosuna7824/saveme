@@ -1,5 +1,6 @@
 /** Shared strings. Same shape as `es/common.ts`. */
 export const common = {
+  plainText: 'text',
   actions: {
     save: 'Save',
     saveNow: 'Save now',

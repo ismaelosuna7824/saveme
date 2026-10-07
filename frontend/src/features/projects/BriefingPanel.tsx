@@ -26,7 +26,9 @@ export function BriefingPanel({ data }: { data: Briefing }) {
 
   return (
     <div className="space-y-4">
-      <section className="space-y-2">
+      {/* Tarjetas de cristal, como el resto de bloques con texto: con imagen de
+          fondo el texto no puede ir directamente sobre la foto. */}
+      <section className="backdrop-surface space-y-2 border border-border p-2">
         <SectionHeader
           title={t('projects.briefing.lastTitle')}
           hint={t('projects.briefing.lastHint', {
@@ -81,7 +83,7 @@ export function BriefingPanel({ data }: { data: Briefing }) {
       </section>
 
       {data.files.length > 0 ? (
-        <section className="space-y-2">
+        <section className="backdrop-surface space-y-2 border border-border p-2">
           <SectionHeader
             title={t('projects.briefing.filesTitle')}
             hint={t('projects.briefing.filesHint', { days: data.days })}
@@ -104,7 +106,7 @@ export function BriefingPanel({ data }: { data: Briefing }) {
         </section>
       ) : null}
 
-      <section className="space-y-2">
+      <section className="backdrop-surface space-y-2 border border-border p-2">
         <SectionHeader
           title={t('projects.briefing.pendingTitle')}
           hint={t('projects.briefing.pendingHint')}
@@ -129,7 +131,7 @@ export function BriefingPanel({ data }: { data: Briefing }) {
                   {propuesta.status === 'expired' ? (
                     <Badge variant="destructive">{t('projects.briefing.expired')}</Badge>
                   ) : (
-                    <Badge variant="outline">{propuesta.agent ?? 'agent'}</Badge>
+                    <Badge variant="outline">{propuesta.agent ?? t('projects.briefing.unknownAgent')}</Badge>
                   )}
                   <span className="shrink-0 text-2xs text-muted-foreground">
                     {formatRelative(propuesta.created_at)}

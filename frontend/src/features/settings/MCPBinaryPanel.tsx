@@ -9,6 +9,7 @@ import { ErrorPanel } from '@/components/common/ErrorPanel'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useT } from '@/i18n'
+import { mcpNoticeText } from '@/lib/labels'
 
 /**
  * Estado del binario MCP y botón para instalarlo.
@@ -40,7 +41,7 @@ export function MCPBinaryPanel({ binary }: { binary: MCPBinaryStatus }) {
     install.mutate(undefined, {
       onSuccess: (next) => {
         setResult(next)
-        toast.success(next.message)
+        toast.success(mcpNoticeText(t, next))
       },
       onError: (error) => {
         toast.error(t('settings.binary.installFailedToast'), { description: errorMessage(error) })
@@ -79,8 +80,7 @@ export function MCPBinaryPanel({ binary }: { binary: MCPBinaryStatus }) {
           <code className="block break-all text-2xs text-muted-foreground">{path}</code>
         ) : (
           <p className="text-2xs text-muted-foreground">
-            Se copiará a una carpeta propia de SaveMe. Los clientes apuntarán ahí, no dentro de la
-            aplicación.
+            {t('onboarding.mcpBinary.willCopy')}
           </p>
         )}
 

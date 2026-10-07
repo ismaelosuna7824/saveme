@@ -87,6 +87,11 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("DELETE /api/projects/{slug}", s.handleDeleteProject)
 	// Quitar el vínculo del proyecto con su repo de código. No toca archivos.
 	mux.HandleFunc("DELETE /api/projects/{slug}/repo", s.handleUnlinkRepo)
+	// El mapa de decisiones (enlaces y sustituciones) y la historia con commits.
+	mux.HandleFunc("GET /api/projects/{slug}/graph", s.handleProjectGraph)
+	mux.HandleFunc("GET /api/projects/{slug}/timeline", s.handleProjectTimeline)
+	// Salud de todo el diario: desactualizados, sin archivos, sin repo.
+	mux.HandleFunc("GET /api/journal/health", s.handleJournalHealth)
 
 	mux.HandleFunc("GET /api/summaries", s.handleListSummaries)
 	// Escribir un resumen desde la interfaz. Va aparte del PUT, que edita uno que
@@ -492,6 +497,33 @@ func (s *Server) handleFreshness(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, f)
+}
+
+func (s *Server) handleProjectGraph(w http.ResponseWriter, r *http.Request) {
+	g, err := s.svc.ProjectGraph(r.Context(), r.PathValue("slug"))
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, g)
+}
+
+func (s *Server) handleProjectTimeline(w http.ResponseWriter, r *http.Request) {
+	tl, err := s.svc.ProjectTimeline(r.Context(), r.PathValue("slug"))
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, tl)
+}
+
+func (s *Server) handleJournalHealth(w http.ResponseWriter, r *http.Request) {
+	h, err := s.svc.Health(r.Context())
+	if err != nil {
+		s.writeServiceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, h)
 }
 
 // --- resúmenes ---------------------------------------------------------------

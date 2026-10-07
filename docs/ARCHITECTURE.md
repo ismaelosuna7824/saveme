@@ -219,7 +219,9 @@ CREATE TABLE proposals (
   rel_path TEXT NOT NULL,
   body TEXT NOT NULL,
   payload_hash TEXT NOT NULL,
-  inference_reason TEXT NOT NULL DEFAULT '',
+  inference_reason TEXT NOT NULL DEFAULT '', -- prosa en español, para el agente
+  inference_kind TEXT NOT NULL DEFAULT '',   -- explicit | none | signals | tie (migración 007)
+  inference_runner_up TEXT NOT NULL DEFAULT '', -- la categoría empatada, en tie (migración 007)
   confidence REAL NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL,
   expires_at TEXT NOT NULL,
@@ -283,6 +285,9 @@ que los clientes (MCP, UI, CLI) lo encuentren.
 | POST | `/projects` | `{name, slug?}` | `Project` (201, 409 si existe) |
 | GET | `/projects/{slug}` | — | `Project` (misma forma que en el listado, con `counts` y `total`) |
 | DELETE | `/projects/{slug}/repo` | — | `{ok}` — quita el vínculo del proyecto con su repo de código. No toca archivos. 404 si no tenía |
+| GET | `/projects/{slug}/graph` | — | `{nodes: [{id, title, category, project_slug, created_at, superseded, stale, external}], edges: [{from, to, kind}], isolated, omitted}` — mapa de decisiones: solo los enlazados (`related`, `supersedes`), del más antiguo al más nuevo, como mucho 60 |
+| GET | `/projects/{slug}/timeline` | — | `{summaries: [SummaryMeta], commits: [{sha, subject, when, url?, documented_by?}], repo}` — resúmenes y los últimos 300 commits del repo vinculado; `repo` ∈ `linked`\|`no_repo`\|`repo_moved` |
+| GET | `/journal/health` | — | `{git_available, projects: [{slug, name, total, repo_linked, repo_reachable, stale: [{id, title, count}], no_files: [{id, title}], superseded}], totals}` — salud de todo el diario |
 | GET | `/projects/{slug}/export` | — | `ProjectExport` — el proyecto entero con los cuerpos, para montar un solo documento |
 | GET | `/projects/{slug}/briefing` | query: `days` (30 por defecto) | `Briefing` — «¿dónde lo dejamos?» |
 | GET | `/projects/{slug}/activity` | query: `days` (365 por defecto) | `ActivityMap` — un día por entrada, vacíos incluidos |
@@ -314,10 +319,10 @@ que los clientes (MCP, UI, CLI) lo encuentren.
 | DELETE | `/trash` | — | `{ok, removed}` — **borra de verdad**, sin vuelta atrás |
 | POST | `/reindex` | — | `{indexed, added, updated, removed, duration_ms}` |
 | GET | `/mcp/providers` | — | `{providers: [ProviderReport], binary: {installed_path, self_path, on_path}}` — detecta qué agentes hay en la máquina |
-| POST | `/mcp/install` | — | `{path, on_path, message}` — copia el binario a su ubicación estable |
-| POST | `/mcp/configure` | `{providers: [key]}` | `{binary_path, results: [{key, action, path, message, backup, command}]}` |
+| POST | `/mcp/install` | — | `{path, on_path, message, code}` — copia el binario a su ubicación estable |
+| POST | `/mcp/configure` | `{providers: [key]}` | `{binary_path, results: [{key, action, path, message, code, vars, backup, command}]}` |
 | POST | `/mcp/unconfigure` | `{providers: [key]}` | `{results: [...]}` — quita la entrada de SaveMe de cada cliente. **No toca el binario** |
-| GET | `/mcp/snippet` | query: `provider` | `{provider, path, body, language, writable, verified, warnings, binary, pending_install, env_fixed}` |
+| GET | `/mcp/snippet` | query: `provider` | `{provider, path, body, language, writable, verified, warnings, notices, explanation, binary, pending_install, env_fixed}` |
 | GET | `/events` | — | `text/event-stream` (SSE) |
 
 Los errores salen siempre con el mismo sobre `{error: {code, message}}`, y el mapeo a
@@ -356,7 +361,7 @@ type SummaryMeta = { id, project_slug, category, title, summary_line, rel_path, 
                      commit_url? /* página del commit en el repo vinculado; calculado al leer */ }
 type Proposal = { token, project_slug, category, title, rel_path, abs_path, filename,
                   created_at, expires_at, status,
-                  inference: {category, reason, confidence, evidence: string[]},
+                  inference: {category, reason, confidence, evidence: string[], kind?, runner_up?},
                   alternatives: {category, folder, label, rel_path}[],
                   preview, body_bytes, agent?, tags: string[], files_touched: string[],
                   related: string[],
@@ -857,21 +862,28 @@ compila**.
 - Los plurales admiten las dos convenciones —`clave_one`/`clave_other` y
   `clave: {one, other}`—, que es lo que hacía falta para no reescribir los diccionarios.
 - **Errores del core:** el sobre `{code, message}` trae el mensaje en español. Se traduce
-  por **código** y solo cuando el mensaje es fijo (`invalid_root`, `no_providers`…). Los que
-  llevan pegado el detalle de la validación conservan el texto del servidor: es la única
-  fuente de ese detalle, y un envoltorio traducido alrededor de un detalle en español se lee
-  peor que el detalle solo.
+  por **código**. Los de mensaje fijo (`invalid_root`, `proposal_resolved`…) están en
+  `errors.<code>`. Los que llevan pegado el detalle de la validación (`invalid`,
+  `not_found`, `*_failed`…) están en `errors.generic.<code>`: con la interfaz en español se
+  enseña el mensaje del core, que es el único con el detalle; en cualquier otro idioma, el
+  texto general, porque un detalle en español en una interfaz en inglés se lee como un fallo.
+  Un código que el diccionario no conoce conserva el texto del servidor.
+- **La inferencia de categoría** se manda también en claves: `inference.kind` (`explicit`,
+  `none`, `signals`, `tie`), `inference.runner_up` y `inference.evidence`. La tarjeta del inbox
+  monta la explicación en su idioma; `inference.reason` sigue en español para el agente y solo
+  se enseña en una propuesta anterior a la migración 007 que no se pudo reconocer.
 - **Texto del core que sí se traduce,** porque el servidor manda una clave estable y no una
   frase: las descripciones de categoría (`Category.description`) y las notas de cada cliente
   MCP (`ProviderReport.note`). Se resuelven por clave en `frontend/src/lib/labels.ts` y el
   texto del servidor queda de respaldo, así que un core más nuevo que añada una categoría o
   un cliente sigue enseñando algo legible. **El precio es la duplicación**: esas frases están
   también en Go, y si cambian allí hay que cambiarlas aquí. Está anotado en los dos sitios.
-- **Lo que sigue en español, y por qué.** `result.message` al aplicar la configuración MCP
-  (el mismo `action: "manual"` cubre tres motivos distintos, así que el código no basta),
-  los avisos del snippet y `Proposal.inference.reason` (prosa que genera la inferencia del
-  core). Traducirlos pide que la API mande un **motivo** legible por máquina, que es un
-  cambio de contrato, no una traducción. Se ve en el onboarding y en la tarjeta del inbox.
+- **Mensajes de la configuración MCP.** `message` y `warnings` siguen en español porque los
+  lee la CLI; al lado viajan `code` y `vars` (en `/mcp/install`, en cada resultado de
+  `/mcp/configure` y `/mcp/unconfigure`) y `notices: [{code, vars, message}]` en el snippet.
+  La interfaz los traduce con `mcpNoticeText` y los nombres de cliente con `providerName`
+  (`frontend/src/lib/labels.ts`); un código desconocido enseña el `message`. Solo el `detail`
+  de un error de Go (`apply_failed`, `custom_invalid`…) queda en el idioma del core.
 - La verificación está en `bun run --cwd frontend verify:i18n`, que mira los dos niveles:
   la paridad de los diccionarios (claves, vacíos, `{placeholders}`, plurales) y el runtime
   (que el proveedor devuelva el idioma pedido, que interpole y que los errores se traduzcan
@@ -1188,6 +1200,38 @@ eso lo decidió el núcleo, y las dos salidas son la misma lista con distinto vo
 `EndOfDay` nace de ahí: `--until 2026-02-14` tiene que incluir el día 14 entero, y cortar a
 medianoche deja fuera justo lo escrito ese día. Es el error de fechas clásico, y con una sola
 copia solo se puede arreglar en un sitio.
+
+### Línea de tiempo y mapa de decisiones
+
+Junto al pulso, en la cabecera del proyecto, dos vistas más del mismo diario. Las tres
+esconden las pestañas de categoría por lo mismo: no miran por tema.
+
+- **Línea de tiempo** (`/p/<proyecto>/historia`, `service.ProjectTimeline`): los resúmenes y
+  los últimos 300 commits del repo vinculado, por meses. Un commit cuyo sha empieza por el
+  `commit` de algún resumen (vale el sha corto) sale como **documentado**; los demás, «sin
+  resumen», y un filtro deja solo esos: el trabajo del que no quedó nada escrito. Se ordena por
+  instante y no por texto, porque los commits llegan con su huso y los resúmenes en UTC. Sin
+  repo a mano (`no_repo`, `repo_moved`) se ven solo los resúmenes, y lo dice.
+- **Mapa de decisiones** (`/p/<proyecto>/mapa`, `service.ProjectGraph`): los resúmenes que se
+  enlazan (`related`, flecha continua) o se sustituyen (`supersedes`, discontinua), con los
+  de otros proyectos a los que apuntan. Se dibuja con Mermaid —ya cargado en diferido y con
+  los colores del tema— a partir de `decisionMapDiagram`, una función pura: los nodos llevan
+  ids propios (`n0`…) porque el id del frontmatter puede llevar cualquier cosa, y los títulos
+  se escapan (`mermaidLabel`); `verify:mermaid` comprueba las dos cosas. Un clic en un nodo
+  abre su resumen (se lee el `n3` del id que Mermaid da al grupo). Los sueltos se cuentan y no
+  se dibujan; con más de 60 enlazados (`MaxGraphNodes`) se enseñan los más recientes.
+
+### Salud del diario
+
+Un panel del Inbox (`features/dashboard/HealthPanel.tsx`, `GET /journal/health`) con lo que
+envejece sin avisar: resúmenes desactualizados (§7.4), resúmenes vigentes sin `files_touched`
+—nunca podrán avisar— y proyectos sin repo o con el repo fuera de su sitio. Cada proyecto con
+algo que mirar se despliega en la lista de resúmenes que abrir. Contar commits ejecuta git una
+vez por resumen con archivos, así que solo se hace en los proyectos con el repo a mano, y la
+consulta se cachea un minuto.
+
+Con imagen de fondo, cada bloque del pulso es una tarjeta de cristal (`.backdrop-surface`),
+como el resto de pantallas: antes el texto quedaba directamente sobre la foto.
 
 ## 9.8 Guardar y compartir un resumen
 

@@ -14,6 +14,7 @@ import { StepProviders } from '@/features/onboarding/StepProviders'
 import { MCPBinaryPanel } from '@/features/settings/MCPBinaryPanel'
 import { CustomProviderPanel } from '@/features/settings/CustomProviderPanel'
 import { useT } from '@/i18n'
+import { mcpNoticeText, providerName } from '@/lib/labels'
 
 /**
  * Sección «Agentes»: el MCP.
@@ -82,13 +83,14 @@ export function SettingsAgents() {
       {
         onSuccess: (data) => {
           const result = data.results[0]
-          const description = result?.message
+          const description = mcpNoticeText(t, result) || undefined
+          const name = providerName(t, provider.key, provider.name)
           switch (result?.action) {
             case 'removed':
-              toast.success(t('settings.agents.removed', { name: provider.name }), { description })
+              toast.success(t('settings.agents.removed', { name }), { description })
               break
             case 'not-configured':
-              toast.info(t('settings.agents.notConfigured', { name: provider.name }), { description })
+              toast.info(t('settings.agents.notConfigured', { name }), { description })
               break
             default:
               toast.warning(t('settings.agents.removeManual'), { description })

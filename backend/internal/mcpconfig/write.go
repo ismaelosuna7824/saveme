@@ -29,12 +29,24 @@ const (
 	ActionManual Action = "manual"
 )
 
+// Notice es un aviso con código estable. Message queda en español para el MCP y
+// la CLI; la interfaz traduce por Code (con Vars), nunca casando el texto.
+type Notice struct {
+	Code    string            `json:"code"`
+	Vars    map[string]string `json:"vars,omitempty"`
+	Message string            `json:"message"`
+}
+
 // WriteResult es el resultado de intentar aplicar una configuración.
 type WriteResult struct {
 	Path    string
 	Action  Action
 	Backup  string
 	Message string
+	// Code y Vars identifican Message para que la interfaz lo traduzca; vacío
+	// cuando no hay mensaje.
+	Code string
+	Vars map[string]string
 	// Command es lo que el usuario debe ejecutar cuando Action es Manual y el
 	// proveedor se configura por comando.
 	Command string
@@ -70,9 +82,12 @@ func Apply(p Provider, opts Options) (WriteResult, error) {
 			Command: snippet.Body,
 			Message: p.Name + " se configura con su propio comando; ejecútalo tal cual. " +
 				"No se edita su archivo a mano para no saltarse sus propias reglas.",
+			Code: "cli_own_command",
+			Vars: map[string]string{"provider": p.Key},
 		}, nil
 	case FormatDelegated:
-		return WriteResult{Action: ActionManual, Message: delegatedMessage(p)}, nil
+		d := delegatedNotice(p)
+		return WriteResult{Action: ActionManual, Message: d.Message, Code: d.Code, Vars: d.Vars}, nil
 	}
 
 	path := opts.Path
@@ -100,11 +115,13 @@ func Apply(p Provider, opts Options) (WriteResult, error) {
 		// exige fusionar a mano. Se le da el bloque al usuario y decide él.
 		message := "No tengo confirmado el formato de configuración de este cliente, " +
 			"así que no lo toco. Copia el bloque y pégalo donde corresponda."
+		code := "manual_unverified"
 		if p.Verified {
 			message = "Este archivo puede tener otras personalizaciones y el bloque hay " +
 				"que fusionarlo con lo que haya, así que no lo toco. Añádelo tú."
+			code = "manual_merge"
 		}
-		return WriteResult{Path: path, Action: ActionManual, Message: message}, nil
+		return WriteResult{Path: path, Action: ActionManual, Message: message, Code: code}, nil
 	default:
 		return WriteResult{}, fmt.Errorf("formato no soportado: %q", p.Format)
 	}
@@ -136,6 +153,8 @@ func applyJSON(p Provider, opts Options, path string, existing []byte, fileExist
 			Message: "Tu archivo tiene comentarios (JSONC) y reescribirlo te los borraría, " +
 				"así que no lo toco. Pega el bloque a mano dentro de la clave \"" +
 				serversLabel(p) + "\".",
+			Code: "jsonc_paste",
+			Vars: map[string]string{"key": serversLabel(p)},
 		}, nil
 	}
 
@@ -168,6 +187,8 @@ func applyJSON(p Provider, opts Options, path string, existing []byte, fileExist
 			Path:    path,
 			Action:  ActionPresent,
 			Message: "«" + opts.Name + "» ya estaba configurado así; no toqué el archivo.",
+			Code:    "already_configured",
+			Vars:    map[string]string{"name": opts.Name},
 		}, nil
 	}
 
@@ -201,6 +222,8 @@ func applyTOML(p Provider, opts Options, path string, existing []byte, fileExist
 			Path:    path,
 			Action:  ActionPresent,
 			Message: section + " ya existe; no lo toco para no pisar tu configuración.",
+			Code:    "section_exists",
+			Vars:    map[string]string{"section": section},
 		}, nil
 	}
 

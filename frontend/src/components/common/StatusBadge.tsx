@@ -12,7 +12,7 @@ const VARIANT_BY_STATUS: Record<string, 'secondary' | 'default' | 'outline'> = {
 export function StatusBadge({ status }: { status: string }) {
   const t = useT()
   return (
-    <Badge variant={VARIANT_BY_STATUS[status] ?? 'outline'} title={`status: ${status}`}>
+    <Badge variant={VARIANT_BY_STATUS[status] ?? 'outline'}>
       {statusLabel(t, status)}
     </Badge>
   )

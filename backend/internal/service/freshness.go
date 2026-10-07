@@ -102,25 +102,16 @@ func (s *Service) Freshness(ctx context.Context, id string) (Freshness, error) {
 	if _, err := gitrepo.Available(); err != nil {
 		return unavailable(FreshnessNoGit), nil
 	}
-	links, err := s.ws.RepoLinks()
-	if err != nil {
-		return Freshness{}, err
-	}
-	i := findProjectLink(links, meta.ProjectSlug)
-	if i < 0 {
+	top, linked := s.reachableRepo(ctx, meta.ProjectSlug)
+	switch {
+	case !linked:
 		return unavailable(FreshnessNoRepo), nil
-	}
-	link := links[i]
-	if link.LastPath == "" {
-		return unavailable(FreshnessRepoMoved), nil
-	}
-	here, err := gitrepo.Detect(ctx, link.LastPath)
-	if err != nil || !here.Same(gitrepo.Identity{Remote: link.Remote, RootCommit: link.RootCommit}) {
+	case top == "":
 		// La carpeta ya no existe, o ahora hay otro repo: contar commits de otro
 		// repo sería inventarse la respuesta.
 		return unavailable(FreshnessRepoMoved), nil
 	}
-	return s.freshnessIn(ctx, meta, here.Toplevel), nil
+	return s.freshnessIn(ctx, meta, top), nil
 }
 
 // FreshnessForAgent calcula la frescura de varios resúmenes desde el directorio

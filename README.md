@@ -285,6 +285,26 @@ The journal holds much more than a list shows. Each project has its **pulse**, a
   three entries a month, scaling against a fixed 10 would paint the whole map in the
   faintest colour. You can look at 90 days, 6 months or a year.
 
+Each block is a frosted-glass card, so with a background image the text never sits on the
+photo.
+
+Next to the pulse, in the project header, two more ways to look at the same journal:
+
+- **Timeline** (`/p/<project>/historia`) — summaries and the linked repo's commits together,
+  by month. A commit that some summary points to in `commit` shows as *documented*; the
+  rest show as *no summary*, and a filter leaves only those: the work nothing was written
+  about. Superseded summaries are struck through.
+- **Decision map** (`/p/<project>/mapa`) — the summaries that link to each other
+  (`related`, solid arrow) or replace each other (`supersedes`, dashed), oldest to newest,
+  drawn with Mermaid in the theme colours. Superseded ones are faded, out-of-date ones have
+  an amber border, and clicking a node opens it. Unlinked summaries are counted, not drawn;
+  past 60 linked ones, the most recent are shown.
+
+**Journal health**, on the Inbox: how many summaries are out of date, how many don't say
+which files they touched (so they can never warn that they went stale) and which projects
+have no linked repo. Each project with something to look at unfolds into the list of
+summaries to open.
+
 And the **release notes**:
 
 ```bash

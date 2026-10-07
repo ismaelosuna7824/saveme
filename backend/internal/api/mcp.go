@@ -105,27 +105,86 @@ func (s *Server) handleMCPInstall(w http.ResponseWriter, r *http.Request) {
 		"on_path": mcpconfig.LooksInstalled(),
 		"message": "El servidor MCP quedó instalado. No hay que descargar nada: " +
 			"el binario es autocontenido.",
+		// Código estable para que la interfaz lo traduzca; message sigue para la CLI.
+		"code": "mcp_installed",
 	})
 }
 
 // resolveProvider busca un cliente por clave. `custom` es el que describe el
 // propio usuario: se arma con su definición en vez de buscarse en la tabla.
-func resolveProvider(key string, custom *mcpconfig.CustomDef) (mcpconfig.Provider, string, bool) {
+//
+// Si falla, el Notice lleva el motivo con código para que la interfaz lo
+// traduzca; el error de una definición personalizada inválida va en `detail`.
+func resolveProvider(key string, custom *mcpconfig.CustomDef) (mcpconfig.Provider, mcpconfig.Notice, bool) {
 	if strings.EqualFold(strings.TrimSpace(key), "custom") {
 		if custom == nil {
-			return mcpconfig.Provider{}, "falta la definición del cliente personalizado", false
+			return mcpconfig.Provider{}, mcpconfig.Notice{
+				Code: "custom_missing", Message: "falta la definición del cliente personalizado",
+			}, false
 		}
 		p, err := mcpconfig.Custom(*custom)
 		if err != nil {
-			return mcpconfig.Provider{}, err.Error(), false
+			return mcpconfig.Provider{}, mcpconfig.Notice{
+				Code: "custom_invalid", Vars: map[string]string{"detail": err.Error()}, Message: err.Error(),
+			}, false
 		}
-		return p, "", true
+		return p, mcpconfig.Notice{}, true
 	}
 	p, ok := mcpconfig.Find(key)
 	if !ok {
-		return mcpconfig.Provider{}, "cliente desconocido", false
+		return mcpconfig.Provider{}, mcpconfig.Notice{Code: "unknown_client", Message: "cliente desconocido"}, false
 	}
-	return p, "", true
+	return p, mcpconfig.Notice{}, true
+}
+
+// resultEntry arma la entrada de un cliente en la respuesta de configurar o
+// quitar. `code`/`vars` acompañan a `message` para que la interfaz lo traduzca.
+func resultEntry(provider mcpconfig.Provider, result mcpconfig.WriteResult, err error, failCode string) map[string]any {
+	entry := map[string]any{
+		"key":    provider.Key,
+		"name":   provider.Name,
+		"action": string(result.Action),
+	}
+	if err != nil {
+		entry["action"] = "error"
+		entry["message"] = err.Error()
+		entry["code"] = failCode
+		entry["vars"] = map[string]string{"detail": err.Error()}
+		return entry
+	}
+	if result.Path != "" {
+		entry["path"] = result.Path
+	}
+	if result.Message != "" {
+		entry["message"] = result.Message
+	}
+	if result.Code != "" {
+		entry["code"] = result.Code
+	}
+	if len(result.Vars) > 0 {
+		entry["vars"] = result.Vars
+	}
+	if result.Backup != "" {
+		entry["backup"] = result.Backup
+	}
+	if result.Command != "" {
+		entry["command"] = result.Command
+	}
+	return entry
+}
+
+// unknownEntry es la entrada de un cliente que no se pudo resolver.
+func unknownEntry(key string, problem mcpconfig.Notice) map[string]any {
+	entry := map[string]any{
+		"key":     key,
+		"action":  "unknown",
+		"message": problem.Message,
+		"code":    problem.Code,
+	}
+	if len(problem.Vars) > 0 {
+		entry["vars"] = problem.Vars
+	}
+	return entry
 }
 
 // handleMCPConfigure instala el binario y configura los clientes pedidos.
@@ -158,39 +217,12 @@ func (s *Server) handleMCPConfigure(w http.ResponseWriter, r *http.Request) {
 	for _, key := range body.Providers {
 		provider, problem, ok := resolveProvider(key, body.Custom)
 		if !ok {
-			results = append(results, map[string]any{
-				"key":     key,
-				"action":  "unknown",
-				"message": problem,
-			})
+			results = append(results, unknownEntry(key, problem))
 			continue
 		}
 
 		result, err := mcpconfig.Apply(provider, opts)
-		entry := map[string]any{
-			"key":    provider.Key,
-			"name":   provider.Name,
-			"action": string(result.Action),
-		}
-		if err != nil {
-			entry["action"] = "error"
-			entry["message"] = err.Error()
-			results = append(results, entry)
-			continue
-		}
-		if result.Path != "" {
-			entry["path"] = result.Path
-		}
-		if result.Message != "" {
-			entry["message"] = result.Message
-		}
-		if result.Backup != "" {
-			entry["backup"] = result.Backup
-		}
-		if result.Command != "" {
-			entry["command"] = result.Command
-		}
-		results = append(results, entry)
+		results = append(results, resultEntry(provider, result, err, "apply_failed"))
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -223,39 +255,12 @@ func (s *Server) handleMCPUnconfigure(w http.ResponseWriter, r *http.Request) {
 	for _, key := range body.Providers {
 		provider, problem, ok := resolveProvider(key, body.Custom)
 		if !ok {
-			results = append(results, map[string]any{
-				"key":     key,
-				"action":  "unknown",
-				"message": problem,
-			})
+			results = append(results, unknownEntry(key, problem))
 			continue
 		}
 
 		result, err := mcpconfig.Remove(provider, opts)
-		entry := map[string]any{
-			"key":    provider.Key,
-			"name":   provider.Name,
-			"action": string(result.Action),
-		}
-		if err != nil {
-			entry["action"] = "error"
-			entry["message"] = err.Error()
-			results = append(results, entry)
-			continue
-		}
-		if result.Path != "" {
-			entry["path"] = result.Path
-		}
-		if result.Message != "" {
-			entry["message"] = result.Message
-		}
-		if result.Backup != "" {
-			entry["backup"] = result.Backup
-		}
-		if result.Command != "" {
-			entry["command"] = result.Command
-		}
-		results = append(results, entry)
+		results = append(results, resultEntry(provider, result, err, "remove_failed"))
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{"results": results})
@@ -286,7 +291,7 @@ func (s *Server) handleMCPSnippet(w http.ResponseWriter, r *http.Request) {
 	provider, problem, ok := resolveProvider(key, custom)
 	if !ok {
 		if custom != nil {
-			writeErr(w, http.StatusBadRequest, "invalid_custom", problem)
+			writeErr(w, http.StatusBadRequest, "invalid_custom", problem.Message)
 			return
 		}
 		writeErr(w, http.StatusNotFound, "unknown_provider", "cliente desconocido: "+key)
@@ -316,10 +321,20 @@ func (s *Server) handleMCPSnippet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	warnings := snippet.Warnings
+	notices := snippet.Notices
 	if pendingInstall {
-		warnings = append(warnings, "El servidor MCP todavía no está instalado; "+
-			"se instalará en "+binaryPath+" al configurar un cliente. El bloque ya "+
-			"apunta ahí, así que puedes pegarlo cuando quieras.")
+		pending := mcpconfig.Notice{
+			Code: "pending_install",
+			Vars: map[string]string{"path": binaryPath},
+			Message: "El servidor MCP todavía no está instalado; " +
+				"se instalará en " + binaryPath + " al configurar un cliente. El bloque ya " +
+				"apunta ahí, así que puedes pegarlo cuando quieras.",
+		}
+		warnings = append(warnings, pending.Message)
+		notices = append(notices, pending)
+	}
+	if notices == nil {
+		notices = []mcpconfig.Notice{}
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -331,6 +346,8 @@ func (s *Server) handleMCPSnippet(w http.ResponseWriter, r *http.Request) {
 		"writable":        snippet.Writable,
 		"verified":        provider.Verified,
 		"warnings":        warnings,
+		"notices":         notices,
+		"explanation":     snippet.Explanation,
 		"binary":          binaryPath,
 		"pending_install": pendingInstall,
 		"env_fixed":       mcpEnv(),

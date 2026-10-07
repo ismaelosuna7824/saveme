@@ -23,7 +23,7 @@ import { en } from './locales/en'
 import { es, type TranslationShape } from './locales/es'
 import { isLocale, type AnyPath, type Locale, type Vars } from './types'
 
-export { LOCALES, LOCALE_HINT, LOCALE_LABEL, isLocale } from './types'
+export { LOCALES, LOCALE_LABEL, isLocale } from './types'
 export type { Locale } from './types'
 
 /** Clave válida de traducción: `'shell.nav.inbox'`. */
@@ -139,10 +139,12 @@ export function activeLocaleTag(): Locale {
 /**
  * Traduce un error del core a partir de su código.
  *
- * El sobre de error trae `{code, message}` y el mensaje viene en español. Solo
- * los códigos con mensaje fijo están en el diccionario; para el resto —los que
- * llevan pegado el detalle de la validación— se devuelve `fallback` tal cual,
- * porque traducir el envoltorio y dejar el detalle en español se lee peor.
+ * El sobre de error trae `{code, message}` y el mensaje viene en español. Los
+ * códigos con mensaje fijo están en `errors.<code>`. Los que llevan pegado el
+ * detalle de la validación están en `errors.generic.<code>`: en español se
+ * devuelve `fallback` —el mensaje del core, que es el único con el detalle y ya
+ * está en este idioma—, y en los demás el texto general, porque un detalle en
+ * español dentro de una interfaz en inglés se lee como un fallo.
  *
  * Se resuelve por código y no por texto para que el idioma de la interfaz no
  * dependa de en qué idioma esté escrito el backend.
@@ -154,7 +156,12 @@ export function translateError(
 ): string {
   const key = `errors.${code}`
   const template = lookup(BUNDLES[activeLocale], key) ?? lookup(BUNDLES.es, key)
-  return template === undefined ? fallback : interpolate(template, vars)
+  if (template !== undefined) return interpolate(template, vars)
+  if (activeLocale !== 'es') {
+    const generic = lookup(BUNDLES[activeLocale], `errors.generic.${code}`)
+    if (generic !== undefined) return generic
+  }
+  return fallback
 }
 
 interface I18nValue {

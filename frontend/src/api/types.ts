@@ -76,6 +76,81 @@ export interface Freshness {
   since?: string
 }
 
+/** Un resumen en el mapa de decisiones (`GET /projects/{slug}/graph`). */
+export interface GraphNode {
+  id: string
+  title: string
+  category: string
+  project_slug: string
+  created_at: string
+  superseded: boolean
+  stale: boolean
+  /** De otro proyecto: está porque uno de este lo enlaza. */
+  external: boolean
+}
+
+export interface GraphEdge {
+  /** El que nombra al otro en su frontmatter. */
+  from: string
+  to: string
+  kind: 'related' | 'supersedes'
+}
+
+export interface ProjectGraph {
+  nodes: GraphNode[]
+  edges: GraphEdge[]
+  /** Resúmenes sin ningún enlace: no salen en el mapa. */
+  isolated: number
+  /** Enlazados que no caben (el mapa enseña los más recientes). */
+  omitted: number
+}
+
+export interface TimelineCommit extends GitCommit {
+  url?: string
+  /** Resumen que apunta este commit, si alguno lo hace. */
+  documented_by?: string
+}
+
+/** Historia de un proyecto: resúmenes y commits del repo vinculado. */
+export interface ProjectTimeline {
+  summaries: SummaryMeta[]
+  commits: TimelineCommit[]
+  /** `linked`: hay commits; `no_repo` o `repo_moved`: por qué no. */
+  repo: 'linked' | 'no_repo' | 'repo_moved' | string
+}
+
+export interface HealthItem {
+  id: string
+  title: string
+  /** Commits posteriores, en los desactualizados. */
+  count?: number
+}
+
+export interface ProjectHealth {
+  slug: string
+  name: string
+  total: number
+  repo_linked: boolean
+  repo_reachable: boolean
+  stale: HealthItem[]
+  no_files: HealthItem[]
+  superseded: number
+}
+
+/** Salud de todo el diario (`GET /journal/health`). */
+export interface JournalHealth {
+  git_available: boolean
+  projects: ProjectHealth[]
+  totals: {
+    projects: number
+    summaries: number
+    stale: number
+    no_files: number
+    superseded: number
+    projects_without_repo: number
+  }
+}
+
 export interface SummaryMeta {
   id: string
   project_slug: string
@@ -166,9 +241,14 @@ export interface ProposalAlternative {
 /** Explicación de por qué se propuso una categoría. Nunca decide en silencio. */
 export interface ProposalInference {
   category: string
+  /** Explicación en español, para el agente. La interfaz la monta desde `kind`. */
   reason: string
   confidence: number
   evidence?: string[]
+  /** Cómo se llegó: `explicit`, `none`, `signals` o `tie`. Falta en propuestas muy antiguas. */
+  kind?: 'explicit' | 'none' | 'signals' | 'tie' | string
+  /** La categoría empatada, en `tie`. */
+  runner_up?: string
 }
 
 export interface Proposal {
@@ -641,8 +721,19 @@ export interface MCPProviders {
   binary: MCPBinaryStatus
 }
 
+/**
+ * Aviso del core con código estable. `message` va en español (lo leen la CLI y el
+ * agente); la interfaz traduce por `code` con `vars` y usa `message` solo si no
+ * conoce el código (ver `mcpNoticeText` en `lib/labels.ts`).
+ */
+export interface MCPNotice {
+  code?: string
+  vars?: Record<string, string> | null
+  message?: string
+}
+
 /** Resultado de `POST /mcp/install`. Idempotente. */
-export interface MCPInstallResult {
+export interface MCPInstallResult extends MCPNotice {
   path: string
   on_path: boolean
   message: string
@@ -660,14 +751,14 @@ export type MCPConfigureAction =
   | 'removed'
   | 'not-configured'
 
-export interface MCPConfigureResult {
+export interface MCPConfigureResult extends MCPNotice {
   key: string
   /** Ausente cuando la acción es `unknown` (el core no conoce la clave). */
   name: string
   action: MCPConfigureAction
   /** Archivo de configuración tocado. */
   path?: string
-  /** Explicación humana, segura de mostrar. */
+  /** Explicación humana, segura de mostrar (en español; traducir por `code`). */
   message?: string
   /** Copia de seguridad, si el archivo del cliente ya existía. */
   backup?: string
@@ -733,6 +824,13 @@ export interface MCPSnippet {
    * `null`: normalizar con `asStringArray` en el borde.
    */
   warnings: string[]
+  /** Los mismos avisos con código, en el mismo orden. Ausente en cores viejos. */
+  notices?: MCPNotice[] | null
+  /**
+   * Si `body` es prosa (clientes delegados) y no un bloque, su código: la
+   * interfaz la pinta traducida en vez de `body`. `null` en el resto.
+   */
+  explanation?: MCPNotice | null
   binary: string
   /**
    * El binario todavía no está en su ruta estable: el bloque ya apunta ahí y

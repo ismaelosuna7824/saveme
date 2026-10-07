@@ -41,6 +41,14 @@ export const inbox = {
       'Se pasó el plazo, pero el resumen sigue intacto y puedes aprobarlo igual.',
   },
   whyCategory: 'por qué esta categoría',
+  /** Por qué se propuso la categoría, montado desde `inference.kind`. */
+  inference: {
+    explicit: 'Lo pediste explícitamente.',
+    none: 'No encontré señales claras en el título ni en el cuerpo, y {category} es el caso más común. Confírmalo o elige otra carpeta.',
+    signals: 'El título y el cuerpo mencionan {evidence}, que es señal de {category}.',
+    tie: '{category} y {runnerUp} tienen la misma evidencia ({evidence}), así que propongo {category} por ser la más específica. Confírmalo o elige otra carpeta.',
+    tieUnknown: 'Hay otra categoría con la misma evidencia ({evidence}), así que propongo {category} por ser la más específica. Confírmalo o elige otra carpeta.',
+  },
   orSaveIn: 'o guárdalo en',
   supersedes: 'deja sin vigencia',
   repo: {

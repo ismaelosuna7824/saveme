@@ -43,7 +43,10 @@ export class TaskCheckboxWidget extends WidgetType {
     box.type = 'checkbox'
     box.className = 'cm-lp-task'
     box.checked = this.checked
-    box.setAttribute('aria-label', this.checked ? 'Marcar como pendiente' : 'Marcar como hecha')
+    box.setAttribute(
+      'aria-label',
+      translate(this.checked ? 'editor.task.markPending' : 'editor.task.markDone'),
+    )
 
     // Sin esto, el mousedown mueve el cursor y la línea deja de estar "activa",
     // lo que reconstruye las decoraciones justo antes del click y se lo come.

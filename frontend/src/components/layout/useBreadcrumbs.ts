@@ -2,7 +2,16 @@ import { useMemo } from 'react'
 import { useRouterState } from '@tanstack/react-router'
 
 import { useCategories, useProjects } from '@/api/queries'
+import type { TranslationKey } from '@/i18n'
 import { useT } from '@/i18n'
+import { categoryLabel } from '@/lib/labels'
+
+/** Vistas de proyecto que no son una categoría: su segmento de URL va en español. */
+const VIEW_KEYS: Record<string, TranslationKey> = {
+  actividad: 'projects.activity.title',
+  historia: 'projects.timeline.title',
+  mapa: 'projects.graph.title',
+}
 
 export interface Crumb {
   label: string
@@ -33,8 +42,12 @@ export function useBreadcrumbs(): Crumb[] {
 
       if (segments[2]) {
         const key = decodeURIComponent(segments[2])
+        const view = VIEW_KEYS[key]
         const category = categories?.find((candidate) => candidate.key === key)
-        crumbs.push({ label: category?.label ?? key, href: `/p/${slug}/${key}` })
+        crumbs.push({
+          label: view ? t(view) : categoryLabel(t, key, category?.label),
+          href: `/p/${slug}/${key}`,
+        })
       }
     } else if (segments[0] === 's' && segments[1]) {
       crumbs.push({

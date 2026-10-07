@@ -27,21 +27,25 @@ type ProposalRecord struct {
 	SummaryLine     string
 	PayloadHash     string
 	InferenceReason string
-	Confidence      float64
-	Evidence        []string
-	Alternatives    []domain.Alternative
-	CreatedAt       time.Time
-	ExpiresAt       time.Time
-	Status          string
-	Decision        string
-	ResolvedVia     string
-	ResolvedAt      *time.Time
-	OverrideRelPath string
-	SummaryID       string
-	Agent           string
-	Tags            []string
-	FilesTouched    []string
-	CommitSHA       string
+	// InferenceKind y InferenceRunnerUp son la inferencia en claves, para que la
+	// interfaz la explique en su idioma (ver domain.Inference).
+	InferenceKind     string
+	InferenceRunnerUp string
+	Confidence        float64
+	Evidence          []string
+	Alternatives      []domain.Alternative
+	CreatedAt         time.Time
+	ExpiresAt         time.Time
+	Status            string
+	Decision          string
+	ResolvedVia       string
+	ResolvedAt        *time.Time
+	OverrideRelPath   string
+	SummaryID         string
+	Agent             string
+	Tags              []string
+	FilesTouched      []string
+	CommitSHA         string
 	// TargetID es el resumen que esta propuesta **actualiza**. Vacío cuando crea
 	// uno nuevo, que es el caso de siempre.
 	TargetID string
@@ -67,7 +71,7 @@ const proposalCols = `token, project_slug, category, title, rel_path, body, summ
 	created_at, expires_at, status, COALESCE(decision, ''), COALESCE(resolved_via, ''),
 	resolved_at, COALESCE(override_rel_path, ''), COALESCE(summary_id, ''), COALESCE(agent, ''),
 	tags_json, files_json, COALESCE(commit_sha, ''), target_id, base_hash, related_json,
-	supersedes_json, repo_remote, repo_root_commit, repo_path`
+	supersedes_json, repo_remote, repo_root_commit, repo_path, inference_kind, inference_runner_up`
 
 func scanProposal(sc scanner) (ProposalRecord, error) {
 	var p ProposalRecord
@@ -82,6 +86,7 @@ func scanProposal(sc scanner) (ProposalRecord, error) {
 		&resolvedAt, &p.OverrideRelPath, &p.SummaryID, &p.Agent,
 		&tagsJSON, &filesJSON, &p.CommitSHA, &p.TargetID, &p.BaseHash, &relatedJSON,
 		&supersedesJSON, &p.RepoRemote, &p.RepoRootCommit, &p.RepoPath,
+		&p.InferenceKind, &p.InferenceRunnerUp,
 	); err != nil {
 		return p, err
 	}
@@ -118,14 +123,14 @@ func (s *Store) InsertProposal(ctx context.Context, p ProposalRecord) error {
 			payload_hash, inference_reason, confidence, evidence_json, alternatives_json,
 			created_at, expires_at, status, agent, tags_json, files_json, commit_sha,
 			target_id, base_hash, related_json, supersedes_json,
-			repo_remote, repo_root_commit, repo_path)
-		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+			repo_remote, repo_root_commit, repo_path, inference_kind, inference_runner_up)
+		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		p.Token, p.ProjectSlug, p.Category, p.Title, p.RelPath, p.Body, p.SummaryLine,
 		p.PayloadHash, p.InferenceReason, p.Confidence, string(evidence), string(alternatives),
 		ts(p.CreatedAt), ts(p.ExpiresAt), domain.ProposalPending,
 		nullify(p.Agent), encodeStrings(p.Tags), encodeStrings(p.FilesTouched), nullify(p.CommitSHA),
 		p.TargetID, p.BaseHash, encodeStrings(p.Related), encodeStrings(p.Supersedes),
-		p.RepoRemote, p.RepoRootCommit, p.RepoPath,
+		p.RepoRemote, p.RepoRootCommit, p.RepoPath, p.InferenceKind, p.InferenceRunnerUp,
 	)
 	if err != nil {
 		return fmt.Errorf("guardar la propuesta %s: %w", p.Token, err)
@@ -201,19 +206,20 @@ func (s *Store) ResolveProposal(
 		status != domain.ProposalExpired {
 		return false, fmt.Errorf("estado de propuesta inválido: %q", status)
 	}
-	// Una propuesta **vencida** todavía se puede reclamar para confirmarla: su
-	// cuerpo sigue en la base intacto, y lo que de verdad la borra es la purga,
-	// que llega mucho más tarde. Rechazarla convertía una decisión tardía en una
-	// pérdida de trabajo.
+	// Una propuesta **vencida** todavía se puede reclamar para confirmarla o para
+	// descartarla: su cuerpo sigue en la base intacto, y lo que de verdad la borra
+	// es la purga, que llega mucho más tarde. Rechazar la confirmación convertía una
+	// decisión tardía en una pérdida de trabajo; rechazar el descarte dejaba en el
+	// inbox, para siempre, propuestas que nadie quería.
 	//
-	// Solo para confirmar. Marcar como vencida o cancelada sigue exigiendo
-	// `pending`: si no, el barrendero podría volver a marcar una ya confirmada.
+	// Marcar como vencida sigue exigiendo `pending`: si no, el barrendero podría
+	// volver a marcar una ya confirmada o descartada.
 	//
 	// La garantía de un solo uso no se toca: el UPDATE sigue siendo condicional,
-	// así que solo una confirmación puede sacarla de esos dos estados.
+	// así que solo una resolución puede sacarla de esos dos estados.
 	condicion := "status = ?"
 	estados := []any{domain.ProposalPending}
-	if status == domain.ProposalConfirmed {
+	if status == domain.ProposalConfirmed || status == domain.ProposalCancelled {
 		condicion = "status IN (?, ?)"
 		estados = append(estados, domain.ProposalExpired)
 	}
